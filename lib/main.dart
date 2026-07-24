@@ -1,0 +1,156 @@
+// lib/main.dart
+
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+
+// Screens
+import 'screens/home_screen.dart';
+import 'screens/send_options_screen.dart';
+import 'screens/discovery_screen.dart';
+import 'screens/payment_input_screen.dart';
+import 'screens/receive_screen.dart';
+import 'screens/custom_qr_screen.dart';
+import 'screens/qr_scanner_screen.dart';
+
+// Services & Models
+import 'services/bluetooth_service.dart';
+import 'models/wallet_model.dart';
+import 'models/transaction_model.dart';
+import 'screens/security_settings_screen.dart';
+import 'screens/profile_screen.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize Hive for local storage (do not attempt to register an adapter
+  // here unless the adapter class is defined/imported in this file).
+  // Prefer registering the adapter inside the file where the model/adapter are defined.
+  await Hive.initFlutter();
+
+  if (!Hive.isAdapterRegistered(1)) {
+    Hive.registerAdapter(TransactionModelAdapter());
+  }
+
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(
+          create: (context) => OffpayBluetoothService(),
+        ),
+        ChangeNotifierProvider(
+          create: (context) => WalletModel(),
+        ),
+      ],
+      child: const OffPayApp(),
+    ),
+  );
+}
+
+class OffPayApp extends StatelessWidget {
+  const OffPayApp({super.key});
+
+  // Define the common primary color for both modes
+  static const MaterialColor primaryIndigo = MaterialColor(
+    0xFF3F51B5, // Base Indigo color
+    <int, Color>{
+      50: Color(0xFFE8EAF6),
+      100: Color(0xFFC5CBE9),
+      200: Color(0xFF9FA8DA),
+      300: Color(0xFF7986CC),
+      400: Color(0xFF5C6BC0),
+      500: Color(0xFF3F51B5),
+      600: Color(0xFF394AAE),
+      700: Color(0xFF3140A3),
+      800: Color(0xFF283593),
+      900: Color(0xFF1A237E),
+    },
+  );
+
+  // --- 1. Light Theme Definition ---
+  ThemeData get lightTheme => ThemeData(
+        useMaterial3: true,
+        brightness: Brightness.light,
+        primarySwatch: primaryIndigo,
+        primaryColor: primaryIndigo[500],
+        colorScheme: ColorScheme.fromSwatch(
+          primarySwatch: primaryIndigo,
+          brightness: Brightness.light,
+        ).copyWith(
+          secondary: primaryIndigo.shade300,
+          surface: Colors.white,
+        ),
+        scaffoldBackgroundColor: Colors.white,
+        appBarTheme: AppBarTheme(
+          backgroundColor: primaryIndigo[500],
+          foregroundColor: Colors.white,
+          elevation: 0,
+        ),
+        cardTheme: CardThemeData(
+  color: Colors.white,
+  elevation: 4,
+  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+),
+);
+      
+
+  // --- 2. AMOLED Dark Theme Definition ---
+  ThemeData get darkTheme => ThemeData(
+        useMaterial3: true,
+        brightness: Brightness.dark,
+        primarySwatch: primaryIndigo,
+        primaryColor: primaryIndigo.shade300,
+        colorScheme: ColorScheme.fromSwatch(
+          primarySwatch: primaryIndigo,
+          brightness: Brightness.dark,
+        ).copyWith(
+          surface: const Color(0xFF121216),
+          secondary: primaryIndigo.shade200,
+        ),
+        scaffoldBackgroundColor: const Color(0xFF000000), // Pure AMOLED Black
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Color(0xFF0A0A0E),
+          foregroundColor: Colors.white,
+          elevation: 0,
+        ),
+        cardTheme: CardThemeData(
+          color: const Color(0xFF121218),
+          elevation: 4,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'OFF-PAY',
+      theme: lightTheme,
+      darkTheme: darkTheme,
+      themeMode: ThemeMode.system,
+
+      // Start at home screen
+      initialRoute: '/',
+      routes: {
+        '/': (context) => const HomeScreen(),
+
+        // static route: SendOptions and others that don't require constructor args
+        '/send_options': (context) => const SendOptionsScreen(),
+        '/discovery': (context) => const DiscoveryScreen(),
+        '/payment_input': (context) => const PaymentInputScreen(),
+        '/receive': (context) => const ReceiveScreen(),
+        '/custom_qr': (context) => const CustomQrScreen(),
+        '/qr_scanner': (context) => const QRScannerScreen(),
+        '/security_settings': (context) => const SecuritySettingsScreen(),
+        '/profile': (context) => const ProfileScreen(),
+
+        // NOTE: PaymentSuccessScreen often needs runtime arguments (amount, recipient, etc.)
+        // It's safer to navigate to that screen using MaterialPageRoute and pass required args:
+        // Navigator.push(context, MaterialPageRoute(
+        //   builder: (_) => PaymentSuccessScreen(amount: 100.0, recipientName: 'Alex'),
+        // ));
+        //
+        // Keep the named route out if your PaymentSuccessScreen requires constructor args.
+      },
+    );
+  }
+}

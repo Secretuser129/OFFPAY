@@ -1,0 +1,357 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../services/bluetooth_service.dart';
+
+class DiscoveryScreen extends StatefulWidget {
+  const DiscoveryScreen({super.key});
+
+  @override
+  State<DiscoveryScreen> createState() => _DiscoveryScreenState();
+}
+
+class _DiscoveryScreenState extends State<DiscoveryScreen> with SingleTickerProviderStateMixin {
+  late AnimationController _radarController;
+
+  @override
+  void initState() {
+    super.initState();
+    _radarController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    )..repeat();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final bluetoothService = Provider.of<OffpayBluetoothService>(context, listen: false);
+      if (!bluetoothService.isScanning) {
+        bluetoothService.startScan();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _radarController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<OffpayBluetoothService>(
+      builder: (context, bluetoothService, child) {
+        final theme = Theme.of(context);
+        final primaryColor = theme.primaryColor;
+        final discovered = bluetoothService.discoveredDevices;
+
+        return Scaffold(
+          appBar: AppBar(
+            title: const Text('Find Payment Recipient'),
+            elevation: 0,
+            actions: [
+              IconButton(
+                icon: bluetoothService.isScanning ? const Icon(Icons.stop) : const Icon(Icons.refresh),
+                onPressed: bluetoothService.isScanning ? bluetoothService.stopScan : bluetoothService.startScan,
+                tooltip: bluetoothService.isScanning ? 'Stop Scanning' : 'Scan Again',
+              ),
+            ],
+          ),
+          body: Column(
+            children: <Widget>[
+              // Bluetooth Disabled Warning Banner
+              if (!bluetoothService.isBluetoothOn)
+                Container(
+                  color: Colors.amber.shade100,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.bluetooth_disabled, color: Colors.amber),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Text(
+                          'Bluetooth is turned off on this device.',
+                          style: TextStyle(fontWeight: FontWeight.w600, color: Colors.black87),
+                        ),
+                      ),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.indigo,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        ),
+                        onPressed: () => bluetoothService.enableBluetoothRadio(),
+                        child: const Text('Turn On'),
+                      ),
+                    ],
+                  ),
+                ),
+
+
+
+              // Animated Pulse Radar Scan Header
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  children: [
+                    SizedBox(
+                      height: 80,
+                      width: 80,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          if (bluetoothService.isScanning)
+                            AnimatedBuilder(
+                              animation: _radarController,
+                              builder: (context, child) {
+                                return Container(
+                                  width: 30 + (50 * _radarController.value),
+                                  height: 30 + (50 * _radarController.value),
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: primaryColor.withValues(alpha: 0.3 * (1 - _radarController.value)),
+                                  ),
+                                );
+                              },
+                            ),
+                          Container(
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: primaryColor.withValues(alpha: 0.15),
+                            ),
+                            padding: const EdgeInsets.all(16),
+                            child: Icon(
+                              bluetoothService.isScanning ? Icons.bluetooth_searching : Icons.bluetooth_connected,
+                              size: 32,
+                              color: primaryColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      bluetoothService.isScanning
+                          ? 'Finding User..'
+                          : discovered.isEmpty
+                              ? 'No nearby devices found'
+                              : 'Found ${discovered.length} nearby device(s)',
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
+
+              // Real-time Discovered Devices List
+              Expanded(
+                child: discovered.isEmpty
+                    ? Center(
+                        child: (!bluetoothService.isScanning)
+                            ? _buildEmptyState(context, bluetoothService)
+                            : Container(),
+                      )
+                    : ListView.builder(
+                        itemCount: discovered.length,
+                        itemBuilder: (context, index) {
+                          final item = discovered[index];
+                          return DiscoveredDeviceTile(
+                            item: item,
+                            onTap: () {
+                              bluetoothService.stopScan();
+                              Navigator.pushNamed(
+                                context,
+                                '/payment_input',
+                                arguments: item.device,
+                              );
+                            },
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildEmptyState(BuildContext context, OffpayBluetoothService service) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.all(20.0),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.devices,
+            size: 56,
+            color: theme.brightness == Brightness.dark ? Colors.grey.shade700 : Colors.grey[300],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'No nearby Bluetooth devices found.\nMake sure nearby receivers have Bluetooth enabled.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: theme.hintColor, fontSize: 14),
+          ),
+          const SizedBox(height: 20),
+          ElevatedButton.icon(
+            icon: const Icon(Icons.refresh),
+            label: const Text('Scan Again'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: theme.primaryColor,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            ),
+            onPressed: () => service.startScan(),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class DiscoveredDeviceTile extends StatelessWidget {
+  final DiscoveredDevice item;
+  final VoidCallback onTap;
+
+  const DiscoveredDeviceTile({
+    required this.item,
+    required this.onTap,
+    super.key,
+  });
+
+  Color _getSignalColor(int level) {
+    switch (level) {
+      case 3:
+        return Colors.green;
+      case 2:
+        return Colors.amber;
+      case 1:
+      default:
+        return Colors.red;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cardColor = theme.cardTheme.color;
+    final isOffpay = item.isOffpayUser;
+
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      elevation: isOffpay ? 3 : 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: isOffpay
+            ? const BorderSide(color: Colors.indigo, width: 1.5)
+            : BorderSide.none,
+      ),
+      color: isOffpay ? Colors.indigo.withValues(alpha: 0.04) : cardColor,
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        leading: Stack(
+          alignment: Alignment.bottomRight,
+          children: [
+            Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: isOffpay
+                    ? Colors.indigo.withValues(alpha: 0.15)
+                    : theme.primaryColor.withValues(alpha: 0.1),
+              ),
+              padding: const EdgeInsets.all(10),
+              child: Icon(
+                isOffpay ? Icons.verified_user : Icons.phone_android,
+                color: isOffpay ? Colors.indigo : theme.primaryColor,
+                size: 24,
+              ),
+            ),
+            CircleAvatar(
+              radius: 6,
+              backgroundColor: _getSignalColor(item.signalLevel),
+            ),
+          ],
+        ),
+        title: Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Device ID: ${item.id}',
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              ),
+            ),
+            if (isOffpay) ...[
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.indigo,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.check, size: 11, color: Colors.white),
+                    SizedBox(width: 2),
+                    Text(
+                      'OFFPAY User',
+                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: _getSignalColor(item.signalLevel).withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                '${item.rssi} dBm',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: _getSignalColor(item.signalLevel),
+                ),
+              ),
+            ),
+          ],
+        ),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 4.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Bluetooth Address: ${item.bluetoothAddress}',
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: theme.hintColor),
+              ),
+              const SizedBox(height: 2),
+              Row(
+                children: [
+                  Icon(Icons.near_me, size: 12, color: theme.hintColor),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Dist: ${item.estimatedDistance}',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: theme.hintColor),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        trailing: ElevatedButton(
+          onPressed: onTap,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: theme.primaryColor,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          ),
+          child: const Text('Connect'),
+        ),
+        onTap: onTap,
+      ),
+    );
+  }
+}
