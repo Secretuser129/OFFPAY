@@ -196,7 +196,7 @@ class OffpayBluetoothService with ChangeNotifier {
   }
 
   // -------------------------
-  // Real-time Scanning
+  // Real-time Scanning (Hardware Filtered + General Fallback)
   // -------------------------
   Future<void> startScan({Duration timeout = const Duration(seconds: 15)}) async {
     if (_isScanning) return;
@@ -212,13 +212,24 @@ class OffpayBluetoothService with ChangeNotifier {
     notifyListeners();
 
     try {
-      await fb.FlutterBluePlus.startScan(timeout: timeout);
+      // Step 1: Explicit Service Filter Scan for OFFPAY Service UUID
+      await fb.FlutterBluePlus.startScan(
+        withServices: [OFFPAY_SERVICE_UUID],
+        timeout: const Duration(seconds: 4),
+      );
     } catch (e) {
-      debugPrint('startScan error: $e');
-      _isScanning = false;
-      notifyListeners();
-      return;
+      debugPrint('Filtered startScan error: $e');
     }
+
+    // Step 1 Fallback: Start general scan if 0 devices found in filtered scan
+    Future.delayed(const Duration(milliseconds: 4200), () async {
+      if (_isScanning && _deviceMap.isEmpty) {
+        try {
+          await fb.FlutterBluePlus.stopScan();
+          await fb.FlutterBluePlus.startScan(timeout: timeout);
+        } catch (_) {}
+      }
+    });
 
     _scanResultsSubscription?.cancel();
     _scanResultsSubscription = fb.FlutterBluePlus.scanResults.listen(
@@ -278,7 +289,7 @@ class OffpayBluetoothService with ChangeNotifier {
   }
 
   // -------------------------
-  // Real-time Connect & Transfer
+  // Real-time Connect & Transfer (GATT 133 Retry Counter Countermeasure)
   // -------------------------
   Future<bool> connectAndTransfer(fb.BluetoothDevice device, double amount) async {
     final isRadioOn = await enableBluetoothRadio();
@@ -291,49 +302,56 @@ class OffpayBluetoothService with ChangeNotifier {
 
     final deviceId = device.remoteId.str;
 
-    Future<bool> attemptConnect() async {
-      try {
-        await device.connect(autoConnect: false, license: fb.License.free);
+    // Step 1: Retry Counter (3 Attempts with Exponential Backoff for GATT 133 Recovery)
+    Future<bool> attemptConnectWithRetry() async {
+      const int maxRetries = 3;
+      for (int attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          debugPrint('GATT Connection Attempt $attempt of $maxRetries for $deviceId');
+          await device.connect(autoConnect: false, license: fb.License.free);
 
-        final connectedState = await device.connectionState
-            .firstWhere(
-              (s) =>
-                  s == fb.BluetoothConnectionState.connected ||
-                  s == fb.BluetoothConnectionState.disconnected,
-            )
-            .timeout(
-              const Duration(seconds: 2),
-              onTimeout: () => fb.BluetoothConnectionState.disconnected,
-            );
+          final connectedState = await device.connectionState
+              .firstWhere(
+                (s) =>
+                    s == fb.BluetoothConnectionState.connected ||
+                    s == fb.BluetoothConnectionState.disconnected,
+              )
+              .timeout(
+                const Duration(seconds: 3),
+                onTimeout: () => fb.BluetoothConnectionState.disconnected,
+              );
 
-        if (connectedState == fb.BluetoothConnectionState.connected) {
-          _connectedDevice = device;
-          if (_deviceMap.containsKey(deviceId)) {
-            _deviceMap[deviceId]!.connectionState = fb.BluetoothConnectionState.connected;
-            notifyListeners();
+          if (connectedState == fb.BluetoothConnectionState.connected) {
+            _connectedDevice = device;
+            if (_deviceMap.containsKey(deviceId)) {
+              _deviceMap[deviceId]!.connectionState = fb.BluetoothConnectionState.connected;
+              notifyListeners();
+            }
+            debugPrint('GATT Connected successfully on attempt $attempt: $deviceId');
+            return true;
+          } else {
+            try {
+              await device.disconnect();
+            } catch (_) {}
           }
-          debugPrint('Device connected (confirmed): $deviceId');
-          return true;
-        } else {
+        } catch (e) {
+          debugPrint('GATT Attempt $attempt error (GATT 133 countermeasure): $e');
           try {
             await device.disconnect();
           } catch (_) {}
-          return false;
         }
-      } catch (e, st) {
-        debugPrint('device.connect error: $e\n$st');
-        try {
-          await device.disconnect();
-        } catch (_) {}
-        return false;
+        if (attempt < maxRetries) {
+          await Future.delayed(Duration(milliseconds: 300 * attempt));
+        }
       }
+      return false;
     }
 
     bool connected = false;
     try {
       final current = await device.connectionState.first;
       if (current != fb.BluetoothConnectionState.connected) {
-        connected = await attemptConnect();
+        connected = await attemptConnectWithRetry();
       } else {
         connected = true;
       }
@@ -432,6 +450,23 @@ class OffpayBluetoothService with ChangeNotifier {
     } catch (_) {}
     notifyListeners();
     debugPrint('Stopped BLE Receiver Advertising mode.');
+  }
+
+  /// Step 2 Power-Cycle: Reset the Android Bluetooth stack if overlapping scans or GATT stall
+  Future<void> powerCycleBluetooth() async {
+    try {
+      debugPrint('Executing Bluetooth stack power-cycle reset...');
+      await stopScan();
+      if (defaultTargetPlatform == TargetPlatform.android) {
+        // ignore: deprecated_member_use
+        await fb.FlutterBluePlus.turnOff();
+        await Future.delayed(const Duration(milliseconds: 800));
+        await fb.FlutterBluePlus.turnOn();
+      }
+      notifyListeners();
+    } catch (e) {
+      debugPrint('powerCycleBluetooth error: $e');
+    }
   }
 
   /// Simulate receiving an incoming Bluetooth payment for stage/judge presentation demos
