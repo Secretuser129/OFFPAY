@@ -148,21 +148,22 @@ class OffpayBluetoothService with ChangeNotifier {
           Permission.bluetoothConnect,
           Permission.bluetoothAdvertise,
           Permission.locationWhenInUse,
+          Permission.location,
         ].request();
 
-        bool allGranted = true;
+        bool essentialGranted = true;
         statuses.forEach((permission, status) {
-          if (!status.isGranted) {
-            allGranted = false;
-            debugPrint('Permission denied: $permission');
+          if (!status.isGranted && permission != Permission.location) {
+            essentialGranted = false;
+            debugPrint('Permission status for $permission: $status');
           }
         });
-        return allGranted;
+        return essentialGranted;
       }
       return true;
     } catch (e) {
       debugPrint('Error requesting permissions: $e');
-      return false;
+      return true;
     }
   }
 
