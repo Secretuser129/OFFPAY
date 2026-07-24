@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'handshake_crypto_service.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart' as fb;
+import 'profile_service.dart';
 
 /// Guid constants for OFFPAY service and characteristic
 final fb.Guid OFFPAY_SERVICE_UUID = fb.Guid("0000180A-0000-1000-8000-00805F9B34FB");
@@ -30,16 +31,18 @@ class DiscoveredDevice {
   String get bluetoothAddress => device.remoteId.str;
 
   String get name {
+    if (device.platformName.isNotEmpty) return device.platformName;
     if (advertisementData.advName.isNotEmpty) return advertisementData.advName;
     return id;
   }
 
   /// Check if device is an authentic OFFPAY broadcast device
   bool get isOffpayUser {
-    final normName = name.toUpperCase().replaceAll(RegExp(r'[\s\-_]'), '');
+    final normPlatformName = device.platformName.toUpperCase().replaceAll(RegExp(r'[\s\-_]'), '');
+    final normAdvName = advertisementData.advName.toUpperCase().replaceAll(RegExp(r'[\s\-_]'), '');
     final normId = id.toUpperCase().replaceAll(RegExp(r'[\s\-_]'), '');
     final hasUuid = advertisementData.serviceUuids.contains(OFFPAY_SERVICE_UUID);
-    return normName.contains('OFFPAY') || normId.contains('OFFPAY') || hasUuid;
+    return normPlatformName.contains('OFFPAY') || normAdvName.contains('OFFPAY') || normId.contains('OFFPAY') || hasUuid;
   }
 
   /// Categorize signal strength for user display
@@ -197,7 +200,7 @@ class OffpayBluetoothService with ChangeNotifier {
   }
 
   // -------------------------
-  // Real-time Scanning (Hardware Filtered + General Fallback)
+  // Real-time Unfiltered Scanning (Guaranteed Android 10/11/12/14 Compatibility)
   // -------------------------
   Future<void> startScan({Duration timeout = const Duration(seconds: 15)}) async {
     if (_isScanning) return;
@@ -212,26 +215,6 @@ class OffpayBluetoothService with ChangeNotifier {
     _deviceMap.clear();
     notifyListeners();
 
-    try {
-      // Step 1: Explicit Service Filter Scan for OFFPAY Service UUID
-      await fb.FlutterBluePlus.startScan(
-        withServices: [OFFPAY_SERVICE_UUID],
-        timeout: const Duration(seconds: 4),
-      );
-    } catch (e) {
-      debugPrint('Filtered startScan error: $e');
-    }
-
-    // Step 1 Fallback: Start general scan if 0 devices found in filtered scan
-    Future.delayed(const Duration(milliseconds: 4200), () async {
-      if (_isScanning && _deviceMap.isEmpty) {
-        try {
-          await fb.FlutterBluePlus.stopScan();
-          await fb.FlutterBluePlus.startScan(timeout: timeout);
-        } catch (_) {}
-      }
-    });
-
     _scanResultsSubscription?.cancel();
     _scanResultsSubscription = fb.FlutterBluePlus.scanResults.listen(
       (results) {
@@ -244,13 +227,7 @@ class OffpayBluetoothService with ChangeNotifier {
             lastSeen: now,
             advertisementData: r.advertisementData,
           );
-          if (_deviceMap.containsKey(deviceId)) {
-            _deviceMap[deviceId]!.rssi = r.rssi;
-            _deviceMap[deviceId]!.lastSeen = now;
-            _deviceMap[deviceId]!.advertisementData = r.advertisementData;
-          } else {
-            _deviceMap[deviceId] = discovered;
-          }
+          _deviceMap[deviceId] = discovered;
 
           // Emit proximity pop-up trigger if device is close (side-by-side RSSI >= -65)
           if (r.rssi >= -65) {
@@ -261,6 +238,14 @@ class OffpayBluetoothService with ChangeNotifier {
       },
       onError: (e) => debugPrint('Scan Stream Error: $e'),
     );
+
+    try {
+      await fb.FlutterBluePlus.startScan(timeout: timeout);
+    } catch (e) {
+      debugPrint('startScan error: $e');
+      _isScanning = false;
+      notifyListeners();
+    }
   }
 
   Future<void> stopScan() async {
@@ -440,6 +425,22 @@ class OffpayBluetoothService with ChangeNotifier {
       debugPrint('Broadcasting BLE Receiver Signal: $nameStr');
     } catch (e) {
       debugPrint('BLE Advertising status: active listening mode ($e)');
+    }
+  }
+
+  /// Start background advertising so device is discoverable on Home Screen & anywhere in app
+  Future<void> startBackgroundAdvertising() async {
+    try {
+      final name = await ProfileService.getBluetoothName();
+      final deviceId = await ProfileService.getDeviceId();
+      final advName = name.contains('OFFPAY') ? name : '$name OFFPAY';
+      await _channel.invokeMethod('startAdvertising', {
+        'name': advName,
+        'serviceUuid': OFFPAY_SERVICE_UUID.str,
+      });
+      debugPrint('Background OFFPAY advertising active: $advName ($deviceId)');
+    } catch (e) {
+      debugPrint('Background advertising error: $e');
     }
   }
 

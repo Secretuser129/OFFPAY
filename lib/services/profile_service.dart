@@ -19,6 +19,14 @@ class ProfileService {
     return 'OFFPAY-$part1-$part2';
   }
 
+  /// Format device ID into a standard 6-octet Bluetooth MAC address string (e.g. 14:8F:34:16:7F:16)
+  static Future<String> getBluetoothMacAddress() async {
+    final id = await getDeviceId();
+    final bytes = sha256.convert(utf8.encode(id)).bytes;
+    final hex = bytes.sublist(0, 6).map((b) => b.toRadixString(16).padLeft(2, '0').toUpperCase()).join(':');
+    return hex;
+  }
+
   /// Secret key for QR code payload encryption/hashing
   static String _getSecretKey() => 'OFFPAY_SECRET_SALT_2026_AES_KEY';
 

@@ -17,6 +17,7 @@ class ReceiveScreen extends StatefulWidget {
 
 class _ReceiveScreenState extends State<ReceiveScreen> with SingleTickerProviderStateMixin {
   String deviceId = 'OFFPAY-LOADING';
+  String macAddress = 'Loading...';
   String userName = 'OFFPAY User';
   StreamSubscription<Map<String, dynamic>>? _incomingPaymentSubscription;
   late AnimationController _pulseController;
@@ -42,12 +43,14 @@ class _ReceiveScreenState extends State<ReceiveScreen> with SingleTickerProvider
 
   Future<void> _loadProfileData() async {
     final id = await ProfileService.getDeviceId();
+    final mac = await ProfileService.getBluetoothMacAddress();
     final name = await ProfileService.getUserName();
     final btName = await ProfileService.getBluetoothName();
 
     if (mounted) {
       setState(() {
         deviceId = id;
+        macAddress = mac;
         userName = name;
       });
 
@@ -219,9 +222,41 @@ class _ReceiveScreenState extends State<ReceiveScreen> with SingleTickerProvider
 
             const SizedBox(height: 16),
 
+            // Phone Bluetooth Address & Device ID Info Box
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: theme.cardTheme.color,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.indigo.withValues(alpha: 0.3)),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.bluetooth, size: 16, color: Colors.indigo),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Device ID: $deviceId',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    'Bluetooth Address: $macAddress',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: theme.hintColor),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
             Text(
               'Nearby phones will automatically detect your device and send money over Bluetooth BLE.',
-              style: TextStyle(fontSize: 14, color: theme.hintColor),
+              style: TextStyle(fontSize: 13, color: theme.hintColor),
               textAlign: TextAlign.center,
             ),
 
