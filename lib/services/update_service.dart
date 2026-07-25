@@ -207,31 +207,30 @@ class UpdateService {
       // Download APK
       statusNotifier.value = 'Downloading OFFPAY v${info.versionName}...';
 
-      final httpClient = HttpClient();
-      final request = await httpClient.getUrl(Uri.parse(url));
-      final response = await request.close();
+      final request = http.Request('GET', Uri.parse(url));
+      final response = await http.Client().send(request);
 
       if (response.statusCode != 200) {
         throw Exception('HTTP error ${response.statusCode}');
       }
 
-      final dir = await getExternalStorageDirectory() ?? await getApplicationDocumentsDirectory();
+      final dir = await getApplicationSupportDirectory();
       final filePath = '${dir.path}/offpay_update_v${info.versionName}.apk';
       final file = File(filePath);
 
-      final totalBytes = response.contentLength;
+      final totalBytes = response.contentLength ?? 0;
       int receivedBytes = 0;
       final sink = file.openWrite();
 
-      await for (final chunk in response) {
+      await for (final chunk in response.stream) {
         sink.add(chunk);
         receivedBytes += chunk.length;
         if (totalBytes > 0) {
           progressNotifier.value = receivedBytes / totalBytes;
         }
       }
+      await sink.flush();
       await sink.close();
-      httpClient.close();
 
       statusNotifier.value = 'Download complete! Installing...';
       progressNotifier.value = 1.0;
@@ -390,7 +389,7 @@ class UpdateService {
   static Future<int> clearOldApks() async {
     int deletedCount = 0;
     try {
-      final dir = await getExternalStorageDirectory() ?? await getApplicationDocumentsDirectory();
+      final dir = await getApplicationSupportDirectory();
       final files = dir.listSync();
       for (final file in files) {
         if (file is File && file.path.contains('offpay_update') && file.path.endsWith('.apk')) {
