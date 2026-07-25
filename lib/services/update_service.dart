@@ -18,8 +18,8 @@ class UpdateInfo {
 }
 
 class UpdateService {
-  static const int currentVersionCode = 1;
-  static const String currentVersionName = '1.0.0';
+  static const int currentVersionCode = 206;
+  static const String currentVersionName = '2.0.6';
 
   // Simple online version URL (Points to raw version.json file)
   static const String rawJsonUrl = 'https://raw.githubusercontent.com/Secretuser129/OFFPAY/main/version.json';
@@ -43,8 +43,8 @@ class UpdateService {
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
         info = UpdateInfo(
-          versionCode: data['versionCode'] ?? 2,
-          versionName: data['versionName'] ?? '2.0.0',
+          versionCode: data['versionCode'] ?? 206,
+          versionName: data['versionName'] ?? '2.0.6',
           updateUrl: data['downloadUrl'] ?? defaultReleaseUrl,
           changelog: data['changelog'] ?? 'Performance & Bluetooth stability improvements.',
         );
@@ -53,12 +53,12 @@ class UpdateService {
       debugPrint('Simple updater info: $e');
     }
 
-    // Fallback update info for testing/demo before hosting online version.json
+    // Fallback update info matching current version 1.0.0
     info ??= UpdateInfo(
-      versionCode: 2,
-      versionName: '2.0.0-Stable',
+      versionCode: 100,
+      versionName: '1.0.0',
       updateUrl: defaultReleaseUrl,
-      changelog: '• BLE 5.0 Discovery & RSSI Proximity Meter\n• Verified OFFPAY User Filter\n• Active Payment Screen Popup Lock\n• Hive & Crypto Settlement Enhancements',
+      changelog: '• Initial release of OffPay with BLE P2P transactions.',
     );
 
     if (info.versionCode > currentVersionCode && context.mounted) {
