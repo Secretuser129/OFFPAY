@@ -6,12 +6,12 @@ plugins {
 
 android {
     namespace = "com.example.offpay"
-    compileSdk = 36
+    compileSdk = flutter.compileSdkVersion
 
     defaultConfig {
         applicationId = "com.example.offpay"
         minSdk = flutter.minSdkVersion
-        targetSdk = 36
+        targetSdk = flutter.targetSdkVersion
         versionCode = 210
         versionName = "2.1.0"
     }
