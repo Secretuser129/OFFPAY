@@ -66,74 +66,49 @@ class OffPayApp extends StatelessWidget {
   final bool isLoggedIn;
   const OffPayApp({super.key, this.isLoggedIn = false});
 
-  // Define the common primary color for both modes
-  static const MaterialColor primaryIndigo = MaterialColor(
-    0xFF3F51B5, // Base Indigo color
-    <int, Color>{
-      50: Color(0xFFE8EAF6),
-      100: Color(0xFFC5CBE9),
-      200: Color(0xFF9FA8DA),
-      300: Color(0xFF7986CC),
-      400: Color(0xFF5C6BC0),
-      500: Color(0xFF3F51B5),
-      600: Color(0xFF394AAE),
-      700: Color(0xFF3140A3),
-      800: Color(0xFF283593),
-      900: Color(0xFF1A237E),
-    },
-  );
+  ThemeData _buildLightTheme(Color accentColor, double fontScale) {
+    return ThemeData(
+      useMaterial3: true,
+      brightness: Brightness.light,
+      colorSchemeSeed: accentColor,
+      scaffoldBackgroundColor: Colors.white,
+      appBarTheme: AppBarTheme(
+        backgroundColor: accentColor,
+        foregroundColor: Colors.white,
+        elevation: 0,
+      ),
+      cardTheme: CardThemeData(
+        color: Colors.white,
+        elevation: 4,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+      textTheme: const TextTheme().apply(
+        fontSizeFactor: fontScale,
+      ),
+    );
+  }
 
-  // --- 1. Light Theme Definition ---
-  ThemeData get lightTheme => ThemeData(
-        useMaterial3: true,
-        brightness: Brightness.light,
-        primarySwatch: primaryIndigo,
-        primaryColor: primaryIndigo[500],
-        colorScheme: ColorScheme.fromSwatch(
-          primarySwatch: primaryIndigo,
-          brightness: Brightness.light,
-        ).copyWith(
-          secondary: primaryIndigo.shade300,
-          surface: Colors.white,
-        ),
-        scaffoldBackgroundColor: Colors.white,
-        appBarTheme: AppBarTheme(
-          backgroundColor: primaryIndigo[500],
-          foregroundColor: Colors.white,
-          elevation: 0,
-        ),
-        cardTheme: CardThemeData(
-          color: Colors.white,
-          elevation: 4,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-      );
-
-  // --- 2. AMOLED Dark Theme Definition ---
-  ThemeData get darkTheme => ThemeData(
-        useMaterial3: true,
-        brightness: Brightness.dark,
-        primarySwatch: primaryIndigo,
-        primaryColor: primaryIndigo.shade300,
-        colorScheme: ColorScheme.fromSwatch(
-          primarySwatch: primaryIndigo,
-          brightness: Brightness.dark,
-        ).copyWith(
-          surface: const Color(0xFF121216),
-          secondary: primaryIndigo.shade200,
-        ),
-        scaffoldBackgroundColor: const Color(0xFF000000), // Pure AMOLED Black
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFF0A0A0E),
-          foregroundColor: Colors.white,
-          elevation: 0,
-        ),
-        cardTheme: CardThemeData(
-          color: const Color(0xFF121218),
-          elevation: 4,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-      );
+  ThemeData _buildDarkTheme(Color accentColor, double fontScale) {
+    return ThemeData(
+      useMaterial3: true,
+      brightness: Brightness.dark,
+      colorSchemeSeed: accentColor,
+      scaffoldBackgroundColor: const Color(0xFF000000), // Pure AMOLED Black
+      appBarTheme: const AppBarTheme(
+        backgroundColor: Color(0xFF0A0A0E),
+        foregroundColor: Colors.white,
+        elevation: 0,
+      ),
+      cardTheme: CardThemeData(
+        color: const Color(0xFF121218),
+        elevation: 4,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+      textTheme: ThemeData.dark().textTheme.apply(
+        fontSizeFactor: fontScale,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -141,8 +116,8 @@ class OffPayApp extends StatelessWidget {
 
     return MaterialApp(
       title: 'OFF-PAY',
-      theme: lightTheme,
-      darkTheme: darkTheme,
+      theme: _buildLightTheme(themeProvider.accentColor, themeProvider.fontSizeScale),
+      darkTheme: _buildDarkTheme(themeProvider.accentColor, themeProvider.fontSizeScale),
       themeMode: themeProvider.themeMode,
 
       initialRoute: isLoggedIn ? '/home' : '/login',

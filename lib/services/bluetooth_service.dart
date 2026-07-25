@@ -190,13 +190,15 @@ class OffpayBluetoothService with ChangeNotifier {
           Permission.location,
         ].request();
 
-        bool essentialGranted = true;
-        statuses.forEach((permission, status) {
-          if (!status.isGranted && permission != Permission.location) {
-            essentialGranted = false;
-            debugPrint('Permission status for $permission: $status');
-          }
-        });
+        bool isLocationGranted = statuses[Permission.locationWhenInUse]?.isGranted ?? false;
+        bool isBleScanGranted = statuses[Permission.bluetoothScan]?.isGranted ?? false;
+        bool isBleConnectGranted = statuses[Permission.bluetoothConnect]?.isGranted ?? false;
+        bool isBleAdvertiseGranted = statuses[Permission.bluetoothAdvertise]?.isGranted ?? false;
+
+        // On Android 12+, bluetoothScan is required. On Android 11, locationWhenInUse is required.
+        // We will consider it essential if EITHER of the core scanning permissions is granted.
+        bool essentialGranted = (isLocationGranted || isBleScanGranted);
+        
         return essentialGranted;
       }
       return true;
@@ -306,7 +308,6 @@ class OffpayBluetoothService with ChangeNotifier {
       await fb.FlutterBluePlus.startScan(
         timeout: timeout,
         androidScanMode: fb.AndroidScanMode.lowLatency,
-        withServices: [OFFPAY_SERVICE_UUID], // Reliable scanning filter on Android 14
       );
     } catch (e) {
       debugPrint('startScan error: $e');

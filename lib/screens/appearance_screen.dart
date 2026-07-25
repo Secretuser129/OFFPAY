@@ -77,61 +77,7 @@ class AppearanceScreen extends StatelessWidget {
           ),
           const SizedBox(height: 24),
           
-          // Section B: Theme Info Card
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: theme.primaryColor.withAlpha(15), // 0.06 alpha
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: theme.primaryColor.withAlpha(38), // 0.15 alpha
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      Icons.palette,
-                      size: 18,
-                      color: theme.primaryColor,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Current Theme Details',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: theme.primaryColor,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  isDark
-                      ? 'Background: Pure AMOLED Black (#000000)'
-                      : 'Background: Clean White (#FFFFFF)',
-                  style: TextStyle(fontSize: 12, color: theme.hintColor),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  isDark
-                      ? 'Cards: Dark Surface (#121218)'
-                      : 'Cards: White (#FFFFFF)',
-                  style: TextStyle(fontSize: 12, color: theme.hintColor),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Accent: Indigo (#3F51B5)',
-                  style: TextStyle(fontSize: 12, color: theme.hintColor),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 32),
-
-          // Section C: Display Settings (Future)
+          // Section C: Display Settings
           const Text(
             'Display',
             style: TextStyle(
@@ -140,50 +86,160 @@ class AppearanceScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          Card(
-            elevation: 0,
-            color: theme.cardColor,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-              side: BorderSide(
-                color: theme.dividerColor.withAlpha(50),
-              ),
-            ),
-            child: const ListTile(
-              leading: Icon(Icons.format_size),
-              title: Text('Font Size'),
-              subtitle: Text('Medium (Default)'),
-              trailing: Icon(Icons.chevron_right),
-              onTap: null, // Disabled for now
-            ),
-          ),
-          const SizedBox(height: 8),
-          Card(
-            elevation: 0,
-            color: theme.cardColor,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-              side: BorderSide(
-                color: theme.dividerColor.withAlpha(50),
-              ),
-            ),
-            child: ListTile(
-              leading: const Icon(Icons.color_lens),
-              title: const Text('Accent Color'),
-              subtitle: const Text('Indigo (Default)'),
-              trailing: Container(
-                width: 24,
-                height: 24,
-                decoration: const BoxDecoration(
-                  color: Colors.indigo,
-                  shape: BoxShape.circle,
-                ),
-              ),
-              onTap: null, // Disabled for now
-            ),
+          Consumer<ThemeProvider>(
+            builder: (context, themeProvider, child) {
+              return Column(
+                children: [
+                  Card(
+                    elevation: 0,
+                    color: theme.cardColor,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: BorderSide(
+                        color: theme.dividerColor.withAlpha(50),
+                      ),
+                    ),
+                    child: ListTile(
+                      leading: const Icon(Icons.format_size),
+                      title: const Text('Font Size'),
+                      subtitle: Text(_getFontSizeLabel(themeProvider.fontSizeScale)),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => _showFontSizeDialog(context, themeProvider),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Card(
+                    elevation: 0,
+                    color: theme.cardColor,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: BorderSide(
+                        color: theme.dividerColor.withAlpha(50),
+                      ),
+                    ),
+                    child: ListTile(
+                      leading: const Icon(Icons.color_lens),
+                      title: const Text('Accent Color'),
+                      subtitle: Text(_getColorLabel(themeProvider.accentColor)),
+                      trailing: Container(
+                        width: 24,
+                        height: 24,
+                        decoration: BoxDecoration(
+                          color: themeProvider.accentColor,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      onTap: () => _showColorPicker(context, themeProvider),
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
         ],
       ),
+    );
+  }
+
+  String _getFontSizeLabel(double scale) {
+    if (scale <= 0.8) return 'Small';
+    if (scale >= 1.2) return 'Large';
+    return 'Medium (Default)';
+  }
+
+  void _showFontSizeDialog(BuildContext context, ThemeProvider provider) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Select Font Size'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              RadioListTile<double>(
+                title: const Text('Small'),
+                value: 0.8,
+                groupValue: provider.fontSizeScale,
+                onChanged: (val) {
+                  if (val != null) provider.setFontSizeScale(val);
+                  Navigator.pop(context);
+                },
+              ),
+              RadioListTile<double>(
+                title: const Text('Medium (Default)'),
+                value: 1.0,
+                groupValue: provider.fontSizeScale,
+                onChanged: (val) {
+                  if (val != null) provider.setFontSizeScale(val);
+                  Navigator.pop(context);
+                },
+              ),
+              RadioListTile<double>(
+                title: const Text('Large'),
+                value: 1.2,
+                groupValue: provider.fontSizeScale,
+                onChanged: (val) {
+                  if (val != null) provider.setFontSizeScale(val);
+                  Navigator.pop(context);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  String _getColorLabel(Color color) {
+    if (color == Colors.indigo) return 'Indigo (Default)';
+    if (color == Colors.blue) return 'Blue';
+    if (color == Colors.green) return 'Green';
+    if (color == Colors.orange) return 'Orange';
+    if (color == Colors.purple) return 'Purple';
+    if (color == Colors.red) return 'Red';
+    return 'Custom';
+  }
+
+  void _showColorPicker(BuildContext context, ThemeProvider provider) {
+    final colors = [
+      Colors.indigo,
+      Colors.blue,
+      Colors.green,
+      Colors.orange,
+      Colors.purple,
+      Colors.red,
+    ];
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Select Accent Color'),
+          content: Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: colors.map((color) {
+              return GestureDetector(
+                onTap: () {
+                  provider.setAccentColor(color);
+                  Navigator.pop(context);
+                },
+                child: Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: color,
+                    shape: BoxShape.circle,
+                    border: provider.accentColor == color
+                        ? Border.all(color: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.white, width: 3)
+                        : null,
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        );
+      },
     );
   }
 }

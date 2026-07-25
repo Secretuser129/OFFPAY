@@ -238,7 +238,7 @@ class _HomeScreenState extends State<HomeScreen> {
             Container(
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Theme.of(context).brightness == Brightness.light ? Colors.white : Colors.indigo.shade900,
+                color: Theme.of(context).brightness == Brightness.light ? Colors.white : Theme.of(context).cardTheme.color,
               ),
               padding: const EdgeInsets.all(6),
               child: Image.asset(
@@ -421,7 +421,7 @@ class _HomeScreenState extends State<HomeScreen> {
               padding: const EdgeInsets.symmetric(vertical: 16),
             ),
             icon: const Icon(Icons.send, size: 18),
-            label: const Text('Send Money', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+            label: const Text('Send', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
             onPressed: () {
               HapticFeedback.lightImpact();
               Navigator.of(context).push(
@@ -436,19 +436,16 @@ class _HomeScreenState extends State<HomeScreen> {
         Expanded(
           child: ElevatedButton.icon(
             style: ElevatedButton.styleFrom(
-              backgroundColor: isDark ? const Color(0xFF1E1E28) : Colors.indigo.shade50,
-              foregroundColor: isDark ? Colors.indigo.shade200 : Colors.indigo.shade900,
+              backgroundColor: isDark ? theme.cardTheme.color : theme.primaryColor.withValues(alpha: 0.1),
+              foregroundColor: isDark ? theme.primaryColorLight : theme.primaryColorDark,
               elevation: 2,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
-                side: BorderSide(
-                  color: isDark ? Colors.indigo.withValues(alpha: 0.3) : Colors.indigo.withValues(alpha: 0.2),
-                ),
               ),
               padding: const EdgeInsets.symmetric(vertical: 16),
             ),
             icon: const Icon(Icons.call_received, size: 18),
-            label: const Text('Receive Money', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+            label: const Text('Receive', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
             onPressed: () {
               HapticFeedback.lightImpact();
               Navigator.pushNamed(context, '/receive');

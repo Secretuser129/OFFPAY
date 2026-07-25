@@ -110,12 +110,12 @@ class _ReceiveScreenState extends State<ReceiveScreen> with SingleTickerProvider
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: Colors.indigo.withValues(alpha: 0.1),
+                color: theme.primaryColor.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: SelectableText(
                 senderId,
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.indigo),
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: theme.primaryColor),
               ),
             ),
           ],
@@ -123,7 +123,7 @@ class _ReceiveScreenState extends State<ReceiveScreen> with SingleTickerProvider
         actions: [
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.indigo,
+              backgroundColor: theme.primaryColor,
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
@@ -166,9 +166,9 @@ class _ReceiveScreenState extends State<ReceiveScreen> with SingleTickerProvider
                   height: 180 + (_pulseController.value * 24),
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: Colors.blue.withValues(alpha: 0.1 + (0.1 * (1 - _pulseController.value))),
+                    color: theme.primaryColor.withValues(alpha: 0.1 + (0.1 * (1 - _pulseController.value))),
                     border: Border.all(
-                      color: Colors.blue.withValues(alpha: 0.3 + (0.4 * _pulseController.value)),
+                      color: theme.primaryColor.withValues(alpha: 0.3 + (0.4 * _pulseController.value)),
                       width: 2 + (2 * _pulseController.value),
                     ),
                   ),
@@ -176,9 +176,9 @@ class _ReceiveScreenState extends State<ReceiveScreen> with SingleTickerProvider
                     child: Container(
                       width: 100,
                       height: 100,
-                      decoration: const BoxDecoration(
+                      decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: Colors.indigo,
+                        color: theme.primaryColor,
                       ),
                       child: const Icon(
                         Icons.bluetooth_searching,
@@ -231,14 +231,14 @@ class _ReceiveScreenState extends State<ReceiveScreen> with SingleTickerProvider
               decoration: BoxDecoration(
                 color: theme.cardTheme.color,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.indigo.withValues(alpha: 0.3)),
+                border: Border.all(color: theme.primaryColor.withValues(alpha: 0.3)),
               ),
               child: Column(
                 children: [
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.bluetooth, size: 16, color: Colors.indigo),
+                      Icon(Icons.bluetooth, size: 16, color: theme.primaryColor),
                       const SizedBox(width: 6),
                       Text(
                         'Device ID: $deviceId',

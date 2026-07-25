@@ -2,11 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 const String _themeModeKey = 'offpay_theme_mode';
+const String _fontSizeKey = 'offpay_font_size';
+const String _accentColorKey = 'offpay_accent_color';
 
 class ThemeProvider extends ChangeNotifier {
   ThemeMode _themeMode = ThemeMode.system;
+  double _fontSizeScale = 1.0;
+  Color _accentColor = Colors.indigo;
 
   ThemeMode get themeMode => _themeMode;
+  double get fontSizeScale => _fontSizeScale;
+  Color get accentColor => _accentColor;
 
   bool isDarkMode(BuildContext context) {
     if (_themeMode == ThemeMode.system) {
@@ -16,12 +22,14 @@ class ThemeProvider extends ChangeNotifier {
   }
 
   ThemeProvider() {
-    _loadThemeMode();
+    _loadSettings();
   }
 
-  Future<void> _loadThemeMode() async {
+  Future<void> _loadSettings() async {
     try {
       final prefs = await SharedPreferences.getInstance();
+      
+      // Load Theme Mode
       final savedMode = prefs.getString(_themeModeKey);
       if (savedMode == 'dark') {
         _themeMode = ThemeMode.dark;
@@ -30,9 +38,19 @@ class ThemeProvider extends ChangeNotifier {
       } else {
         _themeMode = ThemeMode.system;
       }
+
+      // Load Font Size Scale
+      _fontSizeScale = prefs.getDouble(_fontSizeKey) ?? 1.0;
+
+      // Load Accent Color
+      final colorValue = prefs.getInt(_accentColorKey);
+      if (colorValue != null) {
+        _accentColor = Color(colorValue);
+      }
+
       notifyListeners();
     } catch (e) {
-      debugPrint('Error loading theme mode: $e');
+      debugPrint('Error loading theme settings: $e');
     }
   }
 
@@ -55,5 +73,27 @@ class ThemeProvider extends ChangeNotifier {
 
   Future<void> toggleTheme(bool isDark) async {
     await setThemeMode(isDark ? ThemeMode.dark : ThemeMode.light);
+  }
+
+  Future<void> setFontSizeScale(double scale) async {
+    _fontSizeScale = scale;
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setDouble(_fontSizeKey, scale);
+    } catch (e) {
+      debugPrint('Error saving font size: $e');
+    }
+  }
+
+  Future<void> setAccentColor(Color color) async {
+    _accentColor = color;
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt(_accentColorKey, color.value);
+    } catch (e) {
+      debugPrint('Error saving accent color: $e');
+    }
   }
 }
