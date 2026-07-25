@@ -23,6 +23,7 @@ class _PaymentInputScreenState extends State<PaymentInputScreen> {
   // Variable to hold the device received from arguments
   fb.BluetoothDevice? recipientDevice;
   String customRecipientName = 'Unknown User';
+  bool _isAmountLocked = false;
 
   @override
   void initState() {
@@ -54,6 +55,7 @@ class _PaymentInputScreenState extends State<PaymentInputScreen> {
         final amt = (args['amount'] as num).toDouble();
         if (amt > 0) {
           _amountController.text = amt.toStringAsFixed(2);
+          _isAmountLocked = true;
         }
       }
     }
@@ -232,9 +234,10 @@ class _PaymentInputScreenState extends State<PaymentInputScreen> {
               const SizedBox(height: 8),
               TextFormField(
                 controller: _amountController,
+                readOnly: _isAmountLocked,
                 keyboardType: TextInputType.number,
                 style: TextStyle(
-                  color: theme.textTheme.bodyLarge?.color,
+                  color: _isAmountLocked ? Colors.grey : theme.textTheme.bodyLarge?.color,
                   fontWeight: FontWeight.bold,
                   fontSize: 18,
                 ),
