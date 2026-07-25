@@ -115,6 +115,12 @@ class _ReceiverPairingScreenState extends State<ReceiverPairingScreen> {
     );
 
     try {
+      // Connect first: flutter_blue_plus requires the device to be connected before creating a bond
+      await device.connect(autoConnect: false, license: fb.License.free).timeout(
+        const Duration(seconds: 5),
+        onTimeout: () => throw Exception('Connection timeout'),
+      );
+      
       // Force Android OS to show the 6-digit PIN popup
       await device.createBond();
       
@@ -128,6 +134,8 @@ class _ReceiverPairingScreenState extends State<ReceiverPairingScreen> {
       
       // Navigate back after a short delay so user can handle the OS popup
       Future.delayed(const Duration(seconds: 2), () {
+        // We disconnect in background so it doesn't hold the connection
+        device.disconnect().catchError((_) {});
         if (mounted) Navigator.pop(context);
       });
       
