@@ -77,9 +77,14 @@ class MainActivity : FlutterActivity() {
 
         val pUuid = ParcelUuid(UUID.fromString(serviceUuidStr))
 
+        // Split into Primary AdvertiseData (UUID) + ScanResponse (Name) to prevent 31-byte packet overflow on Android 10/11
         val data = AdvertiseData.Builder()
-            .setIncludeDeviceName(true)
+            .setIncludeTxPowerLevel(false)
             .addServiceUuid(pUuid)
+            .build()
+
+        val scanResponse = AdvertiseData.Builder()
+            .setIncludeDeviceName(true)
             .build()
 
         stopAdvertisingInternal()
@@ -99,7 +104,7 @@ class MainActivity : FlutterActivity() {
         }
 
         try {
-            bluetoothAdvertiser?.startAdvertising(settings, data, advertiseCallback)
+            bluetoothAdvertiser?.startAdvertising(settings, data, scanResponse, advertiseCallback)
         } catch (e: Exception) {
             Log.e("OFFPAY_BLE", "Exception starting advertising: ${e.message}")
             result.error("EXCEPTION", e.message, null)

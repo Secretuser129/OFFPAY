@@ -31,8 +31,8 @@ class UpdateInfo {
 }
 
 class UpdateService {
-  static const int currentVersionCode = 7;
-  static const String currentVersionName = '2.0.0-alpha+7';
+  static const int currentVersionCode = 11;
+  static const String currentVersionName = '2.0.0-alpha+11';
 
   static const String defaultGithubRepo = 'Secretuser129/OFFPAY';
   static const String defaultGithubUrl = 'https://github.com/Secretuser129/OFFPAY/releases/latest';
@@ -63,10 +63,11 @@ class UpdateService {
         final tag = (ghData['tag_name'] as String? ?? '').replaceAll('v', '');
         final body = ghData['body'] as String? ?? 'New version available on GitHub Releases.';
 
-        // Parse version code from tag (e.g. 2.0.0-alpha+7 => 7)
-        int remoteCode = currentVersionCode;
-        if (tag.contains('+')) {
-          remoteCode = int.tryParse(tag.split('+').last) ?? currentVersionCode;
+        // Extract version code from tag (e.g. 2.0.0-alpha+9, v9, 2.0.9 => 9)
+        int remoteCode = 0;
+        final match = RegExp(r'(\d+)(?=[^\d]*$)').firstMatch(tag);
+        if (match != null) {
+          remoteCode = int.tryParse(match.group(1)!) ?? 0;
         }
 
         String downloadUrl = defaultGithubUrl;
@@ -75,8 +76,8 @@ class UpdateService {
         }
 
         return UpdateInfo(
-          versionCode: remoteCode,
-          versionName: tag.isEmpty ? '2.0.0-alpha+7' : tag,
+          versionCode: remoteCode > 0 ? remoteCode : currentVersionCode + 1,
+          versionName: tag.isEmpty ? '2.0.0-alpha+9' : tag,
           updateUrl: downloadUrl,
           changelog: body,
           forceUpdate: false,
