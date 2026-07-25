@@ -1,302 +1,119 @@
 import 'package:flutter/material.dart';
-import '../services/password_service.dart';
-import '../services/firebase_service.dart';
-import '../services/theme_service.dart';
+import '../services/update_service.dart';
+import '../services/profile_service.dart';
 import '../models/wallet_model.dart';
 import 'package:provider/provider.dart';
 
-class SecuritySettingsScreen extends StatefulWidget {
+class SecuritySettingsScreen extends StatelessWidget {
   const SecuritySettingsScreen({super.key});
 
   @override
-  State<SecuritySettingsScreen> createState() => _SecuritySettingsScreenState();
-}
-
-class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
-  bool _hasBalancePin = false;
-  bool _hasTransferPin = false;
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadPinStates();
-  }
-
-  Future<void> _loadPinStates() async {
-    final hasBal = await PasswordService.hasBalancePin();
-    final hasTx = await PasswordService.hasTransferPin();
-    if (mounted) {
-      setState(() {
-        _hasBalancePin = hasBal;
-        _hasTransferPin = hasTx;
-        _isLoading = false;
-      });
-    }
-  }
-
-  void _showSetPinDialog({required bool isBalancePin}) {
-    final pinController = TextEditingController();
-    final confirmController = TextEditingController();
-    bool obscureText = true;
-    final formKey = GlobalKey<FormState>();
-
-    showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Text(isBalancePin ? 'Set Balance Check PIN' : 'Set Transfer Confirmation PIN'),
-          content: Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextFormField(
-                  controller: pinController,
-                  keyboardType: TextInputType.number,
-                  obscureText: obscureText,
-                  maxLength: 6,
-                  decoration: InputDecoration(
-                    labelText: 'Enter 4-6 Digit PIN',
-                    prefixIcon: const Icon(Icons.lock_outline),
-                    suffixIcon: IconButton(
-                      icon: Icon(obscureText ? Icons.visibility : Icons.visibility_off),
-                      onPressed: () => setDialogState(() => obscureText = !obscureText),
-                    ),
-                  ),
-                  validator: (v) {
-                    if (v == null || v.trim().length < 4) {
-                      return 'PIN must be at least 4 digits';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: confirmController,
-                  keyboardType: TextInputType.number,
-                  obscureText: obscureText,
-                  maxLength: 6,
-                  decoration: const InputDecoration(
-                    labelText: 'Confirm PIN',
-                    prefixIcon: const Icon(Icons.lock),
-                  ),
-                  validator: (v) {
-                    if (v != pinController.text) {
-                      return 'PINs do not match';
-                    }
-                    return null;
-                  },
-                ),
-              ],
-            ),
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Settings Hub'),
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(16.0),
+        children: [
+          const Text(
+            'General',
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.indigo),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                if (formKey.currentState!.validate()) {
-                  final pin = pinController.text.trim();
-                  if (isBalancePin) {
-                    await PasswordService.setBalancePin(pin);
-                  } else {
-                    await PasswordService.setTransferPin(pin);
-                  }
-                  final walletModel = Provider.of<WalletModel>(context, listen: false);
-                  FirebaseService.syncUserProfile(
-                    balance: walletModel.balance,
-                    pinHash: pin,
-                  );
+          const SizedBox(height: 8),
+          
+          _buildSettingsCard(
+            context: context,
+            icon: Icons.palette_outlined,
+            title: 'App Appearance',
+            subtitle: 'Dark Mode & Visuals',
+            onTap: () => Navigator.pushNamed(context, '/appearance'),
+          ),
+          
+          _buildSettingsCard(
+            context: context,
+            icon: Icons.security_outlined,
+            title: 'Custom PIN Security',
+            subtitle: 'Balance & Transfer Protection',
+            onTap: () => Navigator.pushNamed(context, '/pin_settings'),
+          ),
 
-                  if (mounted) {
-                    Navigator.pop(ctx);
-                    _loadPinStates();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('${isBalancePin ? "Balance" : "Transfer"} PIN set & synced to cloud!'),
-                        backgroundColor: Colors.green,
-                      ),
-                    );
-                  }
+          const SizedBox(height: 24),
+          const Text(
+            'About & Updates',
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.indigo),
+          ),
+          const SizedBox(height: 8),
+
+          _buildSettingsCard(
+            context: context,
+            icon: Icons.system_update_outlined,
+            title: 'Check for Updates',
+            subtitle: 'Version 2.1.0',
+            onTap: () => UpdateService.checkForUpdates(context, silent: false),
+          ),
+
+          _buildSettingsCard(
+            context: context,
+            icon: Icons.info_outline,
+            title: 'About OFFPAY',
+            subtitle: 'Creator, Version & Licensing',
+            onTap: () => Navigator.pushNamed(context, '/about'),
+          ),
+
+          const SizedBox(height: 40),
+
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              icon: const Icon(Icons.logout, color: Colors.red),
+              label: const Text('Logout Securely', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                side: const BorderSide(color: Colors.red),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              onPressed: () async {
+                await ProfileService.setLoggedIn(false);
+                if (context.mounted) {
+                  final wallet = Provider.of<WalletModel>(context, listen: false);
+                  await wallet.clearWallet();
+                  Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
                 }
               },
-              child: const Text('Save PIN'),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
-  void _removePin({required bool isBalancePin}) async {
-    if (isBalancePin) {
-      await PasswordService.clearBalancePin();
-    } else {
-      await PasswordService.clearTransferPin();
-    }
-    _loadPinStates();
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${isBalancePin ? "Balance" : "Transfer"} PIN removed.'),
-        ),
-      );
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildSettingsCard({
+    required BuildContext context,
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
     final theme = Theme.of(context);
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Settings & Security'),
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        leading: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: theme.primaryColor.withValues(alpha: 0.1),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, color: theme.primaryColor),
+        ),
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+        subtitle: Text(subtitle, style: TextStyle(fontSize: 12, color: theme.hintColor)),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: onTap,
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: ListView(
-                children: [
-                  // 1. App Appearance & Theme Toggle Section
-                  const Text(
-                    'App Appearance',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Switch between Dark Mode and Light Mode.',
-                    style: TextStyle(color: theme.hintColor, fontSize: 14),
-                  ),
-                  const SizedBox(height: 12),
-                  Consumer<ThemeProvider>(
-                    builder: (context, themeProvider, child) {
-                      final isDark = themeProvider.isDarkMode(context);
-                      return Card(
-                        child: ListTile(
-                          contentPadding: const EdgeInsets.all(16),
-                          leading: CircleAvatar(
-                            backgroundColor: isDark
-                                ? Colors.purple.withValues(alpha: 0.15)
-                                : Colors.amber.withValues(alpha: 0.15),
-                            child: Icon(
-                              isDark ? Icons.dark_mode : Icons.light_mode,
-                              color: isDark ? Colors.purple.shade300 : Colors.amber.shade800,
-                            ),
-                          ),
-                          title: Text(
-                            isDark ? 'AMOLED Dark Mode' : 'Light Mode',
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          subtitle: Text(
-                            isDark ? 'Pure black background enabled' : 'Clean light theme enabled',
-                            style: const TextStyle(fontSize: 12),
-                          ),
-                          trailing: Switch(
-                            value: isDark,
-                            activeThumbColor: Colors.indigo,
-                            onChanged: (bool value) {
-                              themeProvider.toggleTheme(value);
-                            },
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 28),
-
-                  // 2. Custom PIN Security Section
-                  const Text(
-                    'Custom PIN Protection',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Set separate PINs to hide/view your balance and authorize offline transfers.',
-                    style: TextStyle(color: theme.hintColor, fontSize: 14),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Balance Check PIN Card
-                  Card(
-                    child: ListTile(
-                      contentPadding: const EdgeInsets.all(16),
-                      leading: CircleAvatar(
-                        backgroundColor: Colors.indigo.withValues(alpha: 0.1),
-                        child: const Icon(Icons.account_balance_wallet, color: Colors.indigo),
-                      ),
-                      title: const Text(
-                        'Balance View PIN',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      subtitle: Text(
-                        _hasBalancePin
-                            ? 'PIN active. Required when toggling balance visibility.'
-                            : 'Not set. Anyone can view balance.',
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          if (_hasBalancePin)
-                            IconButton(
-                              icon: const Icon(Icons.delete_outline, color: Colors.red),
-                              onPressed: () => _removePin(isBalancePin: true),
-                              tooltip: 'Remove PIN',
-                            ),
-                          ElevatedButton(
-                            onPressed: () => _showSetPinDialog(isBalancePin: true),
-                            child: Text(_hasBalancePin ? 'Change' : 'Set PIN'),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // Confirm Transfer Money PIN Card
-                  Card(
-                    child: ListTile(
-                      contentPadding: const EdgeInsets.all(16),
-                      leading: CircleAvatar(
-                        backgroundColor: Colors.green.withValues(alpha: 0.1),
-                        child: const Icon(Icons.security, color: Colors.green),
-                      ),
-                      title: const Text(
-                        'Transfer Authorization PIN',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      subtitle: Text(
-                        _hasTransferPin
-                            ? 'PIN active. Required before completing offline money transfer.'
-                            : 'Not set. Money transfers proceed immediately.',
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          if (_hasTransferPin)
-                            IconButton(
-                              icon: const Icon(Icons.delete_outline, color: Colors.red),
-                              onPressed: () => _removePin(isBalancePin: false),
-                              tooltip: 'Remove PIN',
-                            ),
-                          ElevatedButton(
-                            onPressed: () => _showSetPinDialog(isBalancePin: false),
-                            child: Text(_hasTransferPin ? 'Change' : 'Set PIN'),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
     );
   }
 }

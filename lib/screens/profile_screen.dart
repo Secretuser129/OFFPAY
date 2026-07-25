@@ -1,9 +1,5 @@
 import 'package:flutter/material.dart';
 import '../services/profile_service.dart';
-import '../services/update_service.dart';
-
-import 'package:provider/provider.dart';
-import '../models/wallet_model.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -205,106 +201,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
 
                   const SizedBox(height: 16),
-
-                  // 5. In-App Updater Check Button
-                  OutlinedButton.icon(
-                    icon: const Icon(Icons.system_update),
-                    label: const Text('Check for App Updates'),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    ),
-                    onPressed: () => UpdateService.checkForUpdates(context, silent: false),
-                  ),
-                  
-                  const SizedBox(height: 16),
-
-                  // 6. Logout Button
-                  OutlinedButton.icon(
-                    icon: const Icon(Icons.logout, color: Colors.red),
-                    label: const Text('Logout', style: TextStyle(color: Colors.red)),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      side: const BorderSide(color: Colors.red),
-                    ),
-                    onPressed: () async {
-                      await ProfileService.setLoggedIn(false);
-                      if (context.mounted) {
-                        final wallet = Provider.of<WalletModel>(context, listen: false);
-                        await wallet.clearWallet();
-                        Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
-                      }
-                    },
-                  ),
-
-                  const SizedBox(height: 28),
-
-                  // 7. Official Copyright & Ownership Protection Badge
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: theme.primaryColor.withValues(alpha: 0.06),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: theme.primaryColor.withValues(alpha: 0.2),
-                      ),
-                    ),
-                    child: Column(
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.verified, size: 18, color: Colors.indigo),
-                            const SizedBox(width: 6),
-                            Text(
-                              '© 2026 OFFPAY Protocol',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13,
-                                color: theme.textTheme.bodyLarge?.color,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        const Text(
-                          'Original Intellectual Property & Created by:',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(fontSize: 11, color: Colors.grey),
-                        ),
-                        const SizedBox(height: 4),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.indigo,
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.shield, size: 12, color: Colors.white),
-                              SizedBox(width: 4),
-                              Text(
-                                'Secretuser129',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        const Text(
-                          'All Rights Reserved • Strictly Protected Original Work',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(fontSize: 10, color: Colors.grey),
-                        ),
-                      ],
-                    ),
-                  ),
                 ],
               ),
             ),

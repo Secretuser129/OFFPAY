@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../services/firebase_service.dart';
 import '../services/profile_service.dart';
@@ -17,6 +18,43 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _isLoading = false;
   bool _isLoginMode = true;
+  
+  bool _isCheckingUsername = false;
+  bool _isUsernameAvailable = true;
+  Timer? _debounce;
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _usernameController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  void _checkUsernameAvailability(String username) {
+    if (username.isEmpty || !username.toUpperCase().contains('OFFPAY')) {
+      setState(() {
+        _isUsernameAvailable = false;
+        _isCheckingUsername = false;
+      });
+      return;
+    }
+
+    setState(() {
+      _isCheckingUsername = true;
+    });
+
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    _debounce = Timer(const Duration(milliseconds: 800), () async {
+      final exists = await FirebaseService.checkUsernameExists(username);
+      if (mounted) {
+        setState(() {
+          _isUsernameAvailable = !exists;
+          _isCheckingUsername = false;
+        });
+      }
+    });
+  }
 
   Future<void> _submit() async {
     final username = _usernameController.text.trim();
@@ -34,6 +72,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (password.length < 6) {
       _showError('Password must be at least 6 characters.');
+      return;
+    }
+
+    if (!_isLoginMode && !_isUsernameAvailable) {
+      _showError('Please choose an available username.');
       return;
     }
 
@@ -138,14 +181,38 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 TextField(
                   controller: _usernameController,
+                  onChanged: (val) {
+                    if (!_isLoginMode) {
+                      _checkUsernameAvailability(val);
+                    }
+                  },
                   decoration: InputDecoration(
                     labelText: 'Username (must contain OFFPAY)',
                     hintText: 'e.g. John OFFPAY',
                     prefixIcon: const Icon(Icons.person),
+                    suffixIcon: _isLoginMode 
+                        ? null 
+                        : (_isCheckingUsername 
+                            ? const Padding(
+                                padding: EdgeInsets.all(14.0),
+                                child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+                              )
+                            : Icon(
+                                _isUsernameAvailable ? Icons.check_circle : Icons.cancel,
+                                color: _isUsernameAvailable ? Colors.green : Colors.red,
+                              )),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                     filled: true,
                   ),
                 ),
+                if (!_isLoginMode && !_isUsernameAvailable && _usernameController.text.isNotEmpty && !_isCheckingUsername)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 8.0, left: 12.0),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text('Username is already taken', style: TextStyle(color: Colors.red, fontSize: 12)),
+                    ),
+                  ),
                 const SizedBox(height: 16),
 
                 TextField(

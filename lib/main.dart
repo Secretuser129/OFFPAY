@@ -19,6 +19,9 @@ import 'models/wallet_model.dart';
 import 'models/transaction_model.dart';
 import 'models/trusted_contact.dart';
 import 'screens/security_settings_screen.dart';
+import 'screens/appearance_screen.dart';
+import 'screens/pin_settings_screen.dart';
+import 'screens/about_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/contacts_screen.dart';
 
@@ -155,6 +158,9 @@ class OffPayApp extends StatelessWidget {
         '/custom_qr': (context) => const CustomQrScreen(),
         '/qr_scanner': (context) => const QRScannerScreen(),
         '/security_settings': (context) => const SecuritySettingsScreen(),
+        '/appearance': (context) => const AppearanceScreen(),
+        '/pin_settings': (context) => const PinSettingsScreen(),
+        '/about': (context) => const AboutScreen(),
         '/profile': (context) => const ProfileScreen(),
         '/contacts': (context) => const ContactsScreen(),
 

@@ -82,6 +82,23 @@ class FirebaseService {
     }
   }
 
+  /// Check if a username already exists
+  static Future<bool> checkUsernameExists(String username) async {
+    try {
+      final firebaseUrl = await getFirebaseUrl();
+      final authToken = await getFirebaseAuthToken();
+      final usernameKey = base64UrlEncode(utf8.encode(username.trim()));
+      
+      String checkEndpoint = '$firebaseUrl/users/$usernameKey.json';
+      if (authToken != null && authToken.isNotEmpty) checkEndpoint += '?auth=$authToken';
+      
+      final checkRes = await http.get(Uri.parse(checkEndpoint)).timeout(const Duration(seconds: 4));
+      return checkRes.statusCode == 200 && checkRes.body != 'null';
+    } catch (e) {
+      return false; // On error, assume it doesn't exist for now to not block UI entirely
+    }
+  }
+
   /// Create a new account in Firebase
   static Future<Map<String, dynamic>> createAccount(String username, String password) async {
     try {

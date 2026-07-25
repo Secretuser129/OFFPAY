@@ -35,16 +35,8 @@ class _HomeScreenState extends State<HomeScreen> {
         await walletModel.init();
       }
       
-      // Auto-sync offline transactions on load
-      FirebaseService.syncWithFirebase(walletModel).then((result) {
-        if (result['syncedCount'] != null && result['syncedCount'] > 0) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Synced ${result['syncedCount']} offline transactions!'), backgroundColor: Colors.green),
-            );
-          }
-        }
-      });
+      // Auto-sync offline transactions silently on load (no popup for normal users)
+      FirebaseService.syncWithFirebase(walletModel).catchError((_) => <String, dynamic>{});
       
       UpdateService.checkForUpdates(context, silent: true);
     });
@@ -145,20 +137,6 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
     );
-  }
-
-  void _verifyPendingLedgerServer() async {
-    final walletModel = Provider.of<WalletModel>(context, listen: false);
-    final result = await FirebaseService.syncWithFirebase(walletModel);
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(result['message'] as String),
-          backgroundColor: Colors.orange.shade900,
-        ),
-      );
-    }
   }
 
   Future<void> _toggleBalanceVisibility() async {
@@ -678,11 +656,6 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             Row(
               children: [
-                TextButton.icon(
-                  icon: const Icon(Icons.verified, size: 16, color: Colors.green),
-                  label: const Text('Sync Proof', style: TextStyle(fontSize: 12, color: Colors.green)),
-                  onPressed: _verifyPendingLedgerServer,
-                ),
                 if (walletModel.history.isNotEmpty)
                   TextButton(
                     onPressed: () {

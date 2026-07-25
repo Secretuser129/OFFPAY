@@ -150,12 +150,13 @@ class _ReceiveScreenState extends State<ReceiveScreen> with SingleTickerProvider
           ),
         ],
       ),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
+            const SizedBox(height: 20),
             // Pulsing BLE Receiver Radar Circle
             AnimatedBuilder(
               animation: _pulseController,
@@ -190,7 +191,7 @@ class _ReceiveScreenState extends State<ReceiveScreen> with SingleTickerProvider
               },
             ),
 
-            const SizedBox(height: 36),
+            const SizedBox(height: 28),
 
             Text(
               'BLE Listening Active',
@@ -262,33 +263,36 @@ class _ReceiveScreenState extends State<ReceiveScreen> with SingleTickerProvider
               textAlign: TextAlign.center,
             ),
 
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
             
-            // Reverse Pairing Fallback Button
-            OutlinedButton.icon(
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                side: const BorderSide(color: Colors.indigo, width: 1.5),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              icon: const Icon(Icons.bluetooth_searching, color: Colors.indigo),
-              label: const Text(
-                "Can't find me? Force Connection",
-                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.indigo),
-              ),
-              onPressed: () {
-                HapticFeedback.mediumImpact();
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => const ReceiverPairingScreen(),
+            // Reverse Pairing Fallback Button — full width
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  side: BorderSide(color: theme.primaryColor, width: 1.5),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                );
-              },
+                ),
+                icon: Icon(Icons.bluetooth_searching, color: theme.primaryColor),
+                label: Text(
+                  "Can't find me? Force Connection",
+                  style: TextStyle(fontWeight: FontWeight.bold, color: theme.primaryColor),
+                ),
+                onPressed: () {
+                  HapticFeedback.mediumImpact();
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => const ReceiverPairingScreen(),
+                    ),
+                  );
+                },
+              ),
             ),
 
-            const SizedBox(height: 40),
+            const SizedBox(height: 16),
 
             SizedBox(
               width: double.infinity,
@@ -302,6 +306,7 @@ class _ReceiveScreenState extends State<ReceiveScreen> with SingleTickerProvider
                 onPressed: () => Navigator.pop(context),
               ),
             ),
+            const SizedBox(height: 20),
           ],
         ),
       ),

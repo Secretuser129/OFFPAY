@@ -213,11 +213,13 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
 
             const SizedBox(height: 12),
 
-            ElevatedButton.icon(
+            OutlinedButton.icon(
               icon: const Icon(Icons.arrow_back),
               label: const Text('Back to Dashboard'),
-              style: ElevatedButton.styleFrom(
+              style: OutlinedButton.styleFrom(
                 minimumSize: const Size.fromHeight(50),
+                foregroundColor: theme.primaryColor,
+                side: BorderSide(color: theme.primaryColor.withValues(alpha: 0.5)),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
               onPressed: () => Navigator.pop(context),

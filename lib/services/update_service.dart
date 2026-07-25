@@ -21,8 +21,8 @@ class UpdateInfo {
 }
 
 class UpdateService {
-  static const int currentVersionCode = 209;
-  static const String currentVersionName = '2.0.9';
+  static const int currentVersionCode = 210;
+  static const String currentVersionName = '2.1.0';
 
   // Fallback version.json URL
   static const String rawJsonUrl = 'https://raw.githubusercontent.com/Secretuser129/OFFPAY/main/version.json';
@@ -72,7 +72,7 @@ class UpdateService {
 
           return UpdateInfo(
             versionCode: remoteCode > 0 ? remoteCode : currentVersionCode + 1,
-            versionName: tag.isEmpty ? '2.0.9' : tag,
+            versionName: tag.isEmpty ? '2.1.0' : tag,
             updateUrl: downloadUrl,
             changelog: body,
           );
@@ -88,8 +88,8 @@ class UpdateService {
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
         return UpdateInfo(
-          versionCode: data['versionCode'] ?? 209,
-          versionName: data['versionName'] ?? '2.0.9',
+          versionCode: data['versionCode'] ?? 210,
+          versionName: data['versionName'] ?? '2.1.0',
           updateUrl: data['downloadUrl'] ?? defaultReleaseUrl,
           changelog: data['changelog'] ?? 'Performance & Bluetooth stability improvements.',
         );
@@ -97,8 +97,8 @@ class UpdateService {
     } catch (_) {}
 
     return UpdateInfo(
-      versionCode: 209,
-      versionName: '2.0.9',
+      versionCode: 210,
+      versionName: '2.1.0',
       updateUrl: defaultReleaseUrl,
       changelog: 'Performance & Bluetooth stability improvements.',
     );
@@ -328,25 +328,73 @@ class UpdateService {
         ),
         actionsPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Later'),
-          ),
-          ElevatedButton.icon(
-            icon: const Icon(Icons.download, size: 18),
-            label: const Text('Download & Install'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.indigo,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-            onPressed: () {
-              Navigator.pop(ctx);
-              _downloadAndInstallApk(context, info);
-            },
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              TextButton.icon(
+                icon: const Icon(Icons.cleaning_services, size: 14),
+                label: const Text('Clear Old', style: TextStyle(fontSize: 12)),
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.orange.shade700,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                ),
+                onPressed: () async {
+                  final count = await clearOldApks();
+                  if (ctx.mounted) {
+                    ScaffoldMessenger.of(ctx).showSnackBar(
+                      SnackBar(
+                        content: Text(count > 0 
+                          ? 'Deleted $count old APK file(s). Storage saved!' 
+                          : 'No old APKs found.'),
+                        backgroundColor: count > 0 ? Colors.green : Colors.grey.shade700,
+                      ),
+                    );
+                  }
+                },
+              ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('Later'),
+                  ),
+                  const SizedBox(width: 4),
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.download, size: 18),
+                    label: const Text('Install'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.indigo,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      _downloadAndInstallApk(context, info);
+                    },
+                  ),
+                ],
+              ),
+            ],
           ),
         ],
       ),
     );
+  }
+
+  /// Clear old downloaded APK files to free storage
+  static Future<int> clearOldApks() async {
+    int deletedCount = 0;
+    try {
+      final dir = await getTemporaryDirectory();
+      final files = dir.listSync();
+      for (final file in files) {
+        if (file is File && file.path.contains('offpay_update') && file.path.endsWith('.apk')) {
+          await file.delete();
+          deletedCount++;
+        }
+      }
+    } catch (_) {}
+    return deletedCount;
   }
 }
