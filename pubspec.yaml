@@ -3,7 +3,7 @@ name: offpay   # <-- this is the package name
 description: Offline Bluetooth Payments
 publish_to: 'none'
 
-version: 2.0.1+20001
+version: 2.0.3+20003
 
 environment:
   sdk: ">=3.0.0 <4.0.0"
@@ -25,6 +25,9 @@ dependencies:
   image_picker: ^1.2.1
   url_launcher: ^6.2.5
   http: ^1.2.0
+  pdf: ^3.10.0
+  path_provider: ^2.1.0
+  share_plus: ^7.0.0
 
 dev_dependencies:
   flutter_test:

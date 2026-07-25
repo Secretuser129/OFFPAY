@@ -17,8 +17,10 @@ import 'screens/qr_scanner_screen.dart';
 import 'services/bluetooth_service.dart';
 import 'models/wallet_model.dart';
 import 'models/transaction_model.dart';
+import 'models/trusted_contact.dart';
 import 'screens/security_settings_screen.dart';
 import 'screens/profile_screen.dart';
+import 'screens/contacts_screen.dart';
 
 import 'screens/login_screen.dart';
 import 'services/profile_service.dart';
@@ -31,6 +33,9 @@ void main() async {
   if (!Hive.isAdapterRegistered(1)) {
     Hive.registerAdapter(TransactionModelAdapter());
   }
+
+  // Initialize Trusted Contacts Hive box
+  await TrustedContactService.init();
   
   final bool isLoggedIn = await ProfileService.isLoggedIn();
 
@@ -145,6 +150,7 @@ class OffPayApp extends StatelessWidget {
         '/qr_scanner': (context) => const QRScannerScreen(),
         '/security_settings': (context) => const SecuritySettingsScreen(),
         '/profile': (context) => const ProfileScreen(),
+        '/contacts': (context) => const ContactsScreen(),
 
         // NOTE: PaymentSuccessScreen often needs runtime arguments (amount, recipient, etc.)
         // It's safer to navigate to that screen using MaterialPageRoute and pass required args:

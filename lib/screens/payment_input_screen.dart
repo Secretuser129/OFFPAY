@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../models/wallet_model.dart'; 
 import '../services/bluetooth_service.dart';
 import '../services/smart_payment_manager.dart';
+import '../services/receipt_service.dart';
 
 
 class PaymentInputScreen extends StatefulWidget {
@@ -332,8 +333,16 @@ class _PaymentInputScreenState extends State<PaymentInputScreen> {
 class PaymentSuccessScreen extends StatelessWidget {
   final double amount;
   final String recipientName;
+  final String? transactionId;
+  final DateTime? timestamp;
   
-  const PaymentSuccessScreen({required this.amount, required this.recipientName, super.key});
+  const PaymentSuccessScreen({
+    required this.amount, 
+    required this.recipientName, 
+    this.transactionId,
+    this.timestamp,
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -355,7 +364,28 @@ class PaymentSuccessScreen extends StatelessWidget {
               ),
               const SizedBox(height: 20),
               Text('Successfully transferred to: $recipientName', style: TextStyle(fontSize: 18, color: Colors.grey.shade700), textAlign: TextAlign.center),
-              const SizedBox(height: 50),
+              const SizedBox(height: 30),
+              if (transactionId != null)
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.share, color: Colors.indigo),
+                  label: const Text('Share Receipt', style: TextStyle(color: Colors.indigo, fontWeight: FontWeight.bold)),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                    side: const BorderSide(color: Colors.indigo),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  onPressed: () async {
+                    await ReceiptService.generateAndShareReceipt(
+                      amount: amount,
+                      recipientId: recipientName,
+                      transactionId: transactionId!,
+                      timestamp: timestamp ?? DateTime.now(),
+                      isCredit: false,
+                      status: 'PENDING',
+                    );
+                  },
+                ),
+              const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: () {
                   Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);

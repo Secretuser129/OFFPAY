@@ -503,6 +503,29 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
         ),
+        const SizedBox(width: 10),
+        Tooltip(
+          message: 'Trusted Contacts',
+          child: InkWell(
+            onTap: () {
+              HapticFeedback.lightImpact();
+              Navigator.pushNamed(context, '/contacts');
+            },
+            borderRadius: BorderRadius.circular(30),
+            child: Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: isDark ? const Color(0xFF1E1E28) : Colors.indigo.shade50,
+                border: Border.all(
+                  color: isDark ? Colors.indigo.withValues(alpha: 0.3) : Colors.indigo.withValues(alpha: 0.2),
+                ),
+              ),
+              child: Icon(Icons.contacts, color: isDark ? Colors.indigo.shade200 : Colors.indigo.shade900, size: 22),
+            ),
+          ),
+        ),
       ],
     );
   }

@@ -2,15 +2,65 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../models/transaction_model.dart';
+import '../models/trusted_contact.dart';
+import '../services/receipt_service.dart';
 
-class TransactionDetailScreen extends StatelessWidget {
+class TransactionDetailScreen extends StatefulWidget {
   final TransactionModel transaction;
 
   const TransactionDetailScreen({super.key, required this.transaction});
 
   @override
+  State<TransactionDetailScreen> createState() => _TransactionDetailScreenState();
+}
+
+class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
+  bool _isContactSaved = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkContactSaved();
+  }
+
+  Future<void> _checkContactSaved() async {
+    await TrustedContactService.init();
+    final saved = TrustedContactService.isContactSaved(widget.transaction.recipientId);
+    if (mounted) setState(() => _isContactSaved = saved);
+  }
+
+  Future<void> _shareReceipt() async {
+    await ReceiptService.generateAndShareReceipt(
+      amount: widget.transaction.amount,
+      recipientId: widget.transaction.recipientId,
+      transactionId: widget.transaction.transactionId,
+      timestamp: widget.transaction.timestamp,
+      isCredit: widget.transaction.isCredit,
+      status: widget.transaction.status,
+    );
+  }
+
+  Future<void> _saveContact() async {
+    await TrustedContactService.init();
+    final contact = TrustedContact(
+      name: widget.transaction.recipientId,
+      deviceId: widget.transaction.recipientId,
+      addedOn: DateTime.now(),
+      totalTransactions: 1,
+    );
+    await TrustedContactService.addContact(contact);
+    if (mounted) {
+      setState(() => _isContactSaved = true);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Saved as Trusted Contact!'), backgroundColor: Colors.green),
+      );
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final transaction = widget.transaction;
     final isCredit = transaction.isCredit;
     final formattedTime = DateFormat('EEEE, MMMM d, yyyy • HH:mm:ss').format(transaction.timestamp);
 
@@ -18,6 +68,13 @@ class TransactionDetailScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Transaction Details'),
         elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.share),
+            tooltip: 'Share Receipt',
+            onPressed: _shareReceipt,
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20.0),
@@ -124,7 +181,38 @@ class TransactionDetailScreen extends StatelessWidget {
               ),
             ),
 
-            const SizedBox(height: 30),
+            const SizedBox(height: 20),
+
+            // Share Receipt Button
+            ElevatedButton.icon(
+              icon: const Icon(Icons.picture_as_pdf),
+              label: const Text('Download / Share Receipt'),
+              style: ElevatedButton.styleFrom(
+                minimumSize: const Size.fromHeight(50),
+                backgroundColor: Colors.indigo,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              onPressed: _shareReceipt,
+            ),
+
+            const SizedBox(height: 12),
+
+            // Save as Trusted Contact Button
+            OutlinedButton.icon(
+              icon: Icon(_isContactSaved ? Icons.check_circle : Icons.person_add),
+              label: Text(_isContactSaved ? 'Contact Saved' : 'Save as Trusted Contact'),
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size.fromHeight(50),
+                side: BorderSide(color: _isContactSaved ? Colors.green : Colors.indigo),
+                foregroundColor: _isContactSaved ? Colors.green : Colors.indigo,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              onPressed: _isContactSaved ? null : _saveContact,
+            ),
+
+            const SizedBox(height: 12),
+
             ElevatedButton.icon(
               icon: const Icon(Icons.arrow_back),
               label: const Text('Back to Dashboard'),

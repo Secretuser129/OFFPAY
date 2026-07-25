@@ -495,9 +495,9 @@ class OffpayBluetoothService with ChangeNotifier {
     }
 
     try {
-      // Keep name SHORT (max 8 chars) to fit Android 10/11 31-byte scan response limit
-      // Scan response = 2 bytes overhead + name length bytes. Must be <= 31 bytes total.
-      final nameStr = 'OFFPAY';
+      // Use the user's actual Bluetooth name (e.g., "Rahul OFFPAY")
+      // The native side truncates to max 8 chars for Android 10/11 compatibility
+      final nameStr = userName ?? await ProfileService.getBluetoothName();
       await _channel.invokeMethod('startAdvertising', {
         'name': nameStr,
         'serviceUuid': OFFPAY_SERVICE_UUID.str,
@@ -514,8 +514,8 @@ class OffpayBluetoothService with ChangeNotifier {
     if (!isRadioOn) return;
 
     try {
-      // Keep name SHORT for Android 10/11 compatibility
-      const advName = 'OFFPAY';
+      // Use the user's actual Bluetooth name so senders can see who they're paying
+      final advName = await ProfileService.getBluetoothName();
       await _channel.invokeMethod('startAdvertising', {
         'name': advName,
         'serviceUuid': OFFPAY_SERVICE_UUID.str,

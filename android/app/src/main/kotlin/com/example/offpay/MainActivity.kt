@@ -73,10 +73,10 @@ class MainActivity : FlutterActivity() {
             return
         }
 
-        // Truncate name to max 8 bytes to guarantee it fits in 31-byte scan response
+        // Truncate name to max 20 bytes to fit in 31-byte scan response
         // Scan response structure: [length byte][type byte][name bytes] = 2 + name.length
-        // Max safe name length = 29 bytes, but shorter is better for Android 10/11
-        val safeName = if (name.length > 8) name.substring(0, 8) else name
+        // 20 chars + 2 overhead = 22 bytes, well under the 31-byte limit
+        val safeName = if (name.length > 20) name.substring(0, 20) else name
 
         try {
             bluetoothAdapter.name = safeName
