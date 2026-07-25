@@ -6,7 +6,7 @@
 
   ### **Zero Internet. Maximum Security. Instant Offline Bluetooth Payments.**
 
-  [![Release](https://img.shields.io/github/v/release/Secretuser129/OFFPAY?include_prereleases&style=for-the-badge&logo=github&logoColor=white&color=FF6F00&label=Release)](https://github.com/Secretuser129/OFFPAY/releases)
+ [![Release](https://img.shields.io/github/v/release/Secretuser129/OFFPAY?include_prereleases&style=for-the-badge&logo=github&logoColor=white&color=FF6F00&label=Release)](https://github.com/Secretuser129/OFFPAY/releases)
   [![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?style=for-the-badge&logo=flutter&logoColor=white)](https://flutter.dev)
   [![Dart](https://img.shields.io/badge/Dart-3.x-0175C2?style=for-the-badge&logo=dart&logoColor=white)](https://dart.dev)
   [![Bluetooth LE](https://img.shields.io/badge/BLE-Bluetooth_5.0-0082FC?style=for-the-badge&logo=bluetooth&logoColor=white)](https://developer.android.com/guide/topics/connectivity/bluetooth/ble)
