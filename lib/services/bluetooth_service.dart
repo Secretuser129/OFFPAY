@@ -31,6 +31,12 @@ class DiscoveredDevice {
   String get bluetoothAddress => device.remoteId.str;
 
   String get name {
+    if (advertisementData.serviceData.containsKey(OFFPAY_SERVICE_UUID)) {
+      try {
+        final decodedName = utf8.decode(advertisementData.serviceData[OFFPAY_SERVICE_UUID]!);
+        if (decodedName.isNotEmpty) return decodedName;
+      } catch (_) {}
+    }
     if (device.platformName.isNotEmpty) return device.platformName;
     if (advertisementData.advName.isNotEmpty) return advertisementData.advName;
     return id;
@@ -38,11 +44,10 @@ class DiscoveredDevice {
 
   /// Check if device is an authentic OFFPAY broadcast device
   bool get isOffpayUser {
-    final normPlatformName = device.platformName.toUpperCase().replaceAll(RegExp(r'[\s\-_]'), '');
-    final normAdvName = advertisementData.advName.toUpperCase().replaceAll(RegExp(r'[\s\-_]'), '');
+    final normName = name.toUpperCase().replaceAll(RegExp(r'[\s\-_]'), '');
     final normId = id.toUpperCase().replaceAll(RegExp(r'[\s\-_]'), '');
     final hasUuid = advertisementData.serviceUuids.contains(OFFPAY_SERVICE_UUID);
-    return normPlatformName.contains('OFFPAY') || normAdvName.contains('OFFPAY') || normId.contains('OFFPAY') || hasUuid;
+    return normName.contains('OFFPAY') || normId.contains('OFFPAY') || hasUuid;
   }
 
   /// Categorize signal strength for user display
@@ -301,6 +306,7 @@ class OffpayBluetoothService with ChangeNotifier {
       await fb.FlutterBluePlus.startScan(
         timeout: timeout,
         androidScanMode: fb.AndroidScanMode.lowLatency,
+        withServices: [OFFPAY_SERVICE_UUID], // Reliable scanning filter on Android 14
       );
     } catch (e) {
       debugPrint('startScan error: $e');
@@ -339,144 +345,115 @@ class OffpayBluetoothService with ChangeNotifier {
   // -------------------------
   // Real-time Connect & Transfer (GATT 133 Retry Counter Countermeasure)
   // -------------------------
-  Future<String?> connectAndTransfer(fb.BluetoothDevice device, double amount) async {
+
+
+  /// Step 1: Connect to the device separately
+  Future<bool> connectToDevice(fb.BluetoothDevice device) async {
     final isRadioOn = await enableBluetoothRadio();
-    if (!isRadioOn) {
-      debugPrint('Bluetooth radio not enabled. Cannot transfer.');
-      return null;
-    }
+    if (!isRadioOn) return false;
 
     await stopScan();
-
     final deviceId = device.remoteId.str;
-
-    // Step 1: Retry Counter (3 Attempts with Exponential Backoff for GATT 133 Recovery)
-    Future<bool> attemptConnectWithRetry() async {
-      const int maxRetries = 3;
-      for (int attempt = 1; attempt <= maxRetries; attempt++) {
-        try {
-          debugPrint('GATT Connection Attempt $attempt of $maxRetries for $deviceId');
-          await device.connect(autoConnect: false, license: fb.License.free);
-
-          final connectedState = await device.connectionState
-              .firstWhere(
-                (s) =>
-                    s == fb.BluetoothConnectionState.connected ||
-                    s == fb.BluetoothConnectionState.disconnected,
-              )
-              .timeout(
-                const Duration(seconds: 3),
-                onTimeout: () => fb.BluetoothConnectionState.disconnected,
-              );
-
-          if (connectedState == fb.BluetoothConnectionState.connected) {
-            _connectedDevice = device;
-            if (_deviceMap.containsKey(deviceId)) {
-              _deviceMap[deviceId]!.connectionState = fb.BluetoothConnectionState.connected;
-              notifyListeners();
-            }
-            debugPrint('GATT Connected successfully on attempt $attempt: $deviceId');
-            return true;
-          } else {
-            try {
-              await device.disconnect();
-            } catch (_) {}
-          }
-        } catch (e) {
-          debugPrint('GATT Attempt $attempt error (GATT 133 countermeasure): $e');
-          try {
-            await device.disconnect();
-          } catch (_) {}
-        }
-        if (attempt < maxRetries) {
-          await Future.delayed(Duration(milliseconds: 300 * attempt));
-        }
+    
+    // Check if already connected
+    try {
+      final current = await device.connectionState.first;
+      if (current == fb.BluetoothConnectionState.connected) {
+        _connectedDevice = device;
+        return true;
       }
-      return false;
-    }
+    } catch (_) {}
 
-    bool connected = false;
+    const int maxRetries = 3;
+    for (int attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        debugPrint('GATT Connection Attempt $attempt of $maxRetries for $deviceId');
+        await device.connect(autoConnect: false, license: fb.License.free);
+
+        final connectedState = await device.connectionState
+            .firstWhere((s) => s == fb.BluetoothConnectionState.connected || s == fb.BluetoothConnectionState.disconnected)
+            .timeout(const Duration(seconds: 3), onTimeout: () => fb.BluetoothConnectionState.disconnected);
+
+        if (connectedState == fb.BluetoothConnectionState.connected) {
+          _connectedDevice = device;
+          if (_deviceMap.containsKey(deviceId)) {
+            _deviceMap[deviceId]!.connectionState = fb.BluetoothConnectionState.connected;
+            notifyListeners();
+          }
+          debugPrint('GATT Connected successfully on attempt $attempt: $deviceId');
+          return true;
+        } else {
+          try { await device.disconnect(); } catch (_) {}
+        }
+      } catch (e) {
+        debugPrint('GATT Attempt $attempt error: $e');
+        try { await device.disconnect(); } catch (_) {}
+      }
+      if (attempt < maxRetries) await Future.delayed(Duration(milliseconds: 300 * attempt));
+    }
+    return false;
+  }
+
+  /// Step 2: Transfer to an already connected device
+  Future<String?> transferToConnectedDevice(fb.BluetoothDevice device, double amount) async {
     try {
       final current = await device.connectionState.first;
       if (current != fb.BluetoothConnectionState.connected) {
-        connected = await attemptConnectWithRetry();
-      } else {
-        connected = true;
+        debugPrint('Cannot transfer, device is disconnected.');
+        return null;
       }
 
-      if (connected) {
+      final List<fb.BluetoothService> services = await device.discoverServices().timeout(
+        const Duration(seconds: 4),
+        onTimeout: () => [],
+      );
+
+      fb.BluetoothService? offpayService;
+      try {
+        offpayService = services.firstWhere((s) => s.uuid == OFFPAY_SERVICE_UUID);
+      } catch (_) {
+        offpayService = null;
+      }
+
+      if (offpayService != null) {
+        fb.BluetoothCharacteristic? writeChar;
         try {
-          final List<fb.BluetoothService> services = await device.discoverServices().timeout(
-            const Duration(seconds: 4),
-            onTimeout: () => [],
-          );
-
-          fb.BluetoothService? offpayService;
-          try {
-            offpayService = services.firstWhere((s) => s.uuid == OFFPAY_SERVICE_UUID);
-          } catch (_) {
-            offpayService = null;
-          }
-
-          if (offpayService != null) {
-            fb.BluetoothCharacteristic? writeChar;
-            try {
-              writeChar = offpayService.characteristics.firstWhere((c) => c.uuid == OFFPAY_CHAR_UUID);
-            } catch (_) {
-              writeChar = null;
-            }
-
-            if (writeChar != null) {
-              final senderId = await ProfileService.getDeviceId();
-              final senderName = await ProfileService.getUserName();
-              final handshake = HandshakeCryptoService.createSenderHandshake(
-                senderDeviceId: senderId,
-                senderName: senderName,
-                amount: amount,
-              );
-              final String payload = handshake['packet']!;
-              final List<int> payloadBytes = utf8.encode(payload);
-
-              final canWrite = writeChar.properties.write;
-              final canWriteWithoutResponse = writeChar.properties.writeWithoutResponse;
-
-              if (canWrite || canWriteWithoutResponse) {
-                await writeChar.write(payloadBytes, withoutResponse: !canWrite);
-                debugPrint('Wrote secure GATT payment payload to ${device.remoteId.str}: $payload');
-                
-                try {
-                  await device.disconnect();
-                } catch (_) {}
-                
-                // Return transaction ID (using nonce as unique tx id)
-                return 'TXN-${handshake['nonce']}';
-              }
-            }
-          }
-        } catch (e) {
-          debugPrint('GATT service discovery info: $e');
+          writeChar = offpayService.characteristics.firstWhere((c) => c.uuid == OFFPAY_CHAR_UUID);
+        } catch (_) {
+          writeChar = null;
         }
 
-        try {
-          await device.disconnect();
-        } catch (_) {}
-      } else {
-        // Fallback for Android GATT 133 / un-paired devices:
-        // Complete transfer via OFFPAY Secure P2P Proximity Ledger Handshake
-        debugPrint('Direct GATT connection skipped. Completing via OFFPAY P2P Proximity Handshake for ID: $deviceId');
-      }
+        if (writeChar != null) {
+          final senderId = await ProfileService.getDeviceId();
+          final senderName = await ProfileService.getUserName();
+          final handshake = HandshakeCryptoService.createSenderHandshake(
+            senderDeviceId: senderId,
+            senderName: senderName,
+            amount: amount,
+          );
+          final String payload = handshake['packet']!;
+          final List<int> payloadBytes = utf8.encode(payload);
 
-      _connectedDevice = null;
+          final canWrite = writeChar.properties.write;
+          final canWriteWithoutResponse = writeChar.properties.writeWithoutResponse;
 
-      if (_deviceMap.containsKey(deviceId)) {
-        _deviceMap[deviceId]!.connectionState = fb.BluetoothConnectionState.disconnected;
-        notifyListeners();
+          if (canWrite || canWriteWithoutResponse) {
+            await writeChar.write(payloadBytes, withoutResponse: !canWrite);
+            debugPrint('Wrote secure GATT payment payload to ${device.remoteId.str}: $payload');
+            
+            try { await device.disconnect(); } catch (_) {}
+            
+            return 'TXN-${handshake['nonce']}';
+          }
+        }
       }
-      return null;
     } catch (e, st) {
-      debugPrint('connectAndTransfer fallback execution: $e\n$st');
-      return null;
+      debugPrint('transferToConnectedDevice error: $e\n$st');
     }
+
+    try { await device.disconnect(); } catch (_) {}
+    _connectedDevice = null;
+    return null;
   }
 
   // -------------------------

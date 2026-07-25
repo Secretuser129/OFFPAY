@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import '../services/bluetooth_service.dart';
 import '../services/profile_service.dart';
 
@@ -213,10 +214,10 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> with SingleTickerProv
                               Navigator.pushNamed(
                                 context,
                                 '/payment_input',
-                                arguments: item.device,
+                                arguments: {'device': item.device, 'recipientName': item.name},
                               );
                             },
-                          );
+                          ).animate(delay: (100 * index).ms).fade(duration: 500.ms).slideX(begin: 0.1, end: 0);
                         },
                       ),
               ),
@@ -258,7 +259,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> with SingleTickerProv
           ),
         ],
       ),
-    );
+    ).animate().fade(duration: 500.ms).scale(begin: const Offset(0.9, 0.9));
   }
 }
 

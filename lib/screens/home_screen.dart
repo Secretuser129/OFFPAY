@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
 import '../models/transaction_model.dart';
 import '../models/wallet_model.dart';
@@ -297,9 +298,9 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
-              _buildBalanceCard(walletModel),
+              _buildBalanceCard(walletModel).animate().fade(duration: 500.ms).scale(begin: const Offset(0.95, 0.95)),
               const SizedBox(height: 24),
-              _buildActionButtons(context),
+              _buildActionButtons(context).animate().fade(delay: 200.ms).slideY(begin: 0.1, end: 0),
               const SizedBox(height: 24),
               _buildTransactionHistory(walletModel),
             ],
@@ -717,7 +718,7 @@ class _HomeScreenState extends State<HomeScreen> {
             itemCount: walletModel.history.length > 5 ? 5 : walletModel.history.length,
             itemBuilder: (context, index) {
               final transaction = walletModel.history[index];
-              return _buildTransactionTile(transaction);
+              return _buildTransactionTile(transaction).animate(delay: (100 * index).ms).fade().slideX(begin: 0.1, end: 0);
             },
           ),
       ],
@@ -753,7 +754,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     itemCount: walletModel.history.length,
                     itemBuilder: (context, index) {
                       final transaction = walletModel.history[index];
-                      return _buildTransactionTile(transaction);
+                      return _buildTransactionTile(transaction).animate(delay: (100 * index).ms).fade().slideX(begin: 0.1, end: 0);
                     },
                   ),
                 ),

@@ -7,7 +7,7 @@ import '../models/wallet_model.dart';
 import '../services/bluetooth_service.dart';
 import '../services/smart_payment_manager.dart';
 import '../services/receipt_service.dart';
-
+import 'package:flutter_animate/flutter_animate.dart';
 
 class PaymentInputScreen extends StatefulWidget {
   const PaymentInputScreen({super.key});
@@ -24,6 +24,11 @@ class _PaymentInputScreenState extends State<PaymentInputScreen> {
   fb.BluetoothDevice? recipientDevice;
   String customRecipientName = 'Unknown User';
   bool _isAmountLocked = false;
+  
+  // Connection State variables
+  bool _isConnecting = true;
+  bool _isConnected = false;
+  String _connectionError = '';
 
   @override
   void initState() {
@@ -64,7 +69,30 @@ class _PaymentInputScreenState extends State<PaymentInputScreen> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         Navigator.pop(context); // Go back if no device is found
       });
+    } else {
+      // Initiate background connection to the recipient
+      _connectToRecipient();
     }
+  }
+
+  Future<void> _connectToRecipient() async {
+    setState(() {
+      _isConnecting = true;
+      _connectionError = '';
+    });
+
+    final bluetoothService = Provider.of<OffpayBluetoothService>(context, listen: false);
+    final connected = await bluetoothService.connectToDevice(recipientDevice!);
+
+    if (!mounted) return;
+
+    setState(() {
+      _isConnecting = false;
+      _isConnected = connected;
+      if (!connected) {
+        _connectionError = 'Failed to connect. Please make sure the receiver is nearby.';
+      }
+    });
   }
 
   @override
@@ -74,23 +102,6 @@ class _PaymentInputScreenState extends State<PaymentInputScreen> {
   }
 
   // --- Payment Processing Logic (Integrated Bluetooth Call) ---
-  void _showLoadingDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const CircularProgressIndicator(color: Colors.indigo),
-            const SizedBox(height: 15),
-            Text('Connecting to ${recipientDevice!.platformName}...'),
-          ],
-        ),
-      ),
-    );
-  }
-
   Future<void> _processPayment() async {
     // Ensure validation passes and a device is selected
     if (!_formKey.currentState!.validate() || recipientDevice == null) {
@@ -111,10 +122,8 @@ class _PaymentInputScreenState extends State<PaymentInputScreen> {
       // Ignore if device not found in active list
     }
 
-    // Show loading dialog
-    _showLoadingDialog();
-
-    // 1. EXECUTE SMART BLUETOOTH CONNECTION AND TRANSFER via Invisible Manager
+    // 1. EXECUTE SMART TRANSFER via Invisible Manager
+    // The device should already be connected via _connectToRecipient()
     bool success = await SmartPaymentManager.executeSmartTransfer(
       bluetoothService: bluetoothService,
       walletModel: walletModel,
@@ -123,9 +132,6 @@ class _PaymentInputScreenState extends State<PaymentInputScreen> {
       currentRssi: currentRssi, 
 
     );
-
-    // Dismiss the loading dialog using the context of the payment screen
-    Navigator.of(context).pop(); 
 
     if (success) {
       final recipientName = customRecipientName.isNotEmpty 
@@ -176,6 +182,83 @@ class _PaymentInputScreenState extends State<PaymentInputScreen> {
           key: _formKey,
           child: ListView(
             children: <Widget>[
+              // --- Connection Status Banner ---
+              if (_isConnecting)
+                Container(
+                  margin: const EdgeInsets.only(bottom: 20),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.amber.shade300),
+                  ),
+                  child: Row(
+                    children: [
+                      const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.amber),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Connecting to ${displayRecipientName}...',
+                          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.amber),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              else if (!_isConnected)
+                Container(
+                  margin: const EdgeInsets.only(bottom: 20),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.red.shade300),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.error_outline, color: Colors.red, size: 24),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          _connectionError,
+                          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: _connectToRecipient,
+                        child: const Text('Retry', style: TextStyle(color: Colors.red)),
+                      )
+                    ],
+                  ),
+                )
+              else
+                Container(
+                  margin: const EdgeInsets.only(bottom: 20),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.green.shade300),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.check_circle, color: Colors.green, size: 24),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Connected securely to ${displayRecipientName}',
+                          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              // --- End Status Banner ---
+
               // Recipient Info Card
               Card(
                 elevation: 4,
@@ -236,7 +319,7 @@ class _PaymentInputScreenState extends State<PaymentInputScreen> {
               const SizedBox(height: 8),
               TextFormField(
                 controller: _amountController,
-                readOnly: _isAmountLocked,
+                readOnly: _isAmountLocked || _isConnecting || !_isConnected,
                 keyboardType: TextInputType.number,
                 style: TextStyle(
                   color: _isAmountLocked ? Colors.grey : theme.textTheme.bodyLarge?.color,
@@ -307,21 +390,27 @@ class _PaymentInputScreenState extends State<PaymentInputScreen> {
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
-                onPressed: _processPayment, // Call the integrated function
+                onPressed: _isConnected && !_isConnecting ? _processPayment : null, // Disabled if not connected
               ),
 
               const SizedBox(height: 12),
 
               // Cancel Button
               OutlinedButton(
-                onPressed: () => Navigator.pop(context),
+                onPressed: () {
+                  // Ensure we cleanly disconnect if user cancels
+                  if (_isConnected && recipientDevice != null) {
+                    recipientDevice!.disconnect().catchError((_) {});
+                  }
+                  Navigator.pop(context);
+                },
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   side: BorderSide(color: Colors.grey[400]!),
                 ),
                 child: Text('Cancel', style: TextStyle(color: Colors.grey[700])),
               ),
-            ],
+            ].animate(interval: 50.ms).fade().slideY(begin: 0.1, end: 0),
           ),
         ),
       ),

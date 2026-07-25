@@ -68,7 +68,8 @@ class DeviceScanScreen extends StatelessWidget {
       SnackBar(content: Text('Connecting to ${device.platformName}...')),
     );
 
-    final txId = await service.connectAndTransfer(device, 10.00);
+    final connected = await service.connectToDevice(device);
+    final txId = connected ? await service.transferToConnectedDevice(device, 10.00) : null;
 
     if (txId != null) {
       ScaffoldMessenger.of(context).hideCurrentSnackBar();

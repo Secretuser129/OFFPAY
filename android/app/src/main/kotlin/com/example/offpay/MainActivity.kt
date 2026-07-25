@@ -111,11 +111,12 @@ class MainActivity : FlutterActivity() {
             .addServiceUuid(pUuid)
             .build()
 
-        // Scan response: Device name only
-        // This is a SEPARATE 31-byte packet sent when a scanner requests more info
+        // Scan response: Device name embedded in Service Data to prevent DATA_TOO_LARGE errors on Android 11
+        // since setIncludeDeviceName(true) fails if the system Bluetooth name is too long.
         val scanResponse = AdvertiseData.Builder()
-            .setIncludeDeviceName(true)
+            .setIncludeDeviceName(false)
             .setIncludeTxPowerLevel(false)
+            .addServiceData(pUuid, safeName.toByteArray(Charsets.UTF_8))
             .build()
 
         stopAdvertisingInternal()

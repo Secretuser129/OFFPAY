@@ -127,15 +127,31 @@ class _ReceiverPairingScreenState extends State<ReceiverPairingScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Pairing initiated! Check screen for PIN.'),
+          content: Text('Pairing initiated! Please accept the PIN.'),
           backgroundColor: Colors.blue,
         ),
       );
       
-      // Navigate back after a short delay so user can handle the OS popup
+      // Wait for the user to complete the OS pairing dialog
+      await device.bondState.firstWhere((s) => s == fb.BluetoothBondState.bonded).timeout(
+        const Duration(seconds: 45),
+        onTimeout: () => throw Exception('Pairing timeout or cancelled'),
+      );
+      
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('✅ Paired Successfully! The Sender can now find you and transfer money.'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 4),
+        ),
+      );
+
+      // Disconnect so the link is freed up for the Sender to initiate the payment connection
+      device.disconnect().catchError((_) {});
+      
+      // Navigate back
       Future.delayed(const Duration(seconds: 2), () {
-        // We disconnect in background so it doesn't hold the connection
-        device.disconnect().catchError((_) {});
         if (mounted) Navigator.pop(context);
       });
       

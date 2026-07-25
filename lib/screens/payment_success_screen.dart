@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../services/bluetooth_service.dart';
-
+import '../services/receipt_service.dart';
 class PaymentSuccessScreen extends StatefulWidget {
   final double amount;
   final String recipientName;
@@ -245,9 +245,14 @@ class _PaymentSuccessScreenState extends State<PaymentSuccessScreen> with Ticker
                             padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 12),
                             side: BorderSide(color: theme.primaryColor),
                           ),
-                          onPressed: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Share functionality coming soon!')),
+                          onPressed: () async {
+                            await ReceiptService.generateAndShareReceipt(
+                              amount: widget.amount,
+                              recipientId: widget.recipientName,
+                              transactionId: transactionId,
+                              timestamp: DateTime.now(),
+                              isCredit: false,
+                              status: 'SUCCESS',
                             );
                           },
                         ),

@@ -44,7 +44,9 @@ class SmartPaymentManager {
 
     // 2. Direct GATT Transfer Attempt
     debugPrint('SmartPaymentManager: Signal strong enough. Attempting direct GATT connection...');
-    final txId = await bluetoothService.connectAndTransfer(recipientDevice, amount);
+    // We assume bluetoothService.connectToDevice() was already called by the UI.
+    // We just execute the transfer.
+    final txId = await bluetoothService.transferToConnectedDevice(recipientDevice, amount);
 
     // 3. Atomic State Management
     if (txId != null) {

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_blue_plus/flutter_blue_plus.dart' as fb;
+import 'package:flutter_animate/flutter_animate.dart';
 import '../models/trusted_contact.dart';
 
 class ContactsScreen extends StatefulWidget {
@@ -132,7 +134,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
                     ],
                   ),
                 ),
-              )
+              ).animate().fade(duration: 500.ms).scale(begin: const Offset(0.9, 0.9))
             : ListView.builder(
                 key: const ValueKey('list'),
                 padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
@@ -178,11 +180,12 @@ class _ContactsScreenState extends State<ContactsScreen> {
                             IconButton(
                               icon: const Icon(Icons.send, color: Colors.indigo),
                               onPressed: () {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Direct pay coming soon!'),
-                                    behavior: SnackBarBehavior.floating,
-                                  ),
+                                // Instantiate device directly from MAC address (bonded device)
+                                final fb.BluetoothDevice device = fb.BluetoothDevice.fromId(contact.deviceId);
+                                Navigator.pushNamed(
+                                  context,
+                                  '/payment_input',
+                                  arguments: {'device': device, 'recipientName': contact.name},
                                 );
                               },
                             ),
@@ -194,7 +197,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
                         ),
                       ),
                     ),
-                  );
+                  ).animate(delay: (100 * index).ms).fade(duration: 500.ms).slideX(begin: 0.1, end: 0);
                 },
               ),
       ),
