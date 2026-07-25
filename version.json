@@ -1,6 +1,6 @@
 {
-  "versionCode": 206,
-  "versionName": "2.0.6",
+  "versionCode": 207,
+  "versionName": "2.0.7",
   "downloadUrl": "https://github.com/Secretuser129/OFFPAY/releases/latest",
-  "changelog": "🚀 What's New in OffPay v2.0.6:\n• Improved BLE 5.0 Peer Discovery & RSSI Distance Meter\n• Verified Service UUID Filter ('OFFPAY Users Only')\n• Active Payment Screen Popup Lock\n• Ultra-Simple In-App Update Engine"
+  "changelog": "🚀 What's New in OffPay v2.0.7:\n• Performance & Bluetooth stability improvements\n• Improved BLE 5.0 Peer Discovery & RSSI Distance Meter\n• Verified Service UUID Filter ('OFFPAY Users Only')\n• Active Payment Screen Popup Lock\n• Ultra-Simple In-App Update Engine"
 }
