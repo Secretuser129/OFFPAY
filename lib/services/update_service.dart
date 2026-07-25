@@ -211,7 +211,11 @@ class UpdateService {
       final request = await httpClient.getUrl(Uri.parse(url));
       final response = await request.close();
 
-      final dir = await getTemporaryDirectory();
+      if (response.statusCode != 200) {
+        throw Exception('HTTP error ${response.statusCode}');
+      }
+
+      final dir = await getExternalStorageDirectory() ?? await getApplicationDocumentsDirectory();
       final filePath = '${dir.path}/offpay_update_v${info.versionName}.apk';
       final file = File(filePath);
 
@@ -386,9 +390,19 @@ class UpdateService {
   static Future<int> clearOldApks() async {
     int deletedCount = 0;
     try {
-      final dir = await getTemporaryDirectory();
+      final dir = await getExternalStorageDirectory() ?? await getApplicationDocumentsDirectory();
       final files = dir.listSync();
       for (final file in files) {
+        if (file is File && file.path.contains('offpay_update') && file.path.endsWith('.apk')) {
+          await file.delete();
+          deletedCount++;
+        }
+      }
+      
+      // Also clean up from temporary directory if any exist from before
+      final tempDir = await getTemporaryDirectory();
+      final tempFiles = tempDir.listSync();
+      for (final file in tempFiles) {
         if (file is File && file.path.contains('offpay_update') && file.path.endsWith('.apk')) {
           await file.delete();
           deletedCount++;
