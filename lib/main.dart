@@ -25,6 +25,8 @@ import 'screens/contacts_screen.dart';
 import 'screens/login_screen.dart';
 import 'services/profile_service.dart';
 
+import 'services/theme_service.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -47,6 +49,9 @@ void main() async {
         ),
         ChangeNotifierProvider(
           create: (context) => WalletModel(),
+        ),
+        ChangeNotifierProvider(
+          create: (context) => ThemeProvider(),
         ),
       ],
       child: OffPayApp(isLoggedIn: isLoggedIn),
@@ -95,12 +100,11 @@ class OffPayApp extends StatelessWidget {
           elevation: 0,
         ),
         cardTheme: CardThemeData(
-  color: Colors.white,
-  elevation: 4,
-  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-),
-);
-      
+          color: Colors.white,
+          elevation: 4,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
 
   // --- 2. AMOLED Dark Theme Definition ---
   ThemeData get darkTheme => ThemeData(
@@ -130,11 +134,13 @@ class OffPayApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+
     return MaterialApp(
       title: 'OFF-PAY',
       theme: lightTheme,
       darkTheme: darkTheme,
-      themeMode: ThemeMode.system,
+      themeMode: themeProvider.themeMode,
 
       initialRoute: isLoggedIn ? '/home' : '/login',
       routes: {

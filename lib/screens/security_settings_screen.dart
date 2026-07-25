@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/password_service.dart';
 import '../services/firebase_service.dart';
+import '../services/theme_service.dart';
 import '../models/wallet_model.dart';
 import 'package:provider/provider.dart';
 
@@ -153,7 +154,7 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Security & PIN Settings'),
+        title: const Text('Settings & Security'),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -161,6 +162,54 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
               padding: const EdgeInsets.all(16.0),
               child: ListView(
                 children: [
+                  // 1. App Appearance & Theme Toggle Section
+                  const Text(
+                    'App Appearance',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Switch between Dark Mode and Light Mode.',
+                    style: TextStyle(color: theme.hintColor, fontSize: 14),
+                  ),
+                  const SizedBox(height: 12),
+                  Consumer<ThemeProvider>(
+                    builder: (context, themeProvider, child) {
+                      final isDark = themeProvider.isDarkMode(context);
+                      return Card(
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.all(16),
+                          leading: CircleAvatar(
+                            backgroundColor: isDark
+                                ? Colors.purple.withValues(alpha: 0.15)
+                                : Colors.amber.withValues(alpha: 0.15),
+                            child: Icon(
+                              isDark ? Icons.dark_mode : Icons.light_mode,
+                              color: isDark ? Colors.purple.shade300 : Colors.amber.shade800,
+                            ),
+                          ),
+                          title: Text(
+                            isDark ? 'AMOLED Dark Mode' : 'Light Mode',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          subtitle: Text(
+                            isDark ? 'Pure black background enabled' : 'Clean light theme enabled',
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                          trailing: Switch(
+                            value: isDark,
+                            activeThumbColor: Colors.indigo,
+                            onChanged: (bool value) {
+                              themeProvider.toggleTheme(value);
+                            },
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 28),
+
+                  // 2. Custom PIN Security Section
                   const Text(
                     'Custom PIN Protection',
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
@@ -170,9 +219,9 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
                     'Set separate PINs to hide/view your balance and authorize offline transfers.',
                     style: TextStyle(color: theme.hintColor, fontSize: 14),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 16),
 
-                  // 1. Balance Check PIN Card
+                  // Balance Check PIN Card
                   Card(
                     child: ListTile(
                       contentPadding: const EdgeInsets.all(16),
@@ -210,7 +259,7 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
 
                   const SizedBox(height: 16),
 
-                  // 2. Confirm Transfer Money PIN Card
+                  // Confirm Transfer Money PIN Card
                   Card(
                     child: ListTile(
                       contentPadding: const EdgeInsets.all(16),

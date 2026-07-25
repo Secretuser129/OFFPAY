@@ -73,23 +73,24 @@ class _ContactsScreenState extends State<ContactsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: _isSearching
             ? TextField(
                 controller: _searchController,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   hintText: 'Search contacts...',
                   border: InputBorder.none,
-                  hintStyle: TextStyle(color: Colors.white70),
+                  hintStyle: TextStyle(color: theme.appBarTheme.foregroundColor?.withValues(alpha: 0.7) ?? Colors.white70),
                 ),
-                style: const TextStyle(color: Colors.white),
+                style: TextStyle(color: theme.appBarTheme.foregroundColor ?? Colors.white),
                 onChanged: _filterContacts,
               )
             : const Text('Trusted Contacts'),
-        backgroundColor: Colors.indigo,
-        foregroundColor: Colors.white,
         elevation: 0,
         actions: [
           IconButton(
@@ -119,7 +120,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
                       Icon(
                         Icons.contacts_outlined,
                         size: 80,
-                        color: Colors.indigo[200],
+                        color: theme.primaryColor.withValues(alpha: 0.4),
                       ),
                       const SizedBox(height: 24),
                       Text(
@@ -127,7 +128,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 16,
-                          color: Colors.grey[600],
+                          color: theme.hintColor,
                           height: 1.5,
                         ),
                       ),
@@ -146,12 +147,14 @@ class _ContactsScreenState extends State<ContactsScreen> {
                     margin: const EdgeInsets.only(bottom: 12),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
+                      side: isDark ? BorderSide(color: Colors.indigo.withValues(alpha: 0.3)) : BorderSide.none,
                     ),
+                    color: theme.cardTheme.color,
                     child: Padding(
                       padding: const EdgeInsets.symmetric(vertical: 8),
                       child: ListTile(
                         leading: CircleAvatar(
-                          backgroundColor: Colors.indigo,
+                          backgroundColor: theme.primaryColor,
                           foregroundColor: Colors.white,
                           child: Text(
                             contact.name.isNotEmpty
@@ -162,15 +165,24 @@ class _ContactsScreenState extends State<ContactsScreen> {
                         ),
                         title: Text(
                           contact.name,
-                          style: const TextStyle(fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: theme.textTheme.bodyLarge?.color,
+                          ),
                         ),
                         subtitle: Padding(
                           padding: const EdgeInsets.only(top: 4.0),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('Device: ${contact.deviceId}'),
-                              Text('${contact.totalTransactions} transactions'),
+                              Text(
+                                'Device: ${contact.deviceId}',
+                                style: TextStyle(fontSize: 12, color: theme.hintColor),
+                              ),
+                              Text(
+                                '${contact.totalTransactions} transactions',
+                                style: TextStyle(fontSize: 12, color: theme.hintColor),
+                              ),
                             ],
                           ),
                         ),
@@ -178,7 +190,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             IconButton(
-                              icon: const Icon(Icons.send, color: Colors.indigo),
+                              icon: Icon(Icons.send, color: theme.primaryColor),
                               onPressed: () {
                                 // Instantiate device directly from MAC address (bonded device)
                                 final fb.BluetoothDevice device = fb.BluetoothDevice.fromId(contact.deviceId);
