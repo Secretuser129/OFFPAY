@@ -11,7 +11,7 @@ android {
 
     defaultConfig {
         applicationId = "com.example.offpay"
-        minSdk = flutter.minSdkVersion
+        minSdk = 24
         targetSdk = flutter.targetSdkVersion
         versionCode = 210
         versionName = "2.1.0"
