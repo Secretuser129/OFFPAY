@@ -8,7 +8,7 @@ import '../models/transaction_model.dart';
 import '../models/wallet_model.dart';
 import '../services/bluetooth_service.dart';
 import '../services/password_service.dart';
-import '../services/profile_service.dart';
+
 import '../services/firebase_service.dart';
 import '../services/update_service.dart';
 import 'send_options_screen.dart';
@@ -33,7 +33,18 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!walletModel.isInitialized) {
         await walletModel.init();
       }
-      _checkProfileOnboarding();
+      
+      // Auto-sync offline transactions on load
+      FirebaseService.syncWithFirebase(walletModel).then((result) {
+        if (result['syncedCount'] != null && result['syncedCount'] > 0) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Synced ${result['syncedCount']} offline transactions!'), backgroundColor: Colors.green),
+            );
+          }
+        }
+      });
+      
       UpdateService.checkForUpdates(context, silent: true);
     });
 
@@ -230,102 +241,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Future<void> _checkProfileOnboarding() async {
-    final configured = await ProfileService.isProfileConfigured();
-    if (!configured && mounted) {
-      _showProfileOnboardingDialog();
-    }
-  }
-
-  void _showProfileOnboardingDialog() {
-    final nameCtrl = TextEditingController();
-    final deviceIdCtrl = TextEditingController(text: ProfileService.generateRandomDeviceId());
-    final formKey = GlobalKey<FormState>();
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Row(
-            children: [
-              Icon(Icons.waving_hand, color: Colors.indigo),
-              SizedBox(width: 8),
-              Text('Welcome to OFFPAY!'),
-            ],
-          ),
-          content: Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Set up your profile to start sending & receiving offline payments:'),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: nameCtrl,
-                  decoration: InputDecoration(
-                    labelText: 'Your Name',
-                    prefixIcon: const Icon(Icons.person),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
-                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Please enter your name' : null,
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('Device ID', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                    TextButton.icon(
-                      icon: const Icon(Icons.casino, size: 14),
-                      label: const Text('Randomize', style: TextStyle(fontSize: 11)),
-                      onPressed: () {
-                        setDialogState(() {
-                          deviceIdCtrl.text = ProfileService.generateRandomDeviceId();
-                        });
-                      },
-                    ),
-                  ],
-                ),
-                TextFormField(
-                  controller: deviceIdCtrl,
-                  decoration: InputDecoration(
-                    prefixIcon: const Icon(Icons.bluetooth),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
-                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Device ID required' : null,
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.indigo,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-              onPressed: () async {
-                if (formKey.currentState!.validate()) {
-                  await ProfileService.saveProfile(
-                    name: nameCtrl.text.trim(),
-                    deviceId: deviceIdCtrl.text.trim(),
-                    avatarIndex: 0,
-                    isDeviceIdChanged: true,
-                  );
-                  if (mounted) {
-                    Navigator.pop(ctx);
-                  }
-                }
-              },
-              child: const Text('Get Started'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   void _triggerJudgeDemo() async {
     final walletModel = Provider.of<WalletModel>(context, listen: false);

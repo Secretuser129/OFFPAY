@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
-import 'firebase_service.dart';
 
 class UpdateInfo {
   final int versionCode;
@@ -37,24 +36,9 @@ class UpdateService {
   static const String defaultGithubRepo = 'Secretuser129/OFFPAY';
   static const String defaultGithubUrl = 'https://github.com/Secretuser129/OFFPAY/releases/latest';
 
-  /// Check Firebase Cloud RTDB `/app_version.json` or GitHub Releases API for new updates
+  /// Check GitHub Releases API for new updates
   static Future<UpdateInfo?> checkRemoteVersion() async {
     try {
-      final firebaseUrl = await FirebaseService.getFirebaseUrl();
-      final url = '$firebaseUrl/app_version.json';
-      final response = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 4));
-
-      if (response.statusCode == 200 && response.body != 'null') {
-        final Map<String, dynamic> data = jsonDecode(response.body);
-        return UpdateInfo.fromJson(data);
-      }
-    } catch (e) {
-      debugPrint('Firebase update check error: $e');
-    }
-
-    // Fallback: Query GitHub Releases API for Secretuser129/OFFPAY
-    try {
-      // Changed from /releases/latest to /releases to also catch "Pre-releases"
       final ghResponse = await http.get(
         Uri.parse('https://api.github.com/repos/$defaultGithubRepo/releases'),
       ).timeout(const Duration(seconds: 4));
@@ -66,19 +50,19 @@ class UpdateService {
           final tag = (ghData['tag_name'] as String? ?? '').replaceAll('v', '');
           final body = ghData['body'] as String? ?? 'New version available on GitHub Releases.';
 
-        // Extract version code from tag (e.g. 2.0.0-alpha+9, v9, 2.0.9 => 9)
-        int remoteCode = 0;
-        final match = RegExp(r'(\d+)(?=[^\d]*$)').firstMatch(tag);
-        if (match != null) {
-          remoteCode = int.tryParse(match.group(1)!) ?? 0;
-        }
+          // Extract version code from tag (e.g. 2.0.0-alpha+9, v9, 2.0.9 => 9)
+          int remoteCode = 0;
+          final match = RegExp(r'(\d+)(?=[^\d]*$)').firstMatch(tag);
+          if (match != null) {
+            remoteCode = int.tryParse(match.group(1)!) ?? 0;
+          }
 
-        String downloadUrl = defaultGithubUrl;
-        if (ghData['assets'] != null && (ghData['assets'] as List).isNotEmpty) {
-          downloadUrl = ghData['assets'][0]['browser_download_url'] ?? defaultGithubUrl;
-        }
+          String downloadUrl = defaultGithubUrl;
+          if (ghData['assets'] != null && (ghData['assets'] as List).isNotEmpty) {
+            downloadUrl = ghData['assets'][0]['browser_download_url'] ?? defaultGithubUrl;
+          }
 
-        return UpdateInfo(
+          return UpdateInfo(
             versionCode: remoteCode > 0 ? remoteCode : currentVersionCode + 1,
             versionName: tag.isEmpty ? '2.0.0-alpha+9' : tag,
             updateUrl: downloadUrl,

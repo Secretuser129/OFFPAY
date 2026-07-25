@@ -20,17 +20,19 @@ import 'models/transaction_model.dart';
 import 'screens/security_settings_screen.dart';
 import 'screens/profile_screen.dart';
 
+import 'screens/login_screen.dart';
+import 'services/profile_service.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Hive for local storage (do not attempt to register an adapter
-  // here unless the adapter class is defined/imported in this file).
-  // Prefer registering the adapter inside the file where the model/adapter are defined.
   await Hive.initFlutter();
 
   if (!Hive.isAdapterRegistered(1)) {
     Hive.registerAdapter(TransactionModelAdapter());
   }
+  
+  final bool isLoggedIn = await ProfileService.isLoggedIn();
 
   runApp(
     MultiProvider(
@@ -42,13 +44,14 @@ void main() async {
           create: (context) => WalletModel(),
         ),
       ],
-      child: const OffPayApp(),
+      child: OffPayApp(isLoggedIn: isLoggedIn),
     ),
   );
 }
 
 class OffPayApp extends StatelessWidget {
-  const OffPayApp({super.key});
+  final bool isLoggedIn;
+  const OffPayApp({super.key, this.isLoggedIn = false});
 
   // Define the common primary color for both modes
   static const MaterialColor primaryIndigo = MaterialColor(
@@ -128,10 +131,10 @@ class OffPayApp extends StatelessWidget {
       darkTheme: darkTheme,
       themeMode: ThemeMode.system,
 
-      // Start at home screen
-      initialRoute: '/',
+      initialRoute: isLoggedIn ? '/home' : '/login',
       routes: {
-        '/': (context) => const HomeScreen(),
+        '/login': (context) => const LoginScreen(),
+        '/home': (context) => const HomeScreen(),
 
         // static route: SendOptions and others that don't require constructor args
         '/send_options': (context) => const SendOptionsScreen(),

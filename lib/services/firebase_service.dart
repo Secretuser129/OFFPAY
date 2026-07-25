@@ -8,6 +8,8 @@ import '../models/transaction_model.dart';
 import '../models/wallet_model.dart';
 import 'profile_service.dart';
 
+import 'package:http/http.dart' as http;
+
 const String _keyFirebaseDbUrl = 'offpay_firebase_db_url';
 const String _keyFirebaseSecret = 'offpay_firebase_auth_token';
 const String _defaultFirebaseDbUrl = 'https://off-pay-0009-default-rtdb.firebaseio.com';
@@ -77,6 +79,93 @@ class FirebaseService {
     } catch (e) {
       debugPrint('Firebase user profile sync info: $e');
       return false;
+    }
+  }
+
+  /// Create a new account in Firebase
+  static Future<Map<String, dynamic>> createAccount(String username, String password) async {
+    try {
+      final firebaseUrl = await getFirebaseUrl();
+      final authToken = await getFirebaseAuthToken();
+      final usernameKey = base64UrlEncode(utf8.encode(username.trim()));
+      
+      // Check if exists
+      String checkEndpoint = '$firebaseUrl/users/$usernameKey.json';
+      if (authToken != null && authToken.isNotEmpty) checkEndpoint += '?auth=$authToken';
+      final checkRes = await http.get(Uri.parse(checkEndpoint)).timeout(const Duration(seconds: 4));
+      if (checkRes.statusCode == 200 && checkRes.body != 'null') {
+        return {'success': false, 'message': 'Username already exists.'};
+      }
+
+      final deviceId = ProfileService.generateRandomDeviceId();
+      final passwordHash = sha256.convert(utf8.encode(password)).toString();
+      
+      final userPayload = {
+        'deviceId': deviceId,
+        'userName': username.trim(),
+        'balance': 500.0, // initial balance
+        'passwordHash': passwordHash,
+        'createdAt': DateTime.now().toIso8601String(),
+      };
+
+      final client = HttpClient();
+      final request = await client.putUrl(Uri.parse(checkEndpoint));
+      request.headers.set('content-type', 'application/json');
+      request.write(jsonEncode(userPayload));
+      final response = await request.close().timeout(const Duration(seconds: 4));
+      client.close();
+      
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return {'success': true, 'deviceId': deviceId, 'balance': 500.0};
+      }
+      return {'success': false, 'message': 'Failed to create account.'};
+    } catch (e) {
+      return {'success': false, 'message': 'Network error: $e'};
+    }
+  }
+
+  /// Login and fetch account data
+  static Future<Map<String, dynamic>> loginAccount(String username, String password) async {
+    try {
+      final firebaseUrl = await getFirebaseUrl();
+      final authToken = await getFirebaseAuthToken();
+      final usernameKey = base64UrlEncode(utf8.encode(username.trim()));
+      
+      String endpoint = '$firebaseUrl/users/$usernameKey.json';
+      if (authToken != null && authToken.isNotEmpty) endpoint += '?auth=$authToken';
+      
+      final response = await http.get(Uri.parse(endpoint)).timeout(const Duration(seconds: 4));
+      if (response.statusCode != 200 || response.body == 'null') {
+        return {'success': false, 'message': 'Account not found.'};
+      }
+
+      final Map<String, dynamic> data = jsonDecode(response.body);
+      final passwordHash = sha256.convert(utf8.encode(password)).toString();
+      
+      if (data['passwordHash'] != passwordHash) {
+        return {'success': false, 'message': 'Incorrect password.'};
+      }
+
+      // Fetch transaction history
+      String historyEndpoint = '$firebaseUrl/user_history/${data['deviceId']}.json';
+      if (authToken != null && authToken.isNotEmpty) historyEndpoint += '?auth=$authToken';
+      
+      final histResponse = await http.get(Uri.parse(historyEndpoint)).timeout(const Duration(seconds: 4));
+      List<dynamic> historyList = [];
+      if (histResponse.statusCode == 200 && histResponse.body != 'null') {
+        final Map<String, dynamic> histData = jsonDecode(histResponse.body);
+        historyList = histData.values.toList();
+      }
+
+      return {
+        'success': true,
+        'deviceId': data['deviceId'],
+        'balance': (data['balance'] as num).toDouble(),
+        'pinHash': data['pinHash'],
+        'history': historyList,
+      };
+    } catch (e) {
+      return {'success': false, 'message': 'Network error: $e'};
     }
   }
 

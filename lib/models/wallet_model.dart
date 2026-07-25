@@ -140,6 +140,26 @@ class WalletModel extends ChangeNotifier {
     }
   }
 
+  // ── Restore & Logout ───────────────────────────────────────────────────────
+  Future<void> restoreData(double newBalance, List<TransactionModel> newHistory) async {
+    _balance = newBalance;
+    _history = newHistory;
+    
+    // Sort newest first
+    _history.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+    
+    await _saveChanges();
+    notifyListeners();
+  }
+
+  Future<void> clearWallet() async {
+    _balance = 0.0;
+    _history = [];
+    await _walletBox.put(_balanceKey, _balance);
+    await _walletBox.put(_historyKey, []);
+    notifyListeners();
+  }
+
   // ── Persist ───────────────────────────────────────────────────────────────
   Future<void> _saveChanges() async {
     await _walletBox.put(_balanceKey, _balance);

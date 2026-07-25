@@ -7,8 +7,18 @@ const String _keyUserName = 'offpay_user_name';
 const String _keyDeviceId = 'offpay_device_id';
 const String _keyAvatarIndex = 'offpay_avatar_index';
 const String _keyLastIdChange = 'offpay_last_id_change';
+const String _keyIsLoggedIn = 'offpay_is_logged_in';
 
 class ProfileService {
+  static Future<bool> isLoggedIn() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_keyIsLoggedIn) ?? false;
+  }
+
+  static Future<void> setLoggedIn(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyIsLoggedIn, value);
+  }
   static final _random = Random();
 
   /// Generate a randomized, professional OFFPAY Device ID

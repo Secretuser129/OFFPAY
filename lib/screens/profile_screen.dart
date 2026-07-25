@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import '../services/profile_service.dart';
 import '../services/update_service.dart';
 
+import 'package:provider/provider.dart';
+import '../models/wallet_model.dart';
+
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
@@ -14,8 +17,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final _deviceIdController = TextEditingController();
   int _selectedAvatar = 0;
   bool _isLoading = true;
-  bool _canChangeId = true;
-  int _daysRemaining = 0;
   String _originalDeviceId = '';
 
   final List<IconData> _avatars = [
@@ -37,8 +38,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final name = await ProfileService.getUserName();
     final deviceId = await ProfileService.getDeviceId();
     final avatar = await ProfileService.getAvatarIndex();
-    final canChange = await ProfileService.canChangeDeviceId();
-    final days = await ProfileService.getDaysRemainingForIdChange();
 
     if (mounted) {
       setState(() {
@@ -46,17 +45,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _deviceIdController.text = deviceId;
         _originalDeviceId = deviceId;
         _selectedAvatar = avatar;
-        _canChangeId = canChange;
-        _daysRemaining = days;
         _isLoading = false;
       });
     }
-  }
-
-  void _randomizeDeviceId() {
-    setState(() {
-      _deviceIdController.text = ProfileService.generateRandomDeviceId();
-    });
   }
 
   Future<void> _saveProfile() async {
@@ -182,62 +173,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   const SizedBox(height: 24),
 
-                  // 3. Device ID Section with Randomize Button
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Temporary Device ID',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: theme.textTheme.bodyLarge?.color),
-                      ),
-                      ElevatedButton.icon(
-                        icon: const Icon(Icons.casino, size: 16),
-                        label: const Text('Randomize', style: TextStyle(fontSize: 12)),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.amber.shade700,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        ),
-                        onPressed: _randomizeDeviceId,
-                      ),
-                    ],
+                  // 3. Device ID Section (Read-Only from Server)
+                  Text(
+                    'Server Device ID',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: theme.textTheme.bodyLarge?.color),
                   ),
                   const SizedBox(height: 8),
                   TextField(
                     controller: _deviceIdController,
+                    readOnly: true,
                     decoration: InputDecoration(
                       prefixIcon: const Icon(Icons.bluetooth),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                       filled: true,
-                      helperText: 'Unique ID used for offline BLE payments',
+                      helperText: 'Unique ID linked to your account for offline BLE payments',
                     ),
                   ),
-                  const SizedBox(height: 8),
-
-                  // 30-Day Status Banner
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.info_outline, color: Colors.blue, size: 18),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            _canChangeId
-                                ? 'You can randomize or update your Device ID anytime (recommended every 30 days).'
-                                : 'Device ID changed recently. Next recommended change in $_daysRemaining day(s).',
-                            style: const TextStyle(fontSize: 12, color: Colors.blue),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
                   const SizedBox(height: 36),
 
                   // 4. Save Profile Button
@@ -264,6 +215,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
                     onPressed: () => UpdateService.checkForUpdates(context, silent: false),
+                  ),
+                  
+                  const SizedBox(height: 16),
+
+                  // 6. Logout Button
+                  OutlinedButton.icon(
+                    icon: const Icon(Icons.logout, color: Colors.red),
+                    label: const Text('Logout', style: TextStyle(color: Colors.red)),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      side: const BorderSide(color: Colors.red),
+                    ),
+                    onPressed: () async {
+                      await ProfileService.setLoggedIn(false);
+                      if (context.mounted) {
+                        final wallet = Provider.of<WalletModel>(context, listen: false);
+                        await wallet.clearWallet();
+                        Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+                      }
+                    },
                   ),
                 ],
               ),
