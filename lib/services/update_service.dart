@@ -54,14 +54,17 @@ class UpdateService {
 
     // Fallback: Query GitHub Releases API for Secretuser129/OFFPAY
     try {
+      // Changed from /releases/latest to /releases to also catch "Pre-releases"
       final ghResponse = await http.get(
-        Uri.parse('https://api.github.com/repos/$defaultGithubRepo/releases/latest'),
+        Uri.parse('https://api.github.com/repos/$defaultGithubRepo/releases'),
       ).timeout(const Duration(seconds: 4));
 
       if (ghResponse.statusCode == 200) {
-        final Map<String, dynamic> ghData = jsonDecode(ghResponse.body);
-        final tag = (ghData['tag_name'] as String? ?? '').replaceAll('v', '');
-        final body = ghData['body'] as String? ?? 'New version available on GitHub Releases.';
+        final List<dynamic> releases = jsonDecode(ghResponse.body);
+        if (releases.isNotEmpty) {
+          final Map<String, dynamic> ghData = releases.first;
+          final tag = (ghData['tag_name'] as String? ?? '').replaceAll('v', '');
+          final body = ghData['body'] as String? ?? 'New version available on GitHub Releases.';
 
         // Extract version code from tag (e.g. 2.0.0-alpha+9, v9, 2.0.9 => 9)
         int remoteCode = 0;
@@ -76,12 +79,13 @@ class UpdateService {
         }
 
         return UpdateInfo(
-          versionCode: remoteCode > 0 ? remoteCode : currentVersionCode + 1,
-          versionName: tag.isEmpty ? '2.0.0-alpha+9' : tag,
-          updateUrl: downloadUrl,
-          changelog: body,
-          forceUpdate: false,
-        );
+            versionCode: remoteCode > 0 ? remoteCode : currentVersionCode + 1,
+            versionName: tag.isEmpty ? '2.0.0-alpha+9' : tag,
+            updateUrl: downloadUrl,
+            changelog: body,
+            forceUpdate: false,
+          );
+        }
       }
     } catch (e) {
       debugPrint('GitHub API update check error: $e');
