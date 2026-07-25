@@ -23,6 +23,8 @@ dependencies:
   qr_flutter: ^4.1.0
   mobile_scanner: ^4.0.0
   image_picker: ^1.2.1
+  url_launcher: ^6.2.5
+  http: ^1.2.0
 
 dev_dependencies:
   flutter_test:

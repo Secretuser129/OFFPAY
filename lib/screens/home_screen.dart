@@ -10,6 +10,7 @@ import '../services/bluetooth_service.dart';
 import '../services/password_service.dart';
 import '../services/profile_service.dart';
 import '../services/firebase_service.dart';
+import '../services/update_service.dart';
 import 'send_options_screen.dart';
 import 'transaction_detail_screen.dart';
 
@@ -33,6 +34,7 @@ class _HomeScreenState extends State<HomeScreen> {
         await walletModel.init();
       }
       _checkProfileOnboarding();
+      UpdateService.checkForUpdates(context, silent: true);
     });
 
     // Auto-reload balance every 500 milliseconds for real-time fast updates

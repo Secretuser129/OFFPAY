@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/profile_service.dart';
+import '../services/update_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -250,6 +251,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
                     onPressed: _saveProfile,
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // 5. In-App Updater Check Button
+                  OutlinedButton.icon(
+                    icon: const Icon(Icons.system_update),
+                    label: const Text('Check for App Updates'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    onPressed: () => UpdateService.checkForUpdates(context, silent: false),
                   ),
                 ],
               ),
