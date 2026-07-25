@@ -12,8 +12,8 @@ android {
         applicationId = "com.example.offpay"
         minSdk = flutter.minSdkVersion
         targetSdk = 36
-        versionCode = 16
-        versionName = "2.0-alpha+16"
+        versionCode = 20001
+        versionName = "2.0.1"
     }
 
     compileOptions {

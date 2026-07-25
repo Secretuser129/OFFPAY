@@ -30,8 +30,8 @@ class UpdateInfo {
 }
 
 class UpdateService {
-  static const int currentVersionCode = 16;
-  static const String currentVersionName = '2.0.0-alpha+16';
+  static const int currentVersionCode = 20001;
+  static const String currentVersionName = '2.0.1';
 
   static const String defaultGithubRepo = 'Secretuser129/OFFPAY';
   static const String defaultGithubUrl = 'https://github.com/Secretuser129/OFFPAY/releases/latest';
@@ -50,11 +50,21 @@ class UpdateService {
           final tag = (ghData['tag_name'] as String? ?? '').replaceAll('v', '');
           final body = ghData['body'] as String? ?? 'New version available on GitHub Releases.';
 
-          // Extract version code from tag (e.g. 2.0.0-alpha+9, v9, 2.0.9 => 9)
+          // Extract semantic version code from tag (e.g. 2.0.1 => 20001)
           int remoteCode = 0;
-          final match = RegExp(r'(\d+)(?=[^\d]*$)').firstMatch(tag);
-          if (match != null) {
-            remoteCode = int.tryParse(match.group(1)!) ?? 0;
+          
+          final semanticMatch = RegExp(r'(\d+)\.(\d+)\.(\d+)').firstMatch(tag);
+          if (semanticMatch != null) {
+            final major = int.tryParse(semanticMatch.group(1)!) ?? 0;
+            final minor = int.tryParse(semanticMatch.group(2)!) ?? 0;
+            final patch = int.tryParse(semanticMatch.group(3)!) ?? 0;
+            remoteCode = (major * 10000) + (minor * 100) + patch;
+          } else {
+            // Fallback for non-semantic tags
+            final fallbackMatch = RegExp(r'(\d+)(?=[^\d]*$)').firstMatch(tag);
+            if (fallbackMatch != null) {
+              remoteCode = int.tryParse(fallbackMatch.group(1)!) ?? 0;
+            }
           }
 
           String downloadUrl = defaultGithubUrl;
