@@ -25,17 +25,6 @@ class UpdateService {
   static const String rawJsonUrl = 'https://raw.githubusercontent.com/Secretuser129/OFFPAY/main/version.json';
   static const String defaultReleaseUrl = 'https://github.com/Secretuser129/OFFPAY/releases/latest';
 
-  /// Simple 1-step update check
-  static Future<void> checkForUpdates(BuildContext context, {bool silent = false}) async {
-    if (!silent) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Checking for OFFPAY updates...'),
-          duration: Duration(seconds: 1),
-        ),
-      );
-    }
-
   /// Check GitHub Releases & Pre-releases API (Ignores raw commits)
   static Future<UpdateInfo?> checkRemoteVersion() async {
     try {
