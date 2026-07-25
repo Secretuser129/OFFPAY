@@ -3,7 +3,7 @@ name: offpay   # <-- this is the package name
 description: Offline Bluetooth Payments
 publish_to: 'none'
 
-version: 2.0.3+20003
+version: 2.0.4+20004
 
 environment:
   sdk: ">=3.0.0 <4.0.0"

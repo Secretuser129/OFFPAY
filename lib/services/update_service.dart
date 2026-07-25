@@ -30,8 +30,8 @@ class UpdateInfo {
 }
 
 class UpdateService {
-  static const int currentVersionCode = 20001;
-  static const String currentVersionName = '2.0.1';
+  static const int currentVersionCode = 20004;
+  static const String currentVersionName = '2.0.4';
 
   static const String defaultGithubRepo = 'Secretuser129/OFFPAY';
   static const String defaultGithubUrl = 'https://github.com/Secretuser129/OFFPAY/releases/latest';
@@ -50,17 +50,16 @@ class UpdateService {
           final tag = (ghData['tag_name'] as String? ?? '').replaceAll('v', '');
           final body = ghData['body'] as String? ?? 'New version available on GitHub Releases.';
 
-          // Extract semantic version code from tag (e.g. 2.0.1 => 20001)
           int remoteCode = 0;
           
-          final semanticMatch = RegExp(r'(\d+)\.(\d+)\.(\d+)').firstMatch(tag);
+          // Improved semantic version matcher supporting x.y or x.y.z
+          final semanticMatch = RegExp(r'(\d+)\.(\d+)(?:\.(\d+))?').firstMatch(tag);
           if (semanticMatch != null) {
             final major = int.tryParse(semanticMatch.group(1)!) ?? 0;
             final minor = int.tryParse(semanticMatch.group(2)!) ?? 0;
-            final patch = int.tryParse(semanticMatch.group(3)!) ?? 0;
+            final patch = int.tryParse(semanticMatch.group(3) ?? '0') ?? 0;
             remoteCode = (major * 10000) + (minor * 100) + patch;
           } else {
-            // Fallback for non-semantic tags
             final fallbackMatch = RegExp(r'(\d+)(?=[^\d]*$)').firstMatch(tag);
             if (fallbackMatch != null) {
               remoteCode = int.tryParse(fallbackMatch.group(1)!) ?? 0;
@@ -69,12 +68,22 @@ class UpdateService {
 
           String downloadUrl = defaultGithubUrl;
           if (ghData['assets'] != null && (ghData['assets'] as List).isNotEmpty) {
-            downloadUrl = ghData['assets'][0]['browser_download_url'] ?? defaultGithubUrl;
+            // Try to find the APK asset explicitly instead of taking index 0 blindly
+            final assets = ghData['assets'] as List;
+            try {
+              final apkAsset = assets.firstWhere(
+                (asset) => (asset['name'] as String? ?? '').endsWith('.apk'),
+                orElse: () => assets[0],
+              );
+              downloadUrl = apkAsset['browser_download_url'] ?? defaultGithubUrl;
+            } catch (_) {
+              downloadUrl = assets[0]['browser_download_url'] ?? defaultGithubUrl;
+            }
           }
 
           return UpdateInfo(
             versionCode: remoteCode > 0 ? remoteCode : currentVersionCode + 1,
-            versionName: tag.isEmpty ? '2.0.0-alpha+9' : tag,
+            versionName: tag.isEmpty ? '2.0.2' : tag,
             updateUrl: downloadUrl,
             changelog: body,
             forceUpdate: false,
