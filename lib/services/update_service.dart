@@ -18,8 +18,8 @@ class UpdateInfo {
 }
 
 class UpdateService {
-  static const int currentVersionCode = 207;
-  static const String currentVersionName = '2.0.7';
+  static const int currentVersionCode = 208;
+  static const String currentVersionName = '2.0.8';
 
   // Simple online version URL (Points to raw version.json file)
   static const String rawJsonUrl = 'https://raw.githubusercontent.com/Secretuser129/OFFPAY/main/version.json';
@@ -43,20 +43,20 @@ class UpdateService {
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
         info = UpdateInfo(
-          versionCode: data['versionCode'] ?? 207,
-          versionName: data['versionName'] ?? '2.0.7',
+          versionCode: data['versionCode'] ?? 208,
+          versionName: data['versionName'] ?? '2.0.8',
           updateUrl: data['downloadUrl'] ?? defaultReleaseUrl,
-          changelog: data['changelog'] ?? 'Performance & Bluetooth stability improvements.',
+          changelog: data['changelog'] ?? 'This Update Boosts performance and stability!',
         );
       }
     } catch (e) {
       debugPrint('Simple updater info: $e');
     }
 
-    // Fallback update info matching current version 2.0.7    
+    // Fallback update info matching current version 2.0.8    
     info ??= UpdateInfo(
-      versionCode: 207,
-      versionName: '2.0.7',
+      versionCode: 208,
+      versionName: '2.0.8',
       updateUrl: defaultReleaseUrl,
       changelog: 'Performance & Bluetooth stability improvements.',
     );

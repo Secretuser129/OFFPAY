@@ -6,10 +6,11 @@
 
   ### **Zero Internet. Maximum Security. Instant Offline Bluetooth Payments.**
 
+  [![Version](https://img.shields.io/badge/Version-v1.0.1-FF6F00?style=for-the-badge&logo=semver&logoColor=white)](https://github.com/Secretuser129/OFFPAY/releases)
   [![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?style=for-the-badge&logo=flutter&logoColor=white)](https://flutter.dev)
   [![Dart](https://img.shields.io/badge/Dart-3.x-0175C2?style=for-the-badge&logo=dart&logoColor=white)](https://dart.dev)
   [![Bluetooth LE](https://img.shields.io/badge/BLE-Bluetooth_5.0-0082FC?style=for-the-badge&logo=bluetooth&logoColor=white)](https://developer.android.com/guide/topics/connectivity/bluetooth/ble)
-  [![License](https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge)](LICENSE)
+  [![License](https://img.shields.io/badge/License-Copyright_Secretuser129-red.svg?style=for-the-badge)](LICENSE)
 
   <p align="center">
     <b>OffPay</b> is a next-generation peer-to-peer (P2P) offline digital wallet app built with Flutter. It enables instant financial transactions between nearby devices using Bluetooth Low Energy (BLE) and cryptographic handshakes—<b>completely without cell service, Wi-Fi, or internet access</b>.
@@ -152,12 +153,18 @@ lib/
 
 ---
 
-## 📄 License
+## 📄 License & Ownership Notice
 
-Distributed under the MIT License. See `LICENSE` for details.
+```
+Copyright (c) 2026 Secretuser129 (secretuser192). All Rights Reserved.
+```
+
+### 🛡️ Intellectual Property Statement
+* **Original Project Credit:** All architecture, design, cryptographic handshakes, BLE protocols, and source code in this repository were created exclusively by **Secretuser129 (secretuser192)**.
+* **No Unauthorized Credit Claiming:** No individual, team, or organization may claim credit, remove copyright attribution, rebrand, or misattribute ownership of this project.
 
 ---
 
 <div align="center">
-  <sub>Built with ❤️ using Flutter & Bluetooth LE</sub>
+  <sub>© 2026 OffPay • Created & Owned by Secretuser129</sub>
 </div>
