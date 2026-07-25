@@ -36,32 +36,97 @@ class UpdateService {
       );
     }
 
-    UpdateInfo? info;
+  /// Check GitHub Releases & Pre-releases API (Ignores raw commits)
+  static Future<UpdateInfo?> checkRemoteVersion() async {
+    try {
+      final ghResponse = await http.get(
+        Uri.parse('https://api.github.com/repos/Secretuser129/OFFPAY/releases'),
+        headers: {
+          'User-Agent': 'OffPay-App-Updater/2.0',
+          'Accept': 'application/vnd.github.v3+json',
+        },
+      ).timeout(const Duration(seconds: 4));
 
+      if (ghResponse.statusCode == 200) {
+        final List<dynamic> releases = jsonDecode(ghResponse.body);
+        // Strictly filter for published Releases and Pre-releases (ignoring raw commits / drafts)
+        final publishedReleases = releases.where((r) => r['draft'] == false).toList();
+        if (publishedReleases.isNotEmpty) {
+          final Map<String, dynamic> ghData = publishedReleases.first;
+          final tag = (ghData['tag_name'] as String? ?? '').replaceAll('v', '');
+          final body = ghData['body'] as String? ?? 'New version available on GitHub Releases.';
+
+          int remoteCode = 0;
+          final semanticMatch = RegExp(r'(\d+)\.(\d+)(?:\.(\d+))?').firstMatch(tag);
+          if (semanticMatch != null) {
+            final major = int.tryParse(semanticMatch.group(1)!) ?? 0;
+            final minor = int.tryParse(semanticMatch.group(2)!) ?? 0;
+            final patch = int.tryParse(semanticMatch.group(3) ?? '0') ?? 0;
+            remoteCode = (major * 100) + (minor * 10) + patch;
+          }
+
+          String downloadUrl = defaultReleaseUrl;
+          if (ghData['assets'] != null && (ghData['assets'] as List).isNotEmpty) {
+            final assets = ghData['assets'] as List;
+            try {
+              final apkAsset = assets.firstWhere(
+                (asset) => (asset['name'] as String? ?? '').endsWith('.apk'),
+                orElse: () => assets[0],
+              );
+              downloadUrl = apkAsset['browser_download_url'] ?? defaultReleaseUrl;
+            } catch (_) {
+              downloadUrl = assets[0]['browser_download_url'] ?? defaultReleaseUrl;
+            }
+          }
+
+          return UpdateInfo(
+            versionCode: remoteCode > 0 ? remoteCode : currentVersionCode + 1,
+            versionName: tag.isEmpty ? '2.0.8' : tag,
+            updateUrl: downloadUrl,
+            changelog: body,
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('GitHub Releases check info: $e');
+    }
+
+    // Fallback: Check raw version.json file
     try {
       final res = await http.get(Uri.parse(rawJsonUrl)).timeout(const Duration(seconds: 3));
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
-        info = UpdateInfo(
+        return UpdateInfo(
           versionCode: data['versionCode'] ?? 208,
           versionName: data['versionName'] ?? '2.0.8',
           updateUrl: data['downloadUrl'] ?? defaultReleaseUrl,
-          changelog: data['changelog'] ?? 'This Update Boosts performance and stability!',
+          changelog: data['changelog'] ?? 'Performance & Bluetooth stability improvements.',
         );
       }
-    } catch (e) {
-      debugPrint('Simple updater info: $e');
-    }
+    } catch (_) {}
 
-    // Fallback update info matching current version 2.0.8    
-    info ??= UpdateInfo(
+    return UpdateInfo(
       versionCode: 208,
       versionName: '2.0.8',
       updateUrl: defaultReleaseUrl,
       changelog: 'Performance & Bluetooth stability improvements.',
     );
+  }
 
-    if (info.versionCode > currentVersionCode && context.mounted) {
+  /// Simple 1-step update check
+  static Future<void> checkForUpdates(BuildContext context, {bool silent = false}) async {
+    if (!silent) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Checking for OFFPAY updates...'),
+          duration: Duration(seconds: 1),
+        ),
+      );
+    }
+
+    final info = await checkRemoteVersion();
+
+    if (info != null && info.versionCode > currentVersionCode && context.mounted) {
       _showSimpleDialog(context, info);
     } else if (!silent && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
