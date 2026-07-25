@@ -1,6 +1,7 @@
 {
-  "versionCode": 208,
-  "versionName": "2.0.8",
+  "versionCode": 209,
+  "versionName": "2.0.9",
   "downloadUrl": "https://github.com/Secretuser129/OFFPAY/releases/latest",
-  "changelog": "🚀 What's New in OffPay v2.0.8:\n• Performance & Bluetooth stability improvements\n• Improved BLE 5.0 Peer Discovery & RSSI Distance Meter\n• Verified Service UUID Filter ('OFFPAY Users Only')\n• Active Payment Screen Popup Lock\n• Ultra-Simple In-App Update Engine"
+  "changelog": "🚀 What's New in OffPay v2.0.9:\n• APK Direct Download & Auto-Install Engine\n• Scrollable Changelog (No More Overflow)\n• Dark/Light Mode Toggle in Settings\n• Trusted Contacts Theme Fix\n• Copyright & IP Protection Badge\n• GitHub Releases-Only Version Check"
 }
+

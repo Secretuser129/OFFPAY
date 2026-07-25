@@ -1,6 +1,9 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
+import 'package:open_filex/open_filex.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class UpdateInfo {
@@ -18,10 +21,10 @@ class UpdateInfo {
 }
 
 class UpdateService {
-  static const int currentVersionCode = 208;
-  static const String currentVersionName = '2.0.8';
+  static const int currentVersionCode = 209;
+  static const String currentVersionName = '2.0.9';
 
-  // Simple online version URL (Points to raw version.json file)
+  // Fallback version.json URL
   static const String rawJsonUrl = 'https://raw.githubusercontent.com/Secretuser129/OFFPAY/main/version.json';
   static const String defaultReleaseUrl = 'https://github.com/Secretuser129/OFFPAY/releases/latest';
 
@@ -38,7 +41,6 @@ class UpdateService {
 
       if (ghResponse.statusCode == 200) {
         final List<dynamic> releases = jsonDecode(ghResponse.body);
-        // Strictly filter for published Releases and Pre-releases (ignoring raw commits / drafts)
         final publishedReleases = releases.where((r) => r['draft'] == false).toList();
         if (publishedReleases.isNotEmpty) {
           final Map<String, dynamic> ghData = publishedReleases.first;
@@ -70,7 +72,7 @@ class UpdateService {
 
           return UpdateInfo(
             versionCode: remoteCode > 0 ? remoteCode : currentVersionCode + 1,
-            versionName: tag.isEmpty ? '2.0.8' : tag,
+            versionName: tag.isEmpty ? '2.0.9' : tag,
             updateUrl: downloadUrl,
             changelog: body,
           );
@@ -86,8 +88,8 @@ class UpdateService {
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
         return UpdateInfo(
-          versionCode: data['versionCode'] ?? 208,
-          versionName: data['versionName'] ?? '2.0.8',
+          versionCode: data['versionCode'] ?? 209,
+          versionName: data['versionName'] ?? '2.0.9',
           updateUrl: data['downloadUrl'] ?? defaultReleaseUrl,
           changelog: data['changelog'] ?? 'Performance & Bluetooth stability improvements.',
         );
@@ -95,8 +97,8 @@ class UpdateService {
     } catch (_) {}
 
     return UpdateInfo(
-      versionCode: 208,
-      versionName: '2.0.8',
+      versionCode: 209,
+      versionName: '2.0.9',
       updateUrl: defaultReleaseUrl,
       changelog: 'Performance & Bluetooth stability improvements.',
     );
@@ -116,7 +118,7 @@ class UpdateService {
     final info = await checkRemoteVersion();
 
     if (info != null && info.versionCode > currentVersionCode && context.mounted) {
-      _showSimpleDialog(context, info);
+      _showUpdateDialog(context, info);
     } else if (!silent && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -127,22 +129,204 @@ class UpdateService {
     }
   }
 
-  /// Clean, minimal Update Dialog
-  static void _showSimpleDialog(BuildContext context, UpdateInfo info) {
+  /// Download APK file to device and trigger install
+  static Future<void> _downloadAndInstallApk(BuildContext context, UpdateInfo info) async {
+    final url = info.updateUrl;
+    final isApkUrl = url.toLowerCase().endsWith('.apk');
+
+    // If the URL is not a direct APK link, open in browser as fallback
+    if (!isApkUrl) {
+      final uri = Uri.parse(url);
+      try {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } catch (_) {
+        await launchUrl(uri);
+      }
+      return;
+    }
+
+    // Show download progress dialog
+    final progressNotifier = ValueNotifier<double>(0.0);
+    final statusNotifier = ValueNotifier<String>('Connecting...');
+
+    if (!context.mounted) return;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => PopScope(
+        canPop: false,
+        child: AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Row(
+            children: [
+              Icon(Icons.download_rounded, color: Colors.indigo),
+              SizedBox(width: 10),
+              Text('Downloading Update', style: TextStyle(fontSize: 17)),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ValueListenableBuilder<String>(
+                valueListenable: statusNotifier,
+                builder: (_, status, __) => Text(
+                  status,
+                  style: const TextStyle(fontSize: 13, color: Colors.grey),
+                ),
+              ),
+              const SizedBox(height: 16),
+              ValueListenableBuilder<double>(
+                valueListenable: progressNotifier,
+                builder: (_, progress, __) => Column(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: LinearProgressIndicator(
+                        value: progress > 0 ? progress : null,
+                        minHeight: 8,
+                        backgroundColor: Colors.grey.withValues(alpha: 0.2),
+                        valueColor: const AlwaysStoppedAnimation<Color>(Colors.indigo),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      progress > 0 ? '${(progress * 100).toStringAsFixed(0)}%' : 'Starting...',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    try {
+      // Download APK
+      statusNotifier.value = 'Downloading OFFPAY v${info.versionName}...';
+
+      final httpClient = HttpClient();
+      final request = await httpClient.getUrl(Uri.parse(url));
+      final response = await request.close();
+
+      final dir = await getTemporaryDirectory();
+      final filePath = '${dir.path}/offpay_update_v${info.versionName}.apk';
+      final file = File(filePath);
+
+      final totalBytes = response.contentLength;
+      int receivedBytes = 0;
+      final sink = file.openWrite();
+
+      await for (final chunk in response) {
+        sink.add(chunk);
+        receivedBytes += chunk.length;
+        if (totalBytes > 0) {
+          progressNotifier.value = receivedBytes / totalBytes;
+        }
+      }
+      await sink.close();
+      httpClient.close();
+
+      statusNotifier.value = 'Download complete! Installing...';
+      progressNotifier.value = 1.0;
+
+      // Close the download dialog
+      if (context.mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+
+      // Open/install the APK
+      final result = await OpenFilex.open(filePath, type: 'application/vnd.android.package-archive');
+
+      if (result.type != ResultType.done && context.mounted) {
+        // If open_filex fails, try url_launcher as fallback
+        final uri = Uri.file(filePath);
+        try {
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+        } catch (_) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Could not open APK. File saved at: $filePath'),
+              backgroundColor: Colors.orange,
+              duration: const Duration(seconds: 5),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('APK download error: $e');
+      // Close download dialog on error
+      if (context.mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+
+        // Fallback: open in browser
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Download failed. Opening in browser...'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        final uri = Uri.parse(info.updateUrl);
+        try {
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+        } catch (_) {
+          await launchUrl(uri);
+        }
+      }
+    }
+  }
+
+  /// Update dialog with scrollable changelog (no overflow)
+  static void _showUpdateDialog(BuildContext context, UpdateInfo info) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Update Available (v${info.versionName})'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+        title: Row(
           children: [
-            const Text('What\'s New:', style: TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 6),
-            Text(info.changelog, style: const TextStyle(fontSize: 13)),
+            const Icon(Icons.system_update, color: Colors.indigo, size: 24),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Update v${info.versionName}',
+                style: const TextStyle(fontSize: 17),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
           ],
         ),
+        content: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.45,
+            maxWidth: MediaQuery.of(context).size.width * 0.85,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.indigo.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    'v$currentVersionName → v${info.versionName}',
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.indigo),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                const Text("What's New:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                const SizedBox(height: 6),
+                Text(info.changelog, style: const TextStyle(fontSize: 13, height: 1.5)),
+              ],
+            ),
+          ),
+        ),
+        actionsPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
@@ -150,20 +334,15 @@ class UpdateService {
           ),
           ElevatedButton.icon(
             icon: const Icon(Icons.download, size: 18),
-            label: const Text('Update Now'),
+            label: const Text('Download & Install'),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.indigo,
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
-            onPressed: () async {
+            onPressed: () {
               Navigator.pop(ctx);
-              final uri = Uri.parse(info.updateUrl);
-              try {
-                await launchUrl(uri, mode: LaunchMode.externalApplication);
-              } catch (_) {
-                await launchUrl(uri);
-              }
+              _downloadAndInstallApk(context, info);
             },
           ),
         ],
