@@ -199,15 +199,42 @@ class OffpayBluetoothService with ChangeNotifier {
   }
 
   // -------------------------
+  // Location Service Check (Required for BLE scanning on Android 10/11)
+  // -------------------------
+  bool _isLocationEnabled = true;
+  bool get isLocationEnabled => _isLocationEnabled;
+
+  Future<bool> checkLocationEnabled() async {
+    try {
+      final status = await Permission.locationWhenInUse.serviceStatus;
+      _isLocationEnabled = status.isEnabled;
+      notifyListeners();
+      return _isLocationEnabled;
+    } catch (e) {
+      debugPrint('Location check error: $e');
+      return true; // Assume enabled if check fails
+    }
+  }
+
+  // -------------------------
   // Real-time Unfiltered Scanning (Guaranteed Android 10/11/12/14 Compatibility)
   // -------------------------
   Future<void> startScan({Duration timeout = const Duration(seconds: 15)}) async {
-    if (_isScanning) return;
+    if (_isScanning) {
+      // Force stop previous scan so we can restart
+      await stopScan();
+    }
 
     final isRadioOn = await enableBluetoothRadio();
     if (!isRadioOn) {
       debugPrint('Bluetooth radio not enabled. Cannot start scan.');
       return;
+    }
+
+    // Check location service
+    await checkLocationEnabled();
+    if (!_isLocationEnabled) {
+      debugPrint('Location service is OFF. BLE scanning will return 0 results on Android 10/11.');
     }
 
     _isScanning = true;
@@ -239,16 +266,21 @@ class OffpayBluetoothService with ChangeNotifier {
     );
 
     try {
-      await fb.FlutterBluePlus.startScan(timeout: timeout);
+      await fb.FlutterBluePlus.startScan(
+        withServices: [OFFPAY_SERVICE_UUID], // Use Service Filter for Android 14 compatibility
+        timeout: timeout,
+        androidScanMode: fb.AndroidScanMode.lowLatency,
+      );
     } catch (e) {
       debugPrint('startScan error: $e');
-      _isScanning = false;
-      notifyListeners();
     }
+
+    // Scan finished (timeout reached) — reset scanning state
+    _isScanning = false;
+    notifyListeners();
   }
 
   Future<void> stopScan() async {
-    if (!_isScanning) return;
     try {
       await fb.FlutterBluePlus.stopScan();
     } catch (e) {

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../services/bluetooth_service.dart';
 import '../services/profile_service.dart';
 
@@ -80,6 +81,34 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> with SingleTickerProv
                         ),
                         onPressed: () => bluetoothService.enableBluetoothRadio(),
                         child: const Text('Turn On'),
+                      ),
+                    ],
+                  ),
+                ),
+
+              // Location OFF Warning Banner
+              if (!bluetoothService.isLocationEnabled)
+                Container(
+                  color: Colors.red.shade50,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.location_off, color: Colors.red),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Text(
+                          'Location (GPS) is OFF! BLE scanning requires Location to be enabled.',
+                          style: TextStyle(fontWeight: FontWeight.w600, color: Colors.red, fontSize: 12),
+                        ),
+                      ),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        ),
+                        onPressed: () => openAppSettings(),
+                        child: const Text('Turn On', style: TextStyle(fontSize: 12)),
                       ),
                     ],
                   ),
