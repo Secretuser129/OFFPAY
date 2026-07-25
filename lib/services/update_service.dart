@@ -56,7 +56,7 @@ class UpdateService {
     // Fallback update info matching current version 2.0.6
     info ??= UpdateInfo(
       versionCode: 206,
-      versionName: newMethod,
+      versionName: '2.0.6',
       updateUrl: defaultReleaseUrl,
       changelog: '• Initial release of OffPay with BLE P2P transactions.',
     );
@@ -72,8 +72,6 @@ class UpdateService {
       );
     }
   }
-
-  static String get newMethod => '2.0.6';
 
   /// Clean, minimal Update Dialog
   static void _showSimpleDialog(BuildContext context, UpdateInfo info) {
