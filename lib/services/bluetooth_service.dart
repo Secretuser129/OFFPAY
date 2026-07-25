@@ -6,7 +6,6 @@ import 'package:flutter/services.dart';
 import 'handshake_crypto_service.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart' as fb;
-import 'profile_service.dart';
 
 /// Guid constants for OFFPAY service and characteristic
 final fb.Guid OFFPAY_SERVICE_UUID = fb.Guid("0000180A-0000-1000-8000-00805F9B34FB");
@@ -68,7 +67,7 @@ class DiscoveredDevice {
 }
 
 class OffpayBluetoothService with ChangeNotifier {
-  static const MethodChannel _channel = MethodChannel('offpay/ble_advertiser');
+  static const MethodChannel _channel = MethodChannel('com.offpay/bluetooth');
 
   bool _isScanning = false;
   bool _isInPaymentFlow = false;
@@ -416,29 +415,40 @@ class OffpayBluetoothService with ChangeNotifier {
     _isBroadcastingReceiver = true;
     notifyListeners();
 
+    // Ensure Bluetooth is ON and permissions are granted before advertising
+    final isRadioOn = await enableBluetoothRadio();
+    if (!isRadioOn) {
+      debugPrint('BLE Advertising: Bluetooth radio not enabled, cannot advertise.');
+      return;
+    }
+
     try {
-      final nameStr = 'OFFPAY-RECV:${deviceId ?? "USER"}';
+      // Keep name SHORT (max 8 chars) to fit Android 10/11 31-byte scan response limit
+      // Scan response = 2 bytes overhead + name length bytes. Must be <= 31 bytes total.
+      final nameStr = 'OFFPAY';
       await _channel.invokeMethod('startAdvertising', {
         'name': nameStr,
         'serviceUuid': OFFPAY_SERVICE_UUID.str,
       });
-      debugPrint('Broadcasting BLE Receiver Signal: $nameStr');
+      debugPrint('BLE Advertising SUCCESS: Broadcasting as "$nameStr" (deviceId: $deviceId)');
     } catch (e) {
-      debugPrint('BLE Advertising status: active listening mode ($e)');
+      debugPrint('BLE Advertising FAILED: $e');
     }
   }
 
   /// Start background advertising so device is discoverable on Home Screen & anywhere in app
   Future<void> startBackgroundAdvertising() async {
+    final isRadioOn = await enableBluetoothRadio();
+    if (!isRadioOn) return;
+
     try {
-      final name = await ProfileService.getBluetoothName();
-      final deviceId = await ProfileService.getDeviceId();
-      final advName = name.contains('OFFPAY') ? name : '$name OFFPAY';
+      // Keep name SHORT for Android 10/11 compatibility
+      const advName = 'OFFPAY';
       await _channel.invokeMethod('startAdvertising', {
         'name': advName,
         'serviceUuid': OFFPAY_SERVICE_UUID.str,
       });
-      debugPrint('Background OFFPAY advertising active: $advName ($deviceId)');
+      debugPrint('Background OFFPAY advertising active: $advName');
     } catch (e) {
       debugPrint('Background advertising error: $e');
     }

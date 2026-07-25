@@ -36,7 +36,7 @@ class MainActivity : FlutterActivity() {
                     enableBluetooth()
                 }
                 "startAdvertising" -> {
-                    val name = call.argument<String>("name") ?: "OFFPAY-RECV"
+                    val name = call.argument<String>("name") ?: "OFFPAY"
                     val serviceUuidStr = call.argument<String>("serviceUuid") ?: "0000180a-0000-1000-8000-00805f9b34fb"
                     startAdvertising(name, serviceUuidStr, result)
                 }
@@ -53,18 +53,28 @@ class MainActivity : FlutterActivity() {
     private fun startAdvertising(name: String, serviceUuidStr: String, result: MethodChannel.Result) {
         val bluetoothAdapter: BluetoothAdapter? = BluetoothAdapter.getDefaultAdapter()
         if (bluetoothAdapter == null || !bluetoothAdapter.isEnabled) {
+            Log.e("OFFPAY_BLE", "Bluetooth adapter is null or disabled")
             result.error("BLUETOOTH_DISABLED", "Bluetooth is disabled.", null)
             return
         }
 
+        // Truncate name to max 8 bytes to guarantee it fits in 31-byte scan response
+        // Scan response structure: [length byte][type byte][name bytes] = 2 + name.length
+        // Max safe name length = 29 bytes, but shorter is better for Android 10/11
+        val safeName = if (name.length > 8) name.substring(0, 8) else name
+
         try {
-            bluetoothAdapter.name = name
+            bluetoothAdapter.name = safeName
+            Log.d("OFFPAY_BLE", "Set adapter name to: $safeName")
+        } catch (e: SecurityException) {
+            Log.w("OFFPAY_BLE", "SecurityException setting adapter name (missing BLUETOOTH_CONNECT?): ${e.message}")
         } catch (e: Exception) {
             Log.w("OFFPAY_BLE", "Could not set adapter name: ${e.message}")
         }
 
         bluetoothAdvertiser = bluetoothAdapter.bluetoothLeAdvertiser
         if (bluetoothAdvertiser == null) {
+            Log.e("OFFPAY_BLE", "BluetoothLeAdvertiser is null - hardware does not support BLE peripheral mode")
             result.error("UNSUPPORTED", "BLE Advertising is not supported on this device hardware.", null)
             return
         }
@@ -73,18 +83,24 @@ class MainActivity : FlutterActivity() {
             .setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_LOW_LATENCY)
             .setTxPowerLevel(AdvertiseSettings.ADVERTISE_TX_POWER_HIGH)
             .setConnectable(true)
+            .setTimeout(0) // Advertise indefinitely until stopped
             .build()
 
         val pUuid = ParcelUuid(UUID.fromString(serviceUuidStr))
 
-        // Split into Primary AdvertiseData (UUID) + ScanResponse (Name) to prevent 31-byte packet overflow on Android 10/11
+        // Primary advertisement data: Service UUID only (no name, no TX power)
+        // This keeps primary payload well under 31 bytes
         val data = AdvertiseData.Builder()
+            .setIncludeDeviceName(false)
             .setIncludeTxPowerLevel(false)
             .addServiceUuid(pUuid)
             .build()
 
+        // Scan response: Device name only
+        // This is a SEPARATE 31-byte packet sent when a scanner requests more info
         val scanResponse = AdvertiseData.Builder()
             .setIncludeDeviceName(true)
+            .setIncludeTxPowerLevel(false)
             .build()
 
         stopAdvertisingInternal()
@@ -92,19 +108,31 @@ class MainActivity : FlutterActivity() {
         advertiseCallback = object : AdvertiseCallback() {
             override fun onStartSuccess(settingsInEffect: AdvertiseSettings?) {
                 super.onStartSuccess(settingsInEffect)
-                Log.d("OFFPAY_BLE", "Native BLE Advertising started successfully for: $name")
+                Log.d("OFFPAY_BLE", "✅ BLE Advertising STARTED successfully as: $safeName")
                 result.success(true)
             }
 
             override fun onStartFailure(errorCode: Int) {
                 super.onStartFailure(errorCode)
-                Log.e("OFFPAY_BLE", "Native BLE Advertising failed with error code: $errorCode")
-                result.error("ADVERTISE_FAILED", "Failed with error code $errorCode", null)
+                val reason = when (errorCode) {
+                    ADVERTISE_FAILED_DATA_TOO_LARGE -> "DATA_TOO_LARGE (payload > 31 bytes)"
+                    ADVERTISE_FAILED_TOO_MANY_ADVERTISERS -> "TOO_MANY_ADVERTISERS"
+                    ADVERTISE_FAILED_ALREADY_STARTED -> "ALREADY_STARTED"
+                    ADVERTISE_FAILED_INTERNAL_ERROR -> "INTERNAL_ERROR"
+                    ADVERTISE_FAILED_FEATURE_UNSUPPORTED -> "FEATURE_UNSUPPORTED"
+                    else -> "UNKNOWN ($errorCode)"
+                }
+                Log.e("OFFPAY_BLE", "❌ BLE Advertising FAILED: $reason")
+                result.error("ADVERTISE_FAILED", "Failed: $reason", null)
             }
         }
 
         try {
+            Log.d("OFFPAY_BLE", "Starting BLE advertising with name='$safeName', uuid='$serviceUuidStr'")
             bluetoothAdvertiser?.startAdvertising(settings, data, scanResponse, advertiseCallback)
+        } catch (e: SecurityException) {
+            Log.e("OFFPAY_BLE", "SecurityException starting advertising (missing BLUETOOTH_ADVERTISE?): ${e.message}")
+            result.error("SECURITY_EXCEPTION", e.message, null)
         } catch (e: Exception) {
             Log.e("OFFPAY_BLE", "Exception starting advertising: ${e.message}")
             result.error("EXCEPTION", e.message, null)
@@ -120,6 +148,7 @@ class MainActivity : FlutterActivity() {
         if (bluetoothAdvertiser != null && advertiseCallback != null) {
             try {
                 bluetoothAdvertiser?.stopAdvertising(advertiseCallback)
+                Log.d("OFFPAY_BLE", "BLE Advertising stopped")
             } catch (e: Exception) {
                 Log.e("OFFPAY_BLE", "Error stopping advertising: ${e.message}")
             }
