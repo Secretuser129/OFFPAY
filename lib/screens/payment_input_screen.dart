@@ -5,8 +5,7 @@ import 'package:flutter_blue_plus/flutter_blue_plus.dart' as fb;
 import 'package:provider/provider.dart';
 import '../models/wallet_model.dart'; 
 import '../services/bluetooth_service.dart';
-import '../services/firebase_service.dart';
-// Assuming your payment success screen is here
+import '../services/smart_payment_manager.dart';
 
 
 class PaymentInputScreen extends StatefulWidget {
@@ -101,48 +100,50 @@ class _PaymentInputScreenState extends State<PaymentInputScreen> {
     final bluetoothService = Provider.of<OffpayBluetoothService>(context, listen: false);
     final walletModel = Provider.of<WalletModel>(context, listen: false);
 
+    // Find the real RSSI from the discovered devices list
+    int currentRssi = -70; // Default fallback
+    try {
+      final discoveredDevice = bluetoothService.discoveredDevices
+          .firstWhere((d) => d.device.remoteId == recipientDevice!.remoteId);
+      currentRssi = discoveredDevice.rssi;
+    } catch (_) {
+      // Ignore if device not found in active list
+    }
+
     // Show loading dialog
     _showLoadingDialog();
 
-    // 1. EXECUTE BLUETOOTH CONNECTION AND TRANSFER (The main fix)
-    bool success = await bluetoothService.connectAndTransfer(recipientDevice!, amount);
+    // 1. EXECUTE SMART BLUETOOTH CONNECTION AND TRANSFER via Invisible Manager
+    bool success = await SmartPaymentManager.executeSmartTransfer(
+      bluetoothService: bluetoothService,
+      walletModel: walletModel,
+      recipientDevice: recipientDevice!,
+      amount: amount,
+      currentRssi: currentRssi, 
+
+    );
 
     // Dismiss the loading dialog using the context of the payment screen
     Navigator.of(context).pop(); 
 
     if (success) {
-      try {
-        // 2. Debit money locally (only if BLE transfer succeeded)
-        await walletModel.sendMoney(amount, recipientDevice!.remoteId.str, status: 'PENDING');
-        
-        // 3. Update Server Cloud Ledger automatically in background
-        FirebaseService.syncWithFirebase(walletModel).catchError((_) => <String, dynamic>{});
+      final recipientName = customRecipientName.isNotEmpty 
+          ? customRecipientName 
+          : 'Unknown User';
 
-        // 4. Navigate to Success Screen
-        final recipientName = customRecipientName.isNotEmpty 
-            ? customRecipientName 
-            : 'Unknown User';
-
-        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (context) => PaymentSuccessScreen(
-              amount: amount, 
-              recipientName: recipientName,
-            ),
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (context) => PaymentSuccessScreen(
+            amount: amount, 
+            recipientName: recipientName,
           ),
-        );
-      } catch (e) {
-        // Handle local debit failure (e.g., if sendMoney throws)
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Error updating wallet. Payment may have been sent.'), backgroundColor: Colors.red),
-        );
-      }
-
+        ),
+      );
     } else {
-      // 4. Transaction failed
+      // 4. Transaction completely failed (even mesh routing failed)
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('❌ Payment failed. Could not connect securely/transfer data.'), backgroundColor: Colors.red),
+        const SnackBar(content: Text('❌ Payment failed. Could not route transaction securely.'), backgroundColor: Colors.red),
       );
     }
   }

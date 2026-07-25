@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'handshake_crypto_service.dart';
+import 'profile_service.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart' as fb;
 
@@ -91,6 +92,37 @@ class OffpayBluetoothService with ChangeNotifier {
 
   OffpayBluetoothService() {
     _initAdapterStateListener();
+    
+    _channel.setMethodCallHandler((call) async {
+      if (call.method == 'onPaymentReceived') {
+        final String payload = call.arguments as String;
+        debugPrint('Native GATT Server received payload: $payload');
+        try {
+          final receiverId = await ProfileService.getDeviceId();
+          final response = HandshakeCryptoService.createReceiverResponse(
+            step1Packet: payload,
+            receiverDeviceId: receiverId,
+          );
+          
+          if (response != null && _isListeningForIncoming) {
+            final senderData = response['senderData'] as Map<String, dynamic>;
+            _incomingPaymentController.add({
+              'amount': (senderData['amt'] as num).toDouble(),
+              'senderId': senderData['sId'],
+              'senderName': senderData['sName'],
+              'timestamp': senderData['ts'],
+              'transactionId': 'TXN-${senderData['nonce']}',
+              'signature': payload.split(':').last,
+            });
+            debugPrint('Successfully verified incoming GATT payment!');
+          } else {
+            debugPrint('Failed to verify incoming GATT payment payload.');
+          }
+        } catch (e) {
+          debugPrint('Error processing incoming GATT payload: $e');
+        }
+      }
+    });
   }
 
   // --- Public Getters ---
@@ -307,11 +339,11 @@ class OffpayBluetoothService with ChangeNotifier {
   // -------------------------
   // Real-time Connect & Transfer (GATT 133 Retry Counter Countermeasure)
   // -------------------------
-  Future<bool> connectAndTransfer(fb.BluetoothDevice device, double amount) async {
+  Future<String?> connectAndTransfer(fb.BluetoothDevice device, double amount) async {
     final isRadioOn = await enableBluetoothRadio();
     if (!isRadioOn) {
       debugPrint('Bluetooth radio not enabled. Cannot transfer.');
-      return false;
+      return null;
     }
 
     await stopScan();
@@ -395,9 +427,11 @@ class OffpayBluetoothService with ChangeNotifier {
             }
 
             if (writeChar != null) {
+              final senderId = await ProfileService.getDeviceId();
+              final senderName = await ProfileService.getUserName();
               final handshake = HandshakeCryptoService.createSenderHandshake(
-                senderDeviceId: 'SENDER-${DateTime.now().millisecondsSinceEpoch}',
-                senderName: 'OFFPAY User',
+                senderDeviceId: senderId,
+                senderName: senderName,
                 amount: amount,
               );
               final String payload = handshake['packet']!;
@@ -408,7 +442,14 @@ class OffpayBluetoothService with ChangeNotifier {
 
               if (canWrite || canWriteWithoutResponse) {
                 await writeChar.write(payloadBytes, withoutResponse: !canWrite);
-                debugPrint('Wrote 2-Way Cryptographic Handshake BLE payload to ${device.remoteId.str}: $payload');
+                debugPrint('Wrote secure GATT payment payload to ${device.remoteId.str}: $payload');
+                
+                try {
+                  await device.disconnect();
+                } catch (_) {}
+                
+                // Return transaction ID (using nonce as unique tx id)
+                return 'TXN-${handshake['nonce']}';
               }
             }
           }
@@ -431,10 +472,10 @@ class OffpayBluetoothService with ChangeNotifier {
         _deviceMap[deviceId]!.connectionState = fb.BluetoothConnectionState.disconnected;
         notifyListeners();
       }
-      return true;
+      return null;
     } catch (e, st) {
       debugPrint('connectAndTransfer fallback execution: $e\n$st');
-      return true;
+      return null;
     }
   }
 

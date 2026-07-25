@@ -592,6 +592,12 @@ class _HomeScreenState extends State<HomeScreen> {
     IconData icon;
 
     switch (status.toUpperCase()) {
+      case 'QUEUED_FOR_RELAY':
+        bg = Colors.blue.withValues(alpha: 0.15);
+        text = Colors.blue.shade900;
+        label = 'Pending Sync';
+        icon = Icons.sync;
+        break;
       case 'PENDING':
         bg = Colors.amber.withValues(alpha: 0.15);
         text = Colors.amber.shade900;

@@ -2,11 +2,21 @@ package com.example.offpay
 
 import android.app.Activity
 import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothGatt
+import android.bluetooth.BluetoothGattCharacteristic
+import android.bluetooth.BluetoothGattServer
+import android.bluetooth.BluetoothGattServerCallback
+import android.bluetooth.BluetoothGattService
+import android.bluetooth.BluetoothManager
 import android.bluetooth.le.AdvertiseCallback
 import android.bluetooth.le.AdvertiseData
 import android.bluetooth.le.AdvertiseSettings
 import android.bluetooth.le.BluetoothLeAdvertiser
+import android.content.Context
 import android.content.Intent
+import android.os.Handler
+import android.os.Looper
 import android.os.ParcelUuid
 import android.util.Log
 import io.flutter.embedding.android.FlutterActivity
@@ -22,14 +32,17 @@ class MainActivity : FlutterActivity() {
     private var pendingResult: MethodChannel.Result? = null
     private var bluetoothAdvertiser: BluetoothLeAdvertiser? = null
     private var advertiseCallback: AdvertiseCallback? = null
+    private var methodChannel: MethodChannel? = null
+    private var gattServer: BluetoothGattServer? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
-        MethodChannel(
+        methodChannel = MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
             CHANNEL
-        ).setMethodCallHandler { call, result ->
+        )
+        methodChannel?.setMethodCallHandler { call, result ->
             when (call.method) {
                 "enableBluetooth" -> {
                     pendingResult = result
@@ -38,6 +51,8 @@ class MainActivity : FlutterActivity() {
                 "startAdvertising" -> {
                     val name = call.argument<String>("name") ?: "OFFPAY"
                     val serviceUuidStr = call.argument<String>("serviceUuid") ?: "0000180a-0000-1000-8000-00805f9b34fb"
+                    val charUuidStr = call.argument<String>("charUuid") ?: "00002a29-0000-1000-8000-00805f9b34fb"
+                    startGattServer(serviceUuidStr, charUuidStr)
                     startAdvertising(name, serviceUuidStr, result)
                 }
                 "stopAdvertising" -> {
@@ -141,7 +156,80 @@ class MainActivity : FlutterActivity() {
 
     private fun stopAdvertising(result: MethodChannel.Result) {
         stopAdvertisingInternal()
+        stopGattServer()
         result.success(true)
+    }
+
+    private fun stopGattServer() {
+        if (gattServer != null) {
+            try {
+                gattServer?.close()
+                gattServer = null
+                Log.d("OFFPAY_BLE", "GATT Server closed")
+            } catch (e: Exception) {
+                Log.e("OFFPAY_BLE", "Error closing GATT server: ${e.message}")
+            }
+        }
+    }
+
+    private fun startGattServer(serviceUuidStr: String, charUuidStr: String) {
+        val bluetoothManager = getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
+        if (gattServer != null) {
+            return // already running
+        }
+        
+        try {
+            gattServer = bluetoothManager.openGattServer(this, object : BluetoothGattServerCallback() {
+                override fun onConnectionStateChange(device: BluetoothDevice, status: Int, newState: Int) {
+                    super.onConnectionStateChange(device, status, newState)
+                    Log.d("OFFPAY_BLE", "GATT Connection state change: $newState")
+                }
+
+                override fun onCharacteristicWriteRequest(
+                    device: BluetoothDevice,
+                    requestId: Int,
+                    characteristic: BluetoothGattCharacteristic,
+                    preparedWrite: Boolean,
+                    responseNeeded: Boolean,
+                    offset: Int,
+                    value: ByteArray?
+                ) {
+                    super.onCharacteristicWriteRequest(device, requestId, characteristic, preparedWrite, responseNeeded, offset, value)
+                    Log.d("OFFPAY_BLE", "GATT Write received")
+                    
+                    if (responseNeeded) {
+                        gattServer?.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, offset, value)
+                    }
+                    
+                    if (value != null) {
+                        val payload = String(value)
+                        Handler(Looper.getMainLooper()).post {
+                            methodChannel?.invokeMethod("onPaymentReceived", payload)
+                        }
+                    }
+                }
+            })
+
+            val service = BluetoothGattService(
+                UUID.fromString(serviceUuidStr),
+                BluetoothGattService.SERVICE_TYPE_PRIMARY
+            )
+            
+            val characteristic = BluetoothGattCharacteristic(
+                UUID.fromString(charUuidStr),
+                BluetoothGattCharacteristic.PROPERTY_WRITE or BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE,
+                BluetoothGattCharacteristic.PERMISSION_WRITE
+            )
+            
+            service.addCharacteristic(characteristic)
+            gattServer?.addService(service)
+            Log.d("OFFPAY_BLE", "GATT Server started")
+            
+        } catch (e: SecurityException) {
+            Log.e("OFFPAY_BLE", "SecurityException starting GATT: ${e.message}")
+        } catch (e: Exception) {
+            Log.e("OFFPAY_BLE", "Exception starting GATT: ${e.message}")
+        }
     }
 
     private fun stopAdvertisingInternal() {

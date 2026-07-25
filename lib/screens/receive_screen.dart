@@ -7,6 +7,7 @@ import '../services/bluetooth_service.dart';
 import '../services/profile_service.dart';
 import '../services/firebase_service.dart';
 import '../models/wallet_model.dart';
+import 'receiver_pairing_screen.dart';
 
 class ReceiveScreen extends StatefulWidget {
   const ReceiveScreen({super.key});
@@ -72,11 +73,12 @@ class _ReceiveScreenState extends State<ReceiveScreen> with SingleTickerProvider
   Future<void> _handleIncomingPayment(Map<String, dynamic> data) async {
     final double amount = (data['amount'] as num).toDouble();
     final String senderId = data['senderId'] as String;
+    final String? txId = data['transactionId'] as String?;
 
     HapticFeedback.vibrate();
 
     final walletModel = Provider.of<WalletModel>(context, listen: false);
-    await walletModel.receiveMoney(amount, senderId, status: 'PENDING');
+    await walletModel.receiveMoney(amount, senderId, status: 'PENDING', transactionId: txId);
 
     // Update Server Cloud Ledger automatically in background
     FirebaseService.syncWithFirebase(walletModel).catchError((_) => <String, dynamic>{});
@@ -258,6 +260,32 @@ class _ReceiveScreenState extends State<ReceiveScreen> with SingleTickerProvider
               'Nearby phones will automatically detect your device and send money over Bluetooth BLE.',
               style: TextStyle(fontSize: 13, color: theme.hintColor),
               textAlign: TextAlign.center,
+            ),
+
+            const SizedBox(height: 24),
+            
+            // Reverse Pairing Fallback Button
+            OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                side: const BorderSide(color: Colors.indigo, width: 1.5),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              icon: const Icon(Icons.bluetooth_searching, color: Colors.indigo),
+              label: const Text(
+                "Can't find me? Force Connection",
+                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.indigo),
+              ),
+              onPressed: () {
+                HapticFeedback.mediumImpact();
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => const ReceiverPairingScreen(),
+                  ),
+                );
+              },
             ),
 
             const SizedBox(height: 40),
