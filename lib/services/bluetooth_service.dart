@@ -267,7 +267,6 @@ class OffpayBluetoothService with ChangeNotifier {
 
     try {
       await fb.FlutterBluePlus.startScan(
-        withServices: [OFFPAY_SERVICE_UUID], // Use Service Filter for Android 14 compatibility
         timeout: timeout,
         androidScanMode: fb.AndroidScanMode.lowLatency,
       );

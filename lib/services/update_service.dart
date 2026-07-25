@@ -31,8 +31,8 @@ class UpdateInfo {
 }
 
 class UpdateService {
-  static const int currentVersionCode = 15;
-  static const String currentVersionName = '2.0.0-alpha+15';
+  static const int currentVersionCode = 16;
+  static const String currentVersionName = '2.0.0-alpha+16';
 
   static const String defaultGithubRepo = 'Secretuser129/OFFPAY';
   static const String defaultGithubUrl = 'https://github.com/Secretuser129/OFFPAY/releases/latest';
