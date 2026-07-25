@@ -53,10 +53,10 @@ class UpdateService {
       debugPrint('Simple updater info: $e');
     }
 
-    // Fallback update info matching current version 1.0.0
+    // Fallback update info matching current version 2.0.6
     info ??= UpdateInfo(
-      versionCode: 100,
-      versionName: '1.0.0',
+      versionCode: 206,
+      versionName: '2.0.6',
       updateUrl: defaultReleaseUrl,
       changelog: '• Initial release of OffPay with BLE P2P transactions.',
     );
