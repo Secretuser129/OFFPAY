@@ -368,7 +368,7 @@ class OffpayBluetoothService with ChangeNotifier {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         debugPrint('GATT Connection Attempt $attempt of $maxRetries for $deviceId');
-        await device.connect(autoConnect: false, license: fb.License.free);
+        await device.connect(autoConnect: false, license: fb.License.nonprofit);
 
         final connectedState = await device.connectionState
             .firstWhere((s) => s == fb.BluetoothConnectionState.connected || s == fb.BluetoothConnectionState.disconnected)

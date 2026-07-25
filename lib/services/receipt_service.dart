@@ -95,9 +95,11 @@ class ReceiptService {
     await file.writeAsBytes(await pdf.save());
 
     // Share
-    await Share.shareXFiles(
-      [XFile(file.path)],
-      text: 'OFFPAY Receipt for Transaction $transactionId',
+    await SharePlus.instance.share(
+      ShareParams(
+        files: [XFile(file.path)],
+        text: 'OFFPAY Receipt for Transaction $transactionId',
+      )
     );
   }
 

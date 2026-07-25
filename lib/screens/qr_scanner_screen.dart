@@ -41,20 +41,27 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
     final XFile? pickedFile = await _picker.pickImage(source: ImageSource.gallery);
 
     if (pickedFile != null) {
-      // 2. Pass the image file path to the MobileScanner controller
-      final bool result = await cameraController.analyzeImage(pickedFile.path);
+      final BarcodeCapture? capture = await cameraController.analyzeImage(pickedFile.path);
 
-      
-      // The onDetect function handles the scan result, so we only need 
-      // to check if scanning the image was attempted successfully.
-      if (result) {
-        // Option to show a loading/processing indicator if needed, 
-        // but typically 'onDetect' handles navigation immediately.
+      if (capture != null && capture.barcodes.isNotEmpty) {
+        if (!_scannedOnce) {
+          final List<Barcode> barcodes = capture.barcodes;
+          for (final barcode in barcodes) {
+            if (barcode.rawValue != null) {
+              _scannedOnce = true;
+              cameraController.stop(); 
+              _handleQRCode(barcode.rawValue!);
+              return; 
+            }
+          }
+        }
       } else {
         // Show an error if the image was picked but scanning failed
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not find a valid QR code in the image.')),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not find a valid QR code in the image.')),
+          );
+        }
       }
     }
   }
@@ -74,9 +81,9 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
           
           // 3. FLASHLIGHT TOGGLE (Dynamically changing icon)
           ValueListenableBuilder(
-            valueListenable: cameraController.torchState,
+            valueListenable: cameraController,
             builder: (context, state, child) {
-              final icon = state == TorchState.off
+              final icon = state.torchState == TorchState.off
                   ? Icons.flashlight_off
                   : Icons.flashlight_on;
               return IconButton(

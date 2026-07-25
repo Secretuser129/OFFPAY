@@ -116,7 +116,7 @@ class _ReceiverPairingScreenState extends State<ReceiverPairingScreen> {
 
     try {
       // Connect first: flutter_blue_plus requires the device to be connected before creating a bond
-      await device.connect(autoConnect: false, license: fb.License.free).timeout(
+      await device.connect(autoConnect: false, license: fb.License.nonprofit).timeout(
         const Duration(seconds: 5),
         onTimeout: () => throw Exception('Connection timeout'),
       );

@@ -7,6 +7,7 @@ plugins {
 android {
     namespace = "com.example.offpay"
     compileSdk = flutter.compileSdkVersion
+    ndkVersion = "28.2.13676358"
 
     defaultConfig {
         applicationId = "com.example.offpay"
