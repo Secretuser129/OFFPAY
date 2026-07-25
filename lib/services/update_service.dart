@@ -8,218 +8,107 @@ class UpdateInfo {
   final String versionName;
   final String updateUrl;
   final String changelog;
-  final bool forceUpdate;
 
   UpdateInfo({
     required this.versionCode,
     required this.versionName,
     required this.updateUrl,
     required this.changelog,
-    required this.forceUpdate,
   });
-
-  factory UpdateInfo.fromJson(Map<String, dynamic> json) {
-    return UpdateInfo(
-      versionCode: json['versionCode'] ?? 6,
-      versionName: json['versionName'] ?? '2.0.0-alpha+6',
-      updateUrl: json['updateUrl'] ?? 'https://github.com',
-      changelog: json['changelog'] ?? 'Performance & Android 14 Bluetooth stability enhancements.',
-      forceUpdate: json['forceUpdate'] ?? false,
-    );
-  }
 }
 
 class UpdateService {
-  static const int currentVersionCode = 20005; // Represents 2.0.5 -> (2 * 10000) + (0 * 100) + 5
-  static const String currentVersionName = '2.0.5';
+  static const int currentVersionCode = 1;
+  static const String currentVersionName = '1.0.0';
 
-  static const String defaultGithubRepo = 'Secretuser129/OFFPAY';
-  static const String defaultGithubUrl = 'https://github.com/Secretuser129/OFFPAY/releases/latest';
+  // Simple online version URL (Points to raw version.json file)
+  static const String rawJsonUrl = 'https://raw.githubusercontent.com/Secretuser129/OFFPAY/main/version.json';
+  static const String defaultReleaseUrl = 'https://github.com/Secretuser129/OFFPAY/releases/latest';
 
-  /// Check GitHub Releases API for new updates
-  static Future<UpdateInfo?> checkRemoteVersion() async {
-    try {
-      final ghResponse = await http.get(
-        Uri.parse('https://api.github.com/repos/$defaultGithubRepo/releases'),
-      ).timeout(const Duration(seconds: 4));
-
-      if (ghResponse.statusCode == 200) {
-        final List<dynamic> releases = jsonDecode(ghResponse.body);
-        if (releases.isNotEmpty) {
-          final Map<String, dynamic> ghData = releases.first;
-          final tag = (ghData['tag_name'] as String? ?? '').replaceAll('v', '');
-          final body = ghData['body'] as String? ?? 'New version available on GitHub Releases.';
-
-          int remoteCode = 0;
-          
-          // Improved semantic version matcher supporting x.y or x.y.z
-          final semanticMatch = RegExp(r'(\d+)\.(\d+)(?:\.(\d+))?').firstMatch(tag);
-          if (semanticMatch != null) {
-            final major = int.tryParse(semanticMatch.group(1)!) ?? 0;
-            final minor = int.tryParse(semanticMatch.group(2)!) ?? 0;
-            final patch = int.tryParse(semanticMatch.group(3) ?? '0') ?? 0;
-            remoteCode = (major * 10000) + (minor * 100) + patch;
-          } else {
-            final fallbackMatch = RegExp(r'(\d+)(?=[^\d]*$)').firstMatch(tag);
-            if (fallbackMatch != null) {
-              remoteCode = int.tryParse(fallbackMatch.group(1)!) ?? 0;
-            }
-          }
-
-          String downloadUrl = defaultGithubUrl;
-          if (ghData['assets'] != null && (ghData['assets'] as List).isNotEmpty) {
-            // Try to find the APK asset explicitly instead of taking index 0 blindly
-            final assets = ghData['assets'] as List;
-            try {
-              final apkAsset = assets.firstWhere(
-                (asset) => (asset['name'] as String? ?? '').endsWith('.apk'),
-                orElse: () => assets[0],
-              );
-              downloadUrl = apkAsset['browser_download_url'] ?? defaultGithubUrl;
-            } catch (_) {
-              downloadUrl = assets[0]['browser_download_url'] ?? defaultGithubUrl;
-            }
-          }
-
-          return UpdateInfo(
-            versionCode: remoteCode > 0 ? remoteCode : currentVersionCode + 1,
-            versionName: tag.isEmpty ? '2.0.2' : tag,
-            updateUrl: downloadUrl,
-            changelog: body,
-            forceUpdate: false,
-          );
-        }
-      }
-    } catch (e) {
-      debugPrint('GitHub API update check error: $e');
-    }
-
-    return null;
-  }
-
-  /// Trigger In-App Updater dialog check
+  /// Simple 1-step update check
   static Future<void> checkForUpdates(BuildContext context, {bool silent = false}) async {
     if (!silent) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Row(
-            children: [
-              SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-              ),
-              SizedBox(width: 12),
-              Text('Checking for OFFPAY updates...'),
-            ],
-          ),
-          duration: Duration(seconds: 2),
+          content: Text('Checking for OFFPAY updates...'),
+          duration: Duration(seconds: 1),
         ),
       );
     }
 
-    final info = await checkRemoteVersion();
+    UpdateInfo? info;
 
-    if (info != null && info.versionCode > currentVersionCode) {
-      if (context.mounted) {
-        showUpdateDialog(context, info);
-      }
-    } else {
-      if (!silent && context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('OFFPAY is up to date! (v$currentVersionName)'),
-            backgroundColor: Colors.green,
-            behavior: SnackBarBehavior.floating,
-          ),
+    try {
+      final res = await http.get(Uri.parse(rawJsonUrl)).timeout(const Duration(seconds: 3));
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        info = UpdateInfo(
+          versionCode: data['versionCode'] ?? 2,
+          versionName: data['versionName'] ?? '2.0.0',
+          updateUrl: data['downloadUrl'] ?? defaultReleaseUrl,
+          changelog: data['changelog'] ?? 'Performance & Bluetooth stability improvements.',
         );
       }
+    } catch (e) {
+      debugPrint('Simple updater info: $e');
+    }
+
+    // Fallback update info for testing/demo before hosting online version.json
+    info ??= UpdateInfo(
+      versionCode: 2,
+      versionName: '2.0.0-Stable',
+      updateUrl: defaultReleaseUrl,
+      changelog: '• BLE 5.0 Discovery & RSSI Proximity Meter\n• Verified OFFPAY User Filter\n• Active Payment Screen Popup Lock\n• Hive & Crypto Settlement Enhancements',
+    );
+
+    if (info.versionCode > currentVersionCode && context.mounted) {
+      _showSimpleDialog(context, info);
+    } else if (!silent && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('OFFPAY is up to date! (v$currentVersionName)'),
+          backgroundColor: Colors.green,
+        ),
+      );
     }
   }
 
-  /// Show sleek modern AMOLED In-App Update Dialog
-  static void showUpdateDialog(BuildContext context, UpdateInfo info) {
-    final theme = Theme.of(context);
-
+  /// Clean, minimal Update Dialog
+  static void _showSimpleDialog(BuildContext context, UpdateInfo info) {
     showDialog(
       context: context,
-      barrierDismissible: !info.forceUpdate,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        backgroundColor: theme.cardTheme.color,
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.indigo.withValues(alpha: 0.15),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.system_update_alt, color: Colors.indigo, size: 24),
-            ),
-            const SizedBox(width: 12),
-            const Expanded(
-              child: Text(
-                'Update Available!',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-              ),
-            ),
-          ],
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Update Available (v${info.versionName})'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.green.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                'v$currentVersionName ➔ v${info.versionName}',
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.green),
-              ),
-            ),
-            const SizedBox(height: 14),
-            const Text(
-              'What\'s New in this Release:',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-            ),
+            const Text('What\'s New:', style: TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 6),
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: theme.primaryColor.withValues(alpha: 0.05),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Text(
-                info.changelog,
-                style: TextStyle(fontSize: 12, color: theme.textTheme.bodyMedium?.color),
-              ),
-            ),
+            Text(info.changelog, style: const TextStyle(fontSize: 13)),
           ],
         ),
         actions: [
-          if (!info.forceUpdate)
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text('Later', style: TextStyle(color: theme.hintColor)),
-            ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Later'),
+          ),
           ElevatedButton.icon(
             icon: const Icon(Icons.download, size: 18),
             label: const Text('Update Now'),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.indigo,
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
             onPressed: () async {
               Navigator.pop(ctx);
               final uri = Uri.parse(info.updateUrl);
-              if (await canLaunchUrl(uri)) {
+              try {
                 await launchUrl(uri, mode: LaunchMode.externalApplication);
+              } catch (_) {
+                await launchUrl(uri);
               }
             },
           ),

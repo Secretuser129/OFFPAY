@@ -1,0 +1,6 @@
+{
+  "versionCode": 2,
+  "versionName": "2.0.0",
+  "downloadUrl": "https://github.com/Secretuser129/OFFPAY/releases/latest",
+  "changelog": "🚀 What's New in OffPay v2.0.0:\n• Enhanced BLE 5.0 Peer Discovery & RSSI Distance Meter\n• Verified Service UUID Filter ('OFFPAY Users Only')\n• Automatic Popup Suppression during Active Payment Typing\n• Improved Crypto Nonce Settlement & Hive Ledger Engine"
+}
