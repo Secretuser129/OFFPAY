@@ -24,6 +24,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   bool _isBalanceHidden = false;
+  int _selectedDockIndex = 0;
   Timer? _autoReloadTimer;
 
   @override
@@ -424,9 +425,9 @@ class _HomeScreenState extends State<HomeScreen> {
     return SafeArea(
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF14141C).withValues(alpha: 0.95) : Colors.white.withValues(alpha: 0.95),
+          color: isDark ? const Color(0xFF1E1E2E).withValues(alpha: 0.95) : Colors.white.withValues(alpha: 0.95),
           borderRadius: BorderRadius.circular(35),
           border: Border.all(
             color: theme.primaryColor.withValues(alpha: 0.35),
@@ -445,9 +446,9 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             _buildDockItem(
               context: context,
+              index: 0,
               icon: Icons.send,
               label: 'Send',
-              color: theme.primaryColor,
               onTap: () {
                 HapticFeedback.lightImpact();
                 Navigator.of(context).push(
@@ -457,10 +458,9 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             _buildDockItem(
               context: context,
+              index: 1,
               icon: Icons.call_received,
               label: 'Receive',
-              color: Colors.green,
-              isGlowing: true,
               onTap: () {
                 HapticFeedback.lightImpact();
                 Navigator.pushNamed(context, '/receive');
@@ -468,9 +468,9 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             _buildDockItem(
               context: context,
+              index: 2,
               icon: Icons.qr_code_2,
               label: 'QR Code',
-              color: theme.primaryColor,
               onTap: () {
                 HapticFeedback.lightImpact();
                 Navigator.pushNamed(context, '/custom_qr');
@@ -478,9 +478,9 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             _buildDockItem(
               context: context,
+              index: 3,
               icon: Icons.contacts,
               label: 'Contacts',
-              color: theme.primaryColor,
               onTap: () {
                 HapticFeedback.lightImpact();
                 Navigator.pushNamed(context, '/contacts');
@@ -494,46 +494,49 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildDockItem({
     required BuildContext context,
+    required int index,
     required IconData icon,
     required String label,
-    required Color color,
     required VoidCallback onTap,
-    bool isGlowing = false,
   }) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final isSelected = _selectedDockIndex == index;
+
     return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.15),
-              shape: BoxShape.circle,
-              border: Border.all(color: color.withValues(alpha: 0.4), width: 1.5),
-              boxShadow: isGlowing
-                  ? [
-                      BoxShadow(
-                        color: color.withValues(alpha: 0.5),
-                        blurRadius: 12,
-                        spreadRadius: 2,
-                      ),
-                    ]
-                  : null,
+      onTap: () {
+        setState(() => _selectedDockIndex = index);
+        onTap();
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 280),
+        curve: Curves.easeOutCubic,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? theme.primaryColor.withValues(alpha: isDark ? 0.25 : 0.15)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(25),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 24,
+              color: isSelected ? theme.primaryColor : (isDark ? Colors.white70 : Colors.black87),
             ),
-            child: Icon(icon, color: color, size: 22),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.bold,
-              color: Theme.of(context).textTheme.bodySmall?.color,
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                color: isSelected ? theme.primaryColor : (isDark ? Colors.white70 : Colors.black87),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

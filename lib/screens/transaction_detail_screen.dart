@@ -139,7 +139,16 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
 
             // Metadata Card
             Card(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              color: theme.cardTheme.color,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(
+                  color: theme.brightness == Brightness.dark
+                      ? Colors.white.withValues(alpha: 0.12)
+                      : Colors.grey.withValues(alpha: 0.2),
+                  width: 1,
+                ),
+              ),
               child: Padding(
                 padding: const EdgeInsets.all(20.0),
                 child: Column(

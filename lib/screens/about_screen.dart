@@ -55,7 +55,7 @@ class AboutScreen extends StatelessWidget {
               ),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               child: Text(
-                'Version 2.2.1',
+                'Version 2.2.2 pre release 222',
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
@@ -84,7 +84,7 @@ class AboutScreen extends StatelessWidget {
                   child: Icon(Icons.shield, color: Colors.white),
                 ),
                 title: Text(
-                  'Secretuser129',
+                  'Vedansh Tyagi',
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),
                 subtitle: Text('Project Lead • Full Stack Developer'),

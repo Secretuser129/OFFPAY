@@ -8,6 +8,7 @@ import '../services/bluetooth_service.dart';
 import '../services/smart_payment_manager.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../services/firebase_service.dart';
+import '../services/password_service.dart';
 import 'payment_success_screen.dart';
 
 class PaymentInputScreen extends StatefulWidget {
@@ -116,6 +117,12 @@ class _PaymentInputScreenState extends State<PaymentInputScreen> {
     // Ensure validation passes and a device is selected
     if (!_formKey.currentState!.validate() || recipientDevice == null) {
       return;
+    }
+
+    final hasPin = await PasswordService.hasTransferPin();
+    if (hasPin) {
+      final authorized = await _showTransferPinDialog();
+      if (!authorized) return;
     }
 
     final double amount = double.parse(_amountController.text);
@@ -339,8 +346,8 @@ class _PaymentInputScreenState extends State<PaymentInputScreen> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Device ID: ${device.remoteId.str}',
-                        style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                        'OFFPAY Offline Receiver • Trusted Device',
+                        style: TextStyle(fontSize: 12, color: theme.hintColor),
                         textAlign: TextAlign.center,
                       ),
                     ],
@@ -458,5 +465,79 @@ class _PaymentInputScreenState extends State<PaymentInputScreen> {
         ),
       ),
     );
+  }
+
+  Future<bool> _showTransferPinDialog() async {
+    final pinController = TextEditingController();
+    bool obscureText = true;
+    final formKey = GlobalKey<FormState>();
+
+    return await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => StatefulBuilder(
+            builder: (context, setState) => AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: const Text('Transfer Authorization PIN', style: TextStyle(fontWeight: FontWeight.bold)),
+              content: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'Enter your secure PIN to authorize this offline payment.',
+                      style: TextStyle(fontSize: 13),
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: pinController,
+                      obscureText: obscureText,
+                      keyboardType: TextInputType.number,
+                      maxLength: 6,
+                      decoration: InputDecoration(
+                        labelText: 'Enter 4-6 Digit PIN',
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        suffixIcon: IconButton(
+                          icon: Icon(obscureText ? Icons.visibility : Icons.visibility_off),
+                          onPressed: () => setState(() => obscureText = !obscureText),
+                        ),
+                      ),
+                      validator: (val) {
+                        if (val == null || val.length < 4) return 'PIN must be at least 4 digits';
+                        return null;
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Theme.of(context).primaryColor,
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: () async {
+                    if (formKey.currentState!.validate()) {
+                      final isValid = await PasswordService.verifyTransferPin(pinController.text);
+                      if (isValid) {
+                        Navigator.pop(context, true);
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Incorrect PIN. Payment Unauthorized.'), backgroundColor: Colors.red),
+                        );
+                      }
+                    }
+                  },
+                  child: const Text('Authorize', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ],
+            ),
+          ),
+        ) ??
+        false;
   }
 }

@@ -378,16 +378,11 @@ class DiscoveredDeviceTile extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 6),
-                  SelectableText(
-                    'Device ID: ${item.id}',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                  ),
-                  const SizedBox(height: 3),
                   Text(
-                    'Bluetooth Address: ${item.bluetoothAddress}',
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: theme.hintColor),
+                    item.name,
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 4),
                   Row(
                     children: [
                       Icon(Icons.near_me, size: 12, color: theme.hintColor),

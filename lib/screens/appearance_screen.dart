@@ -56,12 +56,12 @@ class AppearanceScreen extends StatelessWidget {
                     ),
                   ),
                   title: Text(
-                    isDark ? 'AMOLED Dark Mode' : 'Light Mode',
+                    isDark ? 'Normal Dark Mode' : 'Light Mode',
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                   subtitle: Text(
                     isDark
-                        ? 'Pure black background • Saves battery on OLED'
+                        ? 'Sleek Material dark background (#121212)'
                         : 'Clean, bright interface',
                   ),
                   trailing: Switch.adaptive(

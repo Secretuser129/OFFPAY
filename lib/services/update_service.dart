@@ -21,8 +21,8 @@ class UpdateInfo {
 }
 
 class UpdateService {
-  static const int currentVersionCode = 221;
-  static const String currentVersionName = '2.2.1';
+  static const int currentVersionCode = 222;
+  static const String currentVersionName = '2.2.2 pre release 222';
 
   // Fallback version.json URL
   static const String rawJsonUrl = 'https://raw.githubusercontent.com/Secretuser129/OFFPAY/main/version.json';
@@ -72,7 +72,7 @@ class UpdateService {
 
           return UpdateInfo(
             versionCode: remoteCode > 0 ? remoteCode : currentVersionCode + 1,
-            versionName: tag.isEmpty ? '2.2.1' : tag,
+            versionName: tag.isEmpty ? '2.2.2 pre release 222' : tag,
             updateUrl: downloadUrl,
             changelog: body,
           );
@@ -88,8 +88,8 @@ class UpdateService {
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
         return UpdateInfo(
-          versionCode: data['versionCode'] ?? 221,
-          versionName: data['versionName'] ?? '2.2.1',
+          versionCode: data['versionCode'] ?? 222,
+          versionName: data['versionName'] ?? '2.2.2 pre release 222',
           updateUrl: data['downloadUrl'] ?? defaultReleaseUrl,
           changelog: data['changelog'] ?? 'Performance & Bluetooth stability improvements.',
         );
@@ -97,8 +97,8 @@ class UpdateService {
     } catch (_) {}
 
     return UpdateInfo(
-      versionCode: 221,
-      versionName: '2.2.1',
+      versionCode: 222,
+      versionName: '2.2.2 pre release 222',
       updateUrl: defaultReleaseUrl,
       changelog: 'Performance & Bluetooth stability improvements.',
     );

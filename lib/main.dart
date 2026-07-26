@@ -93,16 +93,16 @@ class OffPayApp extends StatelessWidget {
       useMaterial3: true,
       brightness: Brightness.dark,
       colorSchemeSeed: accentColor,
-      scaffoldBackgroundColor: const Color(0xFF000000), // Pure AMOLED Black
+      scaffoldBackgroundColor: const Color(0xFF121212), // Normal Material Dark Mode
       appBarTheme: const AppBarTheme(
-        backgroundColor: Color(0xFF000000), // Pure AMOLED Black
+        backgroundColor: Color(0xFF121212),
         foregroundColor: Colors.white,
         elevation: 0,
       ),
       cardTheme: CardThemeData(
-        color: const Color(0xFF08080A), // Deep AMOLED Surface
+        color: const Color(0xFF1E1E2C), // Normal elegant dark surface
         elevation: 4,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
       textTheme: ThemeData.dark().textTheme.apply(
         fontSizeFactor: fontScale,

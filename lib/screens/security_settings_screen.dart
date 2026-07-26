@@ -50,7 +50,7 @@ class SecuritySettingsScreen extends StatelessWidget {
             context: context,
             icon: Icons.system_update_outlined,
             title: 'Check for Updates',
-            subtitle: 'Version 2.2.1',
+            subtitle: 'Version 2.2.2 pre release 222',
             onTap: () => UpdateService.checkForUpdates(context, silent: false),
           ),
 
@@ -97,27 +97,34 @@ class SecuritySettingsScreen extends StatelessWidget {
     required VoidCallback onTap,
   }) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final iconColor = isDark ? Colors.white : theme.primaryColor;
+    final circleBg = isDark ? theme.primaryColor.withValues(alpha: 0.35) : theme.primaryColor.withValues(alpha: 0.12);
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       color: theme.cardTheme.color,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: theme.primaryColor.withValues(alpha: 0.25), width: 1),
+        side: BorderSide(
+          color: isDark ? Colors.white.withValues(alpha: 0.15) : theme.primaryColor.withValues(alpha: 0.2),
+          width: 1,
+        ),
       ),
       child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         leading: Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: theme.primaryColor.withValues(alpha: 0.15),
+            color: circleBg,
             shape: BoxShape.circle,
-            border: Border.all(color: theme.primaryColor.withValues(alpha: 0.3)),
+            border: Border.all(color: isDark ? Colors.white24 : theme.primaryColor.withValues(alpha: 0.3)),
           ),
-          child: Icon(icon, color: theme.primaryColor),
+          child: Icon(icon, color: iconColor, size: 22),
         ),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text(subtitle, style: TextStyle(fontSize: 12, color: theme.hintColor)),
-        trailing: Icon(Icons.chevron_right, color: theme.primaryColor),
+        title: Text(title, style: TextStyle(fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87)),
+        subtitle: Text(subtitle, style: TextStyle(fontSize: 12, color: isDark ? Colors.white70 : theme.hintColor)),
+        trailing: Icon(Icons.chevron_right, color: iconColor),
         onTap: onTap,
       ),
     );

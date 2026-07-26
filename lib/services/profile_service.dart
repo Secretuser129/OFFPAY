@@ -123,16 +123,13 @@ class ProfileService {
     return name;
   }
 
-  /// Format Bluetooth broadcast name as: [User Display Name] + " OFFPAY"
+  /// Format Bluetooth broadcast name as clean user display name
   static Future<String> getBluetoothName() async {
     final name = await getUserName();
-    if (name == 'Unknown User') {
-      return 'Device OFFPAY';
+    if (name == 'Unknown User' || name.trim().isEmpty) {
+      return 'OFFPAY User';
     }
-    if (name.toUpperCase().contains('OFFPAY')) {
-      return name;
-    }
-    return '$name OFFPAY';
+    return name.trim();
   }
 
   static Future<String> getDeviceId() async {

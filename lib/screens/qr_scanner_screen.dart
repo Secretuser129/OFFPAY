@@ -115,9 +115,9 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
             },
           ),
 
-          // Overlay with scanning frame (Your existing UI code)
+          // Overlay with scanning frame
           Container(
-            color: Colors.black.withValues(alpha: 0.3),
+            color: Colors.black.withValues(alpha: 0.35),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -125,110 +125,52 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
                 Expanded(
                   flex: 1,
                   child: Container(
-                    color: Colors.black.withValues(alpha: 0.6),
+                    color: Colors.black.withValues(alpha: 0.75),
                   ),
                 ),
 
-                // Middle with glowing neon scanner frame
+                // Middle with clean curved border scanner frame
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 28.0),
+                  padding: const EdgeInsets.symmetric(horizontal: 40.0),
                   child: AspectRatio(
                     aspectRatio: 1,
                     child: Container(
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(24),
-                        border: Border.all(color: Colors.greenAccent.withValues(alpha: 0.85), width: 2.5),
+                        border: Border.all(color: Colors.white, width: 2.5),
                         color: Colors.transparent,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.greenAccent.withValues(alpha: 0.3),
-                            blurRadius: 20,
-                            spreadRadius: 1,
-                          ),
-                        ],
-                      ),
-                      child: Stack(
-                        children: [
-                          ..._buildScannerCorners(context),
-                          
-                          // Animated Glowing Neon Laser Beam
-                          Center(
-                            child: TweenAnimationBuilder<double>(
-                              tween: Tween(begin: -1, end: 1),
-                              duration: const Duration(milliseconds: 1800),
-                              curve: Curves.easeInOut,
-                              onEnd: () {},
-                              builder: (context, value, child) {
-                                return Transform.translate(
-                                  offset: Offset(0, value * 110),
-                                  child: Container(
-                                    height: 3,
-                                    width: double.infinity,
-                                    decoration: BoxDecoration(
-                                      gradient: LinearGradient(
-                                        colors: [
-                                          Colors.transparent,
-                                          Colors.greenAccent.shade400,
-                                          Colors.transparent,
-                                        ],
-                                      ),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.greenAccent.withValues(alpha: 0.8),
-                                          blurRadius: 12,
-                                          spreadRadius: 2,
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                        ],
                       ),
                     ),
                   ),
                 ),
 
-                // Bottom overlay with sleek glassmorphism instruction badge
+                // Bottom overlay with clean instruction
                 Expanded(
                   flex: 1,
                   child: Container(
-                    color: Colors.black.withValues(alpha: 0.6),
+                    color: Colors.black.withValues(alpha: 0.75),
                     child: Center(
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF14141E).withValues(alpha: 0.85),
+                          color: const Color(0xFF1E1E2E).withValues(alpha: 0.9),
                           borderRadius: BorderRadius.circular(30),
-                          border: Border.all(
-                            color: Colors.greenAccent.withValues(alpha: 0.4),
-                            width: 1.2,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.3),
-                              blurRadius: 15,
-                              offset: const Offset(0, 5),
-                            ),
-                          ],
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: const [
                             Icon(
                               Icons.qr_code_scanner,
-                              size: 22,
-                              color: Colors.greenAccent,
+                              size: 20,
+                              color: Colors.white,
                             ),
-                            SizedBox(width: 12),
+                            SizedBox(width: 10),
                             Text(
-                              'Align QR code within glowing frame',
+                              'Align QR code within border',
                               style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 14,
-                                fontWeight: FontWeight.bold,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                           ],
@@ -243,49 +185,21 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
 
           // Cancel button
           Positioned(
-            bottom: 20,
-            left: 20,
-            right: 20,
+            bottom: 24,
+            left: 24,
+            right: 24,
             child: ElevatedButton(
               onPressed: () => Navigator.pop(context),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
+                backgroundColor: Colors.white.withValues(alpha: 0.15),
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               ),
-              child: const Text('Cancel Scan'),
+              child: const Text('Cancel Scan', style: TextStyle(fontWeight: FontWeight.bold)),
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  // Helper function for corner indicators (to clean up the build method)
-  List<Widget> _buildScannerCorners(BuildContext context) {
-    const double cornerSize = 30;
-    const double cornerWidth = 3;
-    const Color cornerColor = Colors.green;
-
-    return [
-      _buildCornerIndicator(top: 10, left: 10, border: const Border(top: BorderSide(color: cornerColor, width: cornerWidth), left: BorderSide(color: cornerColor, width: cornerWidth)), size: cornerSize),
-      _buildCornerIndicator(top: 10, right: 10, border: const Border(top: BorderSide(color: cornerColor, width: cornerWidth), right: BorderSide(color: cornerColor, width: cornerWidth)), size: cornerSize),
-      _buildCornerIndicator(bottom: 10, left: 10, border: const Border(bottom: BorderSide(color: cornerColor, width: cornerWidth), left: BorderSide(color: cornerColor, width: cornerWidth)), size: cornerSize),
-      _buildCornerIndicator(bottom: 10, right: 10, border: const Border(bottom: BorderSide(color: cornerColor, width: cornerWidth), right: BorderSide(color: cornerColor, width: cornerWidth)), size: cornerSize),
-    ];
-  }
-
-  // Helper widget for corner indicators
-  Widget _buildCornerIndicator({double? top, double? bottom, double? left, double? right, required Border border, required double size}) {
-    return Positioned(
-      top: top,
-      bottom: bottom,
-      left: left,
-      right: right,
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(border: border),
       ),
     );
   }
