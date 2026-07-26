@@ -377,8 +377,8 @@ class _ContactsScreenState extends State<ContactsScreen> {
 
                 if (success) {
                   await TrustedContactService.incrementTransactions(contact.deviceId);
-                  await RewardService.generateRewardForTransaction(txId, amount);
-                  await _loadContacts();
+                  await RewardService.generateRewardForTransaction(transactionId: txId, amount: amount);
+                  _loadContacts();
 
                   if (mounted) {
                     _showServerSuccessModal(contact, amount, txId);

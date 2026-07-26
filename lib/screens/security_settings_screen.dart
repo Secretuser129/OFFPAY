@@ -148,9 +148,6 @@ class SecuritySettingsScreen extends StatelessWidget {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (ctx) {
-        final theme = Theme.of(ctx);
-        final isDark = theme.brightness == Brightness.dark;
-
         return Padding(
           padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
           child: Column(
