@@ -88,50 +88,53 @@ class _ReceiveScreenState extends State<ReceiveScreen> with SingleTickerProvider
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Row(
-          children: [
-            Icon(Icons.check_circle, color: Colors.green, size: 32),
-            SizedBox(width: 8),
-            Text('Payment Received!'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              '₹${amount.toStringAsFixed(2)}',
-              style: const TextStyle(fontSize: 38, fontWeight: FontWeight.bold, color: Colors.green),
-            ),
-            const SizedBox(height: 8),
-            const Text('Received via Offline Bluetooth BLE from:'),
-            const SizedBox(height: 6),
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: theme.primaryColor.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: SelectableText(
-                senderId,
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: theme.primaryColor),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: theme.primaryColor,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Awesome!'),
+      builder: (context) {
+        final theme = Theme.of(context);
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Row(
+            children: [
+              Icon(Icons.check_circle, color: Colors.green, size: 32),
+              SizedBox(width: 8),
+              Text('Payment Received!'),
+            ],
           ),
-        ],
-      ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '₹${amount.toStringAsFixed(2)}',
+                style: const TextStyle(fontSize: 38, fontWeight: FontWeight.bold, color: Colors.green),
+              ),
+              const SizedBox(height: 8),
+              const Text('Received via Offline Bluetooth BLE from:'),
+              const SizedBox(height: 6),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: theme.primaryColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: SelectableText(
+                  senderId,
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: theme.primaryColor),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: theme.primaryColor,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Awesome!'),
+            ),
+          ],
+        );
+      },
     );
   }
 

@@ -192,8 +192,6 @@ class OffpayBluetoothService with ChangeNotifier {
 
         bool isLocationGranted = statuses[Permission.locationWhenInUse]?.isGranted ?? false;
         bool isBleScanGranted = statuses[Permission.bluetoothScan]?.isGranted ?? false;
-        bool isBleConnectGranted = statuses[Permission.bluetoothConnect]?.isGranted ?? false;
-        bool isBleAdvertiseGranted = statuses[Permission.bluetoothAdvertise]?.isGranted ?? false;
 
         // On Android 12+, bluetoothScan is required. On Android 11, locationWhenInUse is required.
         // We will consider it essential if EITHER of the core scanning permissions is granted.
