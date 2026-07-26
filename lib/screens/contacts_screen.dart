@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart' as fb;
 import 'package:flutter_animate/flutter_animate.dart';
 import '../models/trusted_contact.dart';
+import '../widgets/global_apple_dock.dart';
 
 class ContactsScreen extends StatefulWidget {
   const ContactsScreen({Key? key}) : super(key: key);
@@ -154,7 +155,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
                       padding: const EdgeInsets.symmetric(vertical: 8),
                       child: ListTile(
                         leading: CircleAvatar(
-                          backgroundColor: theme.primaryColor,
+                          backgroundColor: isDark ? Colors.white.withValues(alpha: 0.16) : theme.primaryColor,
                           foregroundColor: Colors.white,
                           child: Text(
                             contact.name.isNotEmpty
@@ -213,6 +214,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
                 },
               ),
       ),
+      bottomNavigationBar: const GlobalAppleDock(activeRoute: '/contacts'),
     );
   }
 

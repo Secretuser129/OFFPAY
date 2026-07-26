@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../widgets/global_apple_dock.dart';
 
 class AboutScreen extends StatelessWidget {
   const AboutScreen({super.key});
@@ -7,6 +8,7 @@ class AboutScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     
     return Scaffold(
       appBar: AppBar(
@@ -24,6 +26,7 @@ class AboutScreen extends StatelessWidget {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: theme.primaryColor,
+                border: isDark ? Border.all(color: Colors.white.withValues(alpha: 0.25), width: 2) : null,
               ),
               child: const Icon(
                 Icons.wifi_tethering,
@@ -51,7 +54,8 @@ class AboutScreen extends StatelessWidget {
             Container(
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(20),
-                color: theme.primaryColor.withAlpha((0.1 * 255).round()),
+                color: isDark ? Colors.white.withValues(alpha: 0.16) : theme.primaryColor.withAlpha((0.1 * 255).round()),
+                border: isDark ? Border.all(color: Colors.white24) : null,
               ),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               child: Text(
@@ -59,7 +63,7 @@ class AboutScreen extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
-                  color: theme.primaryColor,
+                  color: isDark ? Colors.white : theme.primaryColor,
                 ),
               ),
             ),
@@ -77,18 +81,18 @@ class AboutScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 12),
-            const Card(
+            Card(
               child: ListTile(
                 leading: CircleAvatar(
-                  backgroundColor: Colors.indigo,
-                  child: Icon(Icons.shield, color: Colors.white),
+                  backgroundColor: isDark ? Colors.white.withValues(alpha: 0.16) : Colors.indigo,
+                  child: const Icon(Icons.shield, color: Colors.white),
                 ),
-                title: Text(
+                title: const Text(
                   'Vedansh Tyagi',
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),
-                subtitle: Text('Project Lead • Full Stack Developer'),
-                trailing: Icon(Icons.verified, color: Colors.indigo),
+                subtitle: const Text('Project Lead • Full Stack Developer'),
+                trailing: Icon(Icons.verified, color: isDark ? Colors.white : Colors.indigo),
               ),
             ),
             
@@ -215,6 +219,7 @@ class AboutScreen extends StatelessWidget {
           ],
         ),
       ),
+      bottomNavigationBar: const GlobalAppleDock(activeRoute: '/about'),
     );
   }
 

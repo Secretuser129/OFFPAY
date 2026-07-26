@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'transaction_model.dart';
+import '../services/firebase_service.dart';
 
 const String _walletBoxName = 'walletBox';
 const String _balanceKey = 'currentBalance';
@@ -97,6 +98,7 @@ class WalletModel extends ChangeNotifier {
 
     _history.insert(0, newTx);
     await _saveChanges();
+    FirebaseService.syncUserProfile(balance: _balance);
     notifyListeners();
     return true;
   }
@@ -118,6 +120,7 @@ class WalletModel extends ChangeNotifier {
 
     _history.insert(0, newTx);
     await _saveChanges();
+    FirebaseService.syncUserProfile(balance: _balance);
     notifyListeners();
   }
 
@@ -142,21 +145,24 @@ class WalletModel extends ChangeNotifier {
 
   // ── Sync from Server (Online transfers) ────────────────────────────────────
   Future<void> mergeFromServer(double serverBalance, List<TransactionModel> serverHistory) async {
-    _balance = serverBalance;
-    
-    // Merge history without duplicating
     final Set<String> existingTxIds = _history.map((t) => t.transactionId).toSet();
-    bool changed = false;
+    bool hasNewTx = false;
     for (final stx in serverHistory) {
       if (!existingTxIds.contains(stx.transactionId)) {
         _history.add(stx);
-        changed = true;
+        hasNewTx = true;
       }
     }
-    if (changed) {
+    // Only update balance from server if there is a new transaction OR serverBalance > _balance.
+    // This prevents a stale/older server balance from decreasing a recently added local balance.
+    if (hasNewTx || serverBalance > _balance) {
+      _balance = serverBalance;
+    } else if (_balance > serverBalance) {
+      FirebaseService.syncUserProfile(balance: _balance);
+    }
+    if (hasNewTx) {
       _history.sort((a, b) => b.timestamp.compareTo(a.timestamp));
     }
-    
     await _saveChanges();
     notifyListeners();
   }

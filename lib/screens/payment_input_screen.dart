@@ -149,6 +149,16 @@ class _PaymentInputScreenState extends State<PaymentInputScreen> {
         recipientDeviceId: recipientDevice!.remoteId.str,
         amount: amount,
       );
+      if (!success) {
+        // Fallback to Smart Offline Transfer if online QR network transfer encountered an issue
+        success = await SmartPaymentManager.executeSmartTransfer(
+          bluetoothService: bluetoothService,
+          walletModel: walletModel,
+          recipientDevice: recipientDevice!,
+          amount: amount,
+          currentRssi: currentRssi,
+        );
+      }
     } else {
       // 1. EXECUTE SMART TRANSFER via Invisible Manager
       success = await SmartPaymentManager.executeSmartTransfer(

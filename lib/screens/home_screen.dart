@@ -12,7 +12,7 @@ import '../services/password_service.dart';
 
 import '../services/firebase_service.dart';
 import '../services/update_service.dart';
-import 'send_options_screen.dart';
+import '../widgets/global_apple_dock.dart';
 import 'transaction_detail_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -24,7 +24,6 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   bool _isBalanceHidden = false;
-  int _selectedDockIndex = 0;
   Timer? _autoReloadTimer;
 
   @override
@@ -287,7 +286,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ),
-      bottomNavigationBar: _buildApplePillDock(context),
+      bottomNavigationBar: const GlobalAppleDock(activeRoute: '/home'),
     );
   }
 
@@ -418,131 +417,9 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildApplePillDock(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    return SafeArea(
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF1E1E2E).withValues(alpha: 0.95) : Colors.white.withValues(alpha: 0.95),
-          borderRadius: BorderRadius.circular(35),
-          border: Border.all(
-            color: theme.primaryColor.withValues(alpha: 0.35),
-            width: 1.5,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.25),
-              blurRadius: 15,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            _buildDockItem(
-              context: context,
-              index: 0,
-              icon: Icons.send,
-              label: 'Send',
-              onTap: () {
-                HapticFeedback.lightImpact();
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (context) => const SendOptionsScreen()),
-                );
-              },
-            ),
-            _buildDockItem(
-              context: context,
-              index: 1,
-              icon: Icons.call_received,
-              label: 'Receive',
-              onTap: () {
-                HapticFeedback.lightImpact();
-                Navigator.pushNamed(context, '/receive');
-              },
-            ),
-            _buildDockItem(
-              context: context,
-              index: 2,
-              icon: Icons.qr_code_2,
-              label: 'QR Code',
-              onTap: () {
-                HapticFeedback.lightImpact();
-                Navigator.pushNamed(context, '/custom_qr');
-              },
-            ),
-            _buildDockItem(
-              context: context,
-              index: 3,
-              icon: Icons.contacts,
-              label: 'Contacts',
-              onTap: () {
-                HapticFeedback.lightImpact();
-                Navigator.pushNamed(context, '/contacts');
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDockItem({
-    required BuildContext context,
-    required int index,
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-  }) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final isSelected = _selectedDockIndex == index;
-
-    return GestureDetector(
-      onTap: () {
-        setState(() => _selectedDockIndex = index);
-        onTap();
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 280),
-        curve: Curves.easeOutCubic,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? theme.primaryColor.withValues(alpha: isDark ? 0.25 : 0.15)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(25),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              size: 24,
-              color: isSelected ? theme.primaryColor : (isDark ? Colors.white70 : Colors.black87),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                color: isSelected ? theme.primaryColor : (isDark ? Colors.white70 : Colors.black87),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildTransactionTile(TransactionModel transaction) {
     final isCredit = transaction.isCredit;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final formattedTime = DateFormat('MMM d, yyyy • HH:mm').format(transaction.timestamp);
 
     return AnimatedContainer(
@@ -572,12 +449,15 @@ class _HomeScreenState extends State<HomeScreen> {
         leading: Container(
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: isCredit ? Colors.green.shade100 : Colors.red.shade100,
+            color: isCredit
+                ? (isDark ? Colors.green.withValues(alpha: 0.2) : Colors.green.shade100)
+                : (isDark ? Colors.red.withValues(alpha: 0.2) : Colors.red.shade100),
+            border: isDark ? Border.all(color: isCredit ? Colors.greenAccent.withValues(alpha: 0.4) : Colors.redAccent.withValues(alpha: 0.4)) : null,
           ),
           padding: const EdgeInsets.all(8),
           child: Icon(
             isCredit ? Icons.arrow_downward : Icons.arrow_upward,
-            color: isCredit ? Colors.green : Colors.red,
+            color: isCredit ? (isDark ? Colors.greenAccent : Colors.green) : (isDark ? Colors.redAccent : Colors.red),
           ),
         ),
         title: Text(
@@ -624,30 +504,31 @@ class _HomeScreenState extends State<HomeScreen> {
     Color text;
     String label;
     IconData icon;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     switch (status.toUpperCase()) {
       case 'QUEUED_FOR_RELAY':
         bg = Colors.blue.withValues(alpha: 0.15);
-        text = Colors.blue.shade900;
+        text = isDark ? Colors.blueAccent : Colors.blue.shade900;
         label = 'Pending Sync';
         icon = Icons.sync;
         break;
       case 'PENDING':
         bg = Colors.amber.withValues(alpha: 0.15);
-        text = Colors.amber.shade900;
+        text = isDark ? Colors.amberAccent : Colors.amber.shade900;
         label = 'Pending';
         icon = Icons.hourglass_top;
         break;
       case 'FAILED':
         bg = Colors.red.withValues(alpha: 0.15);
-        text = Colors.red;
+        text = isDark ? Colors.redAccent : Colors.red;
         label = 'Failed';
         icon = Icons.cancel;
         break;
       case 'VERIFIED':
       default:
         bg = Colors.green.withValues(alpha: 0.15);
-        text = Colors.green;
+        text = isDark ? Colors.greenAccent : Colors.green;
         label = 'Verified';
         icon = Icons.check_circle;
         break;

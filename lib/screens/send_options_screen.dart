@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'discovery_screen.dart';
 import 'qr_scanner_screen.dart';
+import '../widgets/global_apple_dock.dart';
 
 class SendOptionsScreen extends StatelessWidget {
   const SendOptionsScreen({super.key});
@@ -58,6 +59,7 @@ class SendOptionsScreen extends StatelessWidget {
           ],
         ),
       ),
+      bottomNavigationBar: const GlobalAppleDock(activeRoute: '/send_options'),
     );
   }
 }

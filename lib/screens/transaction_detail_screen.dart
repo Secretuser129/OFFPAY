@@ -60,6 +60,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     final transaction = widget.transaction;
     final isCredit = transaction.isCredit;
     final formattedTime = DateFormat('EEEE, MMMM d, yyyy • HH:mm:ss').format(transaction.timestamp);
@@ -91,11 +92,15 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
                   children: [
                     CircleAvatar(
                       radius: 36,
-                      backgroundColor: isCredit ? Colors.green.shade100 : Colors.red.shade100,
+                      backgroundColor: isCredit
+                          ? (isDark ? Colors.greenAccent.withValues(alpha: 0.2) : Colors.green.shade100)
+                          : (isDark ? Colors.redAccent.withValues(alpha: 0.2) : Colors.red.shade100),
                       child: Icon(
                         isCredit ? Icons.arrow_downward_rounded : Icons.arrow_upward_rounded,
                         size: 40,
-                        color: isCredit ? Colors.green.shade800 : Colors.red.shade800,
+                        color: isCredit
+                            ? (isDark ? Colors.greenAccent : Colors.green.shade800)
+                            : (isDark ? Colors.redAccent : Colors.red.shade800),
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -240,6 +245,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
   }
 
   Widget _buildDetailRow(BuildContext context, {required String label, required String value, bool canCopy = false, bool isStatus = false}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -274,10 +280,10 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
                                 : Icons.cancel,
                         size: 14,
                         color: value == 'VERIFIED'
-                            ? Colors.green
+                            ? (isDark ? Colors.greenAccent : Colors.green)
                             : value == 'PENDING'
-                                ? Colors.amber.shade900
-                                : Colors.red,
+                                ? (isDark ? Colors.amberAccent : Colors.amber.shade900)
+                                : (isDark ? Colors.redAccent : Colors.red),
                       ),
                       const SizedBox(width: 6),
                       Text(
@@ -286,10 +292,10 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
                           color: value == 'VERIFIED'
-                              ? Colors.green
+                              ? (isDark ? Colors.greenAccent : Colors.green)
                               : value == 'PENDING'
-                                  ? Colors.amber.shade900
-                                  : Colors.red,
+                                  ? (isDark ? Colors.amberAccent : Colors.amber.shade900)
+                                  : (isDark ? Colors.redAccent : Colors.red),
                         ),
                       ),
                     ],

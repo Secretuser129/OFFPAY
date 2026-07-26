@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../services/password_service.dart';
 import '../services/firebase_service.dart';
 import '../models/wallet_model.dart';
+import '../widgets/global_apple_dock.dart';
 
 class PinSettingsScreen extends StatefulWidget {
   const PinSettingsScreen({super.key});
@@ -174,6 +175,7 @@ class _PinSettingsScreenState extends State<PinSettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
       appBar: AppBar(
@@ -207,6 +209,9 @@ class _PinSettingsScreenState extends State<PinSettingsScreen> {
                     color: theme.cardTheme.color,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
+                      side: BorderSide(
+                        color: isDark ? Colors.white.withValues(alpha: 0.15) : theme.primaryColor.withValues(alpha: 0.2),
+                      ),
                     ),
                     elevation: 0,
                     margin: const EdgeInsets.only(bottom: 16),
@@ -215,8 +220,8 @@ class _PinSettingsScreenState extends State<PinSettingsScreen> {
                       child: ListTile(
                         contentPadding: const EdgeInsets.symmetric(horizontal: 16),
                         leading: CircleAvatar(
-                          backgroundColor: theme.primaryColor.withValues(alpha: 0.1),
-                          child: Icon(Icons.account_balance_wallet, color: theme.primaryColor),
+                          backgroundColor: isDark ? Colors.white.withValues(alpha: 0.16) : theme.primaryColor.withValues(alpha: 0.1),
+                          child: Icon(Icons.account_balance_wallet, color: isDark ? Colors.white : theme.primaryColor),
                         ),
                         title: const Text('Balance View PIN', style: TextStyle(fontWeight: FontWeight.bold)),
                         subtitle: Text(_hasBalancePin ? 'PIN is set' : 'Not configured'),
@@ -243,6 +248,9 @@ class _PinSettingsScreenState extends State<PinSettingsScreen> {
                     color: theme.cardTheme.color,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
+                      side: BorderSide(
+                        color: isDark ? Colors.white.withValues(alpha: 0.15) : Colors.green.withValues(alpha: 0.2),
+                      ),
                     ),
                     elevation: 0,
                     child: Padding(
@@ -250,8 +258,8 @@ class _PinSettingsScreenState extends State<PinSettingsScreen> {
                       child: ListTile(
                         contentPadding: const EdgeInsets.symmetric(horizontal: 16),
                         leading: CircleAvatar(
-                          backgroundColor: Colors.green.withValues(alpha: 0.1),
-                          child: const Icon(Icons.security, color: Colors.green),
+                          backgroundColor: isDark ? Colors.greenAccent.withValues(alpha: 0.2) : Colors.green.withValues(alpha: 0.1),
+                          child: Icon(Icons.security, color: isDark ? Colors.greenAccent : Colors.green),
                         ),
                         title: const Text('Transfer Authorization PIN', style: TextStyle(fontWeight: FontWeight.bold)),
                         subtitle: Text(_hasTransferPin ? 'PIN is set' : 'Not configured'),
@@ -275,6 +283,7 @@ class _PinSettingsScreenState extends State<PinSettingsScreen> {
                 ],
               ),
             ),
+      bottomNavigationBar: const GlobalAppleDock(activeRoute: '/pin_settings'),
     );
   }
 }

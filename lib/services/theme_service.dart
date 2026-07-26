@@ -6,7 +6,7 @@ const String _fontSizeKey = 'offpay_font_size';
 const String _accentColorKey = 'offpay_accent_color';
 
 class ThemeProvider extends ChangeNotifier {
-  ThemeMode _themeMode = ThemeMode.system;
+  ThemeMode _themeMode = ThemeMode.dark;
   double _fontSizeScale = 1.0;
   Color _accentColor = Colors.indigo;
 
@@ -36,7 +36,7 @@ class ThemeProvider extends ChangeNotifier {
       } else if (savedMode == 'light') {
         _themeMode = ThemeMode.light;
       } else {
-        _themeMode = ThemeMode.system;
+        _themeMode = ThemeMode.dark;
       }
 
       // Load Font Size Scale

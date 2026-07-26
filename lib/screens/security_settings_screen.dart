@@ -3,6 +3,7 @@ import '../services/update_service.dart';
 import '../services/profile_service.dart';
 import '../models/wallet_model.dart';
 import 'package:provider/provider.dart';
+import '../widgets/global_apple_dock.dart';
 
 class SecuritySettingsScreen extends StatelessWidget {
   const SecuritySettingsScreen({super.key});
@@ -86,6 +87,7 @@ class SecuritySettingsScreen extends StatelessWidget {
           ),
         ],
       ),
+      bottomNavigationBar: const GlobalAppleDock(activeRoute: '/security_settings'),
     );
   }
 
@@ -99,7 +101,7 @@ class SecuritySettingsScreen extends StatelessWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final iconColor = isDark ? Colors.white : theme.primaryColor;
-    final circleBg = isDark ? theme.primaryColor.withValues(alpha: 0.35) : theme.primaryColor.withValues(alpha: 0.12);
+    final circleBg = isDark ? Colors.white.withValues(alpha: 0.16) : theme.primaryColor.withValues(alpha: 0.12);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -118,7 +120,7 @@ class SecuritySettingsScreen extends StatelessWidget {
           decoration: BoxDecoration(
             color: circleBg,
             shape: BoxShape.circle,
-            border: Border.all(color: isDark ? Colors.white24 : theme.primaryColor.withValues(alpha: 0.3)),
+            border: Border.all(color: isDark ? Colors.white.withValues(alpha: 0.35) : theme.primaryColor.withValues(alpha: 0.3)),
           ),
           child: Icon(icon, color: iconColor, size: 22),
         ),

@@ -281,12 +281,15 @@ class FirebaseService {
       String recEndpoint = '$firebaseUrl/users/$recipientDeviceId.json';
       if (authToken != null && authToken.isNotEmpty) recEndpoint += '?auth=$authToken';
       
-      final recResponse = await http.get(Uri.parse(recEndpoint)).timeout(const Duration(seconds: 4));
-      if (recResponse.statusCode != 200 || recResponse.body == 'null') {
-        return false; // Recipient not found online
-      }
-      final Map<String, dynamic> recData = jsonDecode(recResponse.body);
-      final double recBalance = (recData['balance'] as num).toDouble();
+      double recBalance = 0.0;
+      Map<String, dynamic> recData = {'deviceId': recipientDeviceId, 'balance': 0.0};
+      try {
+        final recResponse = await http.get(Uri.parse(recEndpoint)).timeout(const Duration(seconds: 4));
+        if (recResponse.statusCode == 200 && recResponse.body != 'null') {
+          recData = jsonDecode(recResponse.body);
+          recBalance = (recData['balance'] as num?)?.toDouble() ?? 0.0;
+        }
+      } catch (_) {}
       
       // 2. Deduct from Sender local wallet
       bool debitSuccess = await senderWallet.sendMoney(amount, recipientDeviceId, status: 'VERIFIED');
@@ -295,12 +298,15 @@ class FirebaseService {
       // 3. Update Recipient balance online
       final newRecBalance = recBalance + amount;
       recData['balance'] = newRecBalance;
+      recData['deviceId'] = recipientDeviceId;
       
-      var uri = Uri.parse(recEndpoint);
-      var request = await client.putUrl(uri);
-      request.headers.set('content-type', 'application/json');
-      request.write(jsonEncode(recData));
-      await request.close().timeout(const Duration(seconds: 4));
+      try {
+        var uri = Uri.parse(recEndpoint);
+        var request = await client.putUrl(uri);
+        request.headers.set('content-type', 'application/json');
+        request.write(jsonEncode(recData));
+        await request.close().timeout(const Duration(seconds: 4));
+      } catch (_) {}
 
       // 4. Sync sender's own new balance online
       await syncUserProfile(balance: senderWallet.balance);

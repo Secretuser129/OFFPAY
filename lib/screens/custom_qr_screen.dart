@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../services/profile_service.dart';
+import '../widgets/global_apple_dock.dart';
 
 class CustomQrScreen extends StatefulWidget {
   const CustomQrScreen({super.key});
@@ -167,7 +168,7 @@ class _CustomQrScreenState extends State<CustomQrScreen> {
                         hintText: 'Enter amount (e.g. 250)',
                         hintStyle: TextStyle(color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
                         filled: true,
-                        fillColor: isDark ? Colors.grey.shade800 : Colors.grey.shade100,
+                        fillColor: isDark ? const Color(0xFF1E1E2A) : Colors.grey.shade100,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10),
                           borderSide: BorderSide.none,
@@ -271,6 +272,7 @@ class _CustomQrScreenState extends State<CustomQrScreen> {
           ],
         ),
       ),
+      bottomNavigationBar: const GlobalAppleDock(activeRoute: '/custom_qr'),
     );
   }
 }
