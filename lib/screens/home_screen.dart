@@ -245,6 +245,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 'assets/images/logo.png',
                 width: 28,
                 height: 28,
+                color: Theme.of(context).brightness == Brightness.dark ? Colors.white : null,
               ),
             ),
             const SizedBox(width: 12),
@@ -449,7 +450,8 @@ class _HomeScreenState extends State<HomeScreen> {
             style: ElevatedButton.styleFrom(
               backgroundColor: isDark ? theme.cardTheme.color : theme.primaryColor.withValues(alpha: 0.1),
               foregroundColor: isDark ? theme.primaryColorLight : theme.primaryColorDark,
-              elevation: 2,
+              elevation: 3,
+              shadowColor: theme.primaryColor.withValues(alpha: 0.4),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
@@ -504,7 +506,7 @@ class _HomeScreenState extends State<HomeScreen> {
               height: 50,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: isDark ? const Color(0xFF1E1E28) : Colors.indigo.shade50,
+                color: isDark ? Colors.black : Colors.indigo.shade50,
                 border: Border.all(
                   color: isDark ? Colors.indigo.withValues(alpha: 0.3) : Colors.indigo.withValues(alpha: 0.2),
                 ),

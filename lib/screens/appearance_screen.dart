@@ -156,28 +156,37 @@ class AppearanceScreen extends StatelessWidget {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // ignore: deprecated_member_use
               RadioListTile<double>(
                 title: const Text('Small'),
                 value: 0.8,
+                // ignore: deprecated_member_use
                 groupValue: provider.fontSizeScale,
+                // ignore: deprecated_member_use
                 onChanged: (val) {
                   if (val != null) provider.setFontSizeScale(val);
                   Navigator.pop(context);
                 },
               ),
+              // ignore: deprecated_member_use
               RadioListTile<double>(
                 title: const Text('Medium (Default)'),
                 value: 1.0,
+                // ignore: deprecated_member_use
                 groupValue: provider.fontSizeScale,
+                // ignore: deprecated_member_use
                 onChanged: (val) {
                   if (val != null) provider.setFontSizeScale(val);
                   Navigator.pop(context);
                 },
               ),
+              // ignore: deprecated_member_use
               RadioListTile<double>(
                 title: const Text('Large'),
                 value: 1.2,
+                // ignore: deprecated_member_use
                 groupValue: provider.fontSizeScale,
+                // ignore: deprecated_member_use
                 onChanged: (val) {
                   if (val != null) provider.setFontSizeScale(val);
                   Navigator.pop(context);
