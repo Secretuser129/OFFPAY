@@ -46,7 +46,11 @@ class DiscoveredDevice {
     if (advertisementData.advName.trim().isNotEmpty) return advertisementData.advName.trim();
     // 3. Check platformName
     if (device.platformName.trim().isNotEmpty) return device.platformName.trim();
-    return id;
+    // 4. If it's an OFFPAY broadcast but name wasn't in serviceData
+    if (isOffpayUser) {
+      return 'OFFPAY User (${id.length >= 8 ? id.substring(id.length - 8) : id})';
+    }
+    return 'Bluetooth Device (${id.length >= 8 ? id.substring(id.length - 8) : id})';
   }
 
   /// Check if device is an authentic OFFPAY broadcast device (checks multiple types!)

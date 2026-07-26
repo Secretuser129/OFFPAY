@@ -104,7 +104,7 @@ class _AboutScreenState extends State<AboutScreen> {
               ),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               child: Text(
-                'Version 2.2.6 (226)',
+                'Version 2.2.7 (227)',
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
@@ -154,8 +154,9 @@ class _AboutScreenState extends State<AboutScreen> {
             const SizedBox(height: 12),
             const Card(
               child: ListTile(
+                leading: Icon(Icons.code, color: Colors.indigo),
                 title: Text(
-                  'Secretuser129',
+                  'Vedansh',
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),
                 subtitle: Text('Lead Developer & Architect'),
@@ -163,11 +164,32 @@ class _AboutScreenState extends State<AboutScreen> {
             ),
             const Card(
               child: ListTile(
+                leading: Icon(Icons.bug_report_outlined, color: Colors.green),
                 title: Text(
-                  'OFFPAY Contributors',
+                  '1. Ayush   2. Shaurya Prakash',
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),
-                subtitle: Text('Testing & Feedback'),
+                subtitle: Text('OFFPAY Testers & Feedback'),
+              ),
+            ),
+            const Card(
+              child: ListTile(
+                leading: Icon(Icons.campaign_outlined, color: Colors.orange),
+                title: Text(
+                  'Priyanshu',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                subtitle: Text('Marketing Head'),
+              ),
+            ),
+            const Card(
+              child: ListTile(
+                leading: Icon(Icons.people_outline, color: Colors.purple),
+                title: Text(
+                  'Mohit',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                subtitle: Text('HR Head'),
               ),
             ),
             

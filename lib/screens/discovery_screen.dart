@@ -387,6 +387,24 @@ class DiscoveredDeviceTile extends StatelessWidget {
                   const SizedBox(height: 4),
                   Row(
                     children: [
+                      Icon(Icons.bluetooth, size: 12, color: isOffpay ? Colors.indigo : theme.hintColor),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          'BLE MAC: ${item.bluetoothAddress}',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: isOffpay ? Colors.indigo.shade400 : theme.hintColor,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
                       Icon(Icons.near_me, size: 12, color: theme.hintColor),
                       const SizedBox(width: 4),
                       Text(

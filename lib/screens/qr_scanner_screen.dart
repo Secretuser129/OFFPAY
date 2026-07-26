@@ -25,7 +25,6 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
     super.initState();
     // Optimized for ultra-fast QR detection without live camera bitmap lag
     cameraController = MobileScannerController(
-      formats: const [BarcodeFormat.qrCode],
       detectionSpeed: DetectionSpeed.noDuplicates,
       returnImage: false,
     );
@@ -42,10 +41,8 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
     final XFile? pickedFile = await _picker.pickImage(source: ImageSource.gallery);
     if (pickedFile == null) return;
 
-    // Stop live camera so MLKit can dedicate 100% of processing to the static screenshot/image
-    await cameraController.stop();
-
     try {
+      // Analyze image directly without stopping camera controller (stopping causes MLKit detachment in mobile_scanner 7.4.0)
       final BarcodeCapture? capture = await cameraController.analyzeImage(pickedFile.path);
 
       if (capture != null && capture.barcodes.isNotEmpty) {
@@ -61,11 +58,10 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Could not detect a valid OFFPAY QR code in this image.'),
+            content: Text('Could not detect a valid OFFPAY QR code in this image. Ensure QR code is clear.'),
             backgroundColor: Colors.redAccent,
           ),
         );
-        await cameraController.start();
       }
     } catch (e) {
       debugPrint('Gallery scan error: $e');
@@ -73,7 +69,6 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error analyzing image: $e')),
         );
-        await cameraController.start();
       }
     }
   }

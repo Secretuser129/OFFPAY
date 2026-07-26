@@ -6,8 +6,33 @@ import 'qr_scanner_screen.dart';
 import 'nfc_tap_screen.dart';
 import '../widgets/global_apple_dock.dart';
 
-class SendOptionsScreen extends StatelessWidget {
+import 'package:shared_preferences/shared_preferences.dart';
+
+class SendOptionsScreen extends StatefulWidget {
   const SendOptionsScreen({super.key});
+
+  @override
+  State<SendOptionsScreen> createState() => _SendOptionsScreenState();
+}
+
+class _SendOptionsScreenState extends State<SendOptionsScreen> {
+  bool _nfcUnlocked = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkNfcUnlocked();
+  }
+
+  Future<void> _checkNfcUnlocked() async {
+    final prefs = await SharedPreferences.getInstance();
+    final enabled = prefs.getBool('nfc_developer_enabled') ?? false;
+    if (mounted) {
+      setState(() {
+        _nfcUnlocked = enabled;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -35,33 +60,34 @@ class SendOptionsScreen extends StatelessWidget {
             ),
             const SizedBox(height: 28),
 
-            // Option 1: NFC Contactless Tap
-            _OptionCard(
-              icon: Icons.contactless,
-              title: 'NFC Contactless Tap',
-              subtitle: 'Touch phones back-to-back (<100ms transfer)',
-              color: Colors.cyan.shade700,
-              onTap: () async {
-                final supported = await NfcService.isNfcSupported();
-                if (!supported && context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: const Text(
-                        '🔒 NFC Contactless is locked or unsupported on this device. Unlock Developer Option in About settings (10 taps on Flutter word)!',
+            // Option 1: NFC Contactless Tap (HIDDEN UNLESS 10 TAPS DEVELOPER MODE UNLOCKED)
+            if (_nfcUnlocked) ...[
+              _OptionCard(
+                icon: Icons.contactless,
+                title: 'NFC Contactless Tap',
+                subtitle: 'Touch phones back-to-back (<100ms transfer)',
+                color: Colors.cyan.shade700,
+                onTap: () async {
+                  final supported = await NfcService.isNfcSupported();
+                  if (!supported && context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: const Text(
+                          '🔒 NFC Contactless is locked or unsupported on this device.',
+                        ),
+                        backgroundColor: Colors.red.shade700,
+                        behavior: SnackBarBehavior.floating,
                       ),
-                      backgroundColor: Colors.red.shade700,
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
-                } else if (context.mounted) {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const NfcTapScreen()),
-                  );
-                }
-              },
-            ),
-
-            const SizedBox(height: 18),
+                    );
+                  } else if (context.mounted) {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const NfcTapScreen()),
+                    );
+                  }
+                },
+              ),
+              const SizedBox(height: 18),
+            ],
 
             // Option 2: Bluetooth Scan
             _OptionCard(

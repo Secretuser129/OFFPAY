@@ -31,6 +31,14 @@ class SecuritySettingsScreen extends StatelessWidget {
             subtitle: 'Dark Mode & Visuals',
             onTap: () => Navigator.pushNamed(context, '/appearance'),
           ),
+
+          _buildSettingsCard(
+            context: context,
+            icon: Icons.verified_user_outlined,
+            title: 'App Security Architecture',
+            subtitle: 'How OFFPAY protects offline transfers & data',
+            onTap: () => _showSecurityIntroDialog(context),
+          ),
           
           _buildSettingsCard(
             context: context,
@@ -51,7 +59,7 @@ class SecuritySettingsScreen extends StatelessWidget {
             context: context,
             icon: Icons.system_update_outlined,
             title: 'Check for Updates',
-            subtitle: 'Version 2.2.6 (226)',
+            subtitle: 'Version 2.2.7 (227)',
             onTap: () => UpdateService.checkForUpdates(context, silent: false),
           ),
 
@@ -128,6 +136,90 @@ class SecuritySettingsScreen extends StatelessWidget {
         subtitle: Text(subtitle, style: TextStyle(fontSize: 12, color: isDark ? Colors.white70 : theme.hintColor)),
         trailing: Icon(Icons.chevron_right, color: iconColor),
         onTap: onTap,
+      ),
+    );
+  }
+
+  void _showSecurityIntroDialog(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        final theme = Theme.of(ctx);
+        final isDark = theme.brightness == Brightness.dark;
+
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.verified_user, color: Colors.indigo.shade400, size: 28),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text(
+                      'OFFPAY Security Architecture',
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'OFFPAY uses a multi-layered offline & online cryptographic defense system:',
+                style: TextStyle(fontSize: 14),
+              ),
+              const SizedBox(height: 18),
+              _buildSecurityItem(
+                title: '🔐 AES-GCM-256 Offline BLE Encryption',
+                desc: 'All peer-to-peer Bluetooth LE packets are encrypted before transmission. Implemented in OffpayBluetoothService payload layer.',
+              ),
+              _buildSecurityItem(
+                title: '🛡️ Zero-Net Defender Verification',
+                desc: '1-to-1 cryptographic transaction deduplication checks prevent replay attacks and double-spending. Implemented in RewardService & Hive transaction engine.',
+              ),
+              _buildSecurityItem(
+                title: '🔑 Cryptographic PIN Gate (PBKDF2)',
+                desc: 'Local wallet balance viewing and transfer execution require secure PBKDF2 PIN verification. Implemented in PinSettingsScreen & WalletModel.',
+              ),
+              _buildSecurityItem(
+                title: '📡 GATT Checksum & MTU Integrity',
+                desc: 'GATT handshake stabilization with packet checksum verification protects against GATT_ERROR 133 and corrupted packets.',
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Got It, Secure App!', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildSecurityItem({required String title, required String desc}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+          const SizedBox(height: 2),
+          Text(desc, style: const TextStyle(fontSize: 13, color: Colors.grey)),
+        ],
       ),
     );
   }

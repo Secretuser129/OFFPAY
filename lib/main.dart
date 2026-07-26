@@ -68,19 +68,23 @@ class OffPayApp extends StatelessWidget {
   const OffPayApp({super.key, this.isLoggedIn = false});
 
   ThemeData _buildLightTheme(Color accentColor, double fontScale, bool useAppleFont) {
-    final String? family = useAppleFont ? '.SF Pro Display' : null;
+    final String? family = useAppleFont ? '.SF Pro Display' : 'Roboto';
     final List<String>? fallbacks = useAppleFont
         ? const [
+            '.SF UI Display',
+            '.SF UI Text',
             '-apple-system',
             'BlinkMacSystemFont',
+            'SF Pro Display',
             'SF Pro Text',
-            'SF Pro Icons',
+            'CupertinoSystemDisplay',
+            'CupertinoSystemText',
             'Helvetica Neue',
             'Helvetica',
             'Arial',
             'sans-serif',
           ]
-        : null;
+        : const ['sans-serif'];
 
     return ThemeData(
       useMaterial3: true,
@@ -99,27 +103,32 @@ class OffPayApp extends StatelessWidget {
         elevation: 4,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
-      textTheme: const TextTheme().apply(
+      textTheme: ThemeData.light().textTheme.apply(
         fontSizeFactor: fontScale,
         fontFamily: family,
+        fontFamilyFallback: fallbacks,
       ),
     );
   }
 
   ThemeData _buildDarkTheme(Color accentColor, double fontScale, bool useAppleFont) {
-    final String? family = useAppleFont ? '.SF Pro Display' : null;
+    final String? family = useAppleFont ? '.SF Pro Display' : 'Roboto';
     final List<String>? fallbacks = useAppleFont
         ? const [
+            '.SF UI Display',
+            '.SF UI Text',
             '-apple-system',
             'BlinkMacSystemFont',
+            'SF Pro Display',
             'SF Pro Text',
-            'SF Pro Icons',
+            'CupertinoSystemDisplay',
+            'CupertinoSystemText',
             'Helvetica Neue',
             'Helvetica',
             'Arial',
             'sans-serif',
           ]
-        : null;
+        : const ['sans-serif'];
 
     return ThemeData(
       useMaterial3: true,
@@ -158,6 +167,7 @@ class OffPayApp extends StatelessWidget {
       textTheme: ThemeData.dark().textTheme.apply(
         fontSizeFactor: fontScale,
         fontFamily: family,
+        fontFamilyFallback: fallbacks,
       ),
     );
   }
