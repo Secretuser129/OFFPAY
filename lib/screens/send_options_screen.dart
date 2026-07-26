@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'discovery_screen.dart';
 import 'qr_scanner_screen.dart';
+import 'nfc_tap_screen.dart';
 import '../widgets/global_apple_dock.dart';
 
 class SendOptionsScreen extends StatelessWidget {
@@ -23,7 +24,7 @@ class SendOptionsScreen extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
-              'Choose how to find recipient',
+              'Choose how to connect & pay offline',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 16,
@@ -31,9 +32,22 @@ class SendOptionsScreen extends StatelessWidget {
                 fontWeight: FontWeight.w500,
               ),
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 28),
 
-            // Option 1: Bluetooth Scan
+            // Option 1: NFC Contactless Tap
+            _OptionCard(
+              icon: Icons.contactless,
+              title: 'NFC Contactless Tap',
+              subtitle: 'Touch phones back-to-back (<100ms transfer)',
+              color: Colors.cyan.shade700,
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const NfcTapScreen()),
+              ),
+            ),
+
+            const SizedBox(height: 18),
+
+            // Option 2: Bluetooth Scan
             _OptionCard(
               icon: Icons.bluetooth_searching,
               title: 'Scan Nearby Devices',
@@ -44,9 +58,9 @@ class SendOptionsScreen extends StatelessWidget {
               ),
             ),
 
-            const SizedBox(height: 20),
+            const SizedBox(height: 18),
 
-            // Option 2: QR Code
+            // Option 3: QR Code
             _OptionCard(
               icon: Icons.qr_code_scanner,
               title: 'Scan QR Code',

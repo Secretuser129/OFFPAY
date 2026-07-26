@@ -19,6 +19,8 @@ class HandshakeCryptoService {
     required String senderDeviceId,
     required String senderName,
     required double amount,
+    int seq = 1,
+    String prevHash = 'GENESIS_OFFPAY_CHAIN_HASH_00000000',
   }) {
     final nonce = generateNonce();
     final timestamp = DateTime.now().millisecondsSinceEpoch;
@@ -28,6 +30,8 @@ class HandshakeCryptoService {
       'sName': senderName,
       'amt': amount,
       'nonce': nonce,
+      'seq': seq,
+      'prevHash': prevHash,
       'ts': timestamp,
     };
 

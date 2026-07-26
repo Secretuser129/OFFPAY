@@ -50,7 +50,7 @@ class ProfileService {
       'id': deviceId,
       'name': userName,
       'amt': amount ?? 0.0,
-      'ts': DateTime.now().millisecondsSinceEpoch,
+      'ts': (amount != null && amount > 0) ? DateTime.now().millisecondsSinceEpoch : 0,
     };
     final jsonStr = jsonEncode(rawData);
     final bytes = utf8.encode(jsonStr);

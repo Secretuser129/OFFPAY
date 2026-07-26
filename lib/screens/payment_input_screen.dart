@@ -223,40 +223,32 @@ class _PaymentInputScreenState extends State<PaymentInputScreen> {
           key: _formKey,
           child: ListView(
             children: <Widget>[
-              // --- Server Connection Status Banner ---
-              Container(
-                margin: const EdgeInsets.only(bottom: 20),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                decoration: BoxDecoration(
-                  color: _isOnlineMode
-                      ? Colors.green.withValues(alpha: 0.15)
-                      : Colors.orange.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: _isOnlineMode ? Colors.green.shade300 : Colors.orange.shade300,
+              // --- Server Connection Status Banner (ONLY in QR Server Mode) ---
+              if (_isOnlineMode)
+                Container(
+                  margin: const EdgeInsets.only(bottom: 20),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.green.shade300),
                   ),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      _isOnlineMode ? Icons.cloud_done : Icons.cloud_off,
-                      color: _isOnlineMode ? Colors.green : Colors.orange,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        _isOnlineMode
-                            ? 'You Are connected with server'
-                            : 'You are offline (not connected with server)',
-                        style: TextStyle(
-                          color: _isOnlineMode ? Colors.green : Colors.orange,
-                          fontWeight: FontWeight.bold,
+                  child: const Row(
+                    children: [
+                      Icon(Icons.cloud_done, color: Colors.green),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'You are connected with server (QR Server Mode)',
+                          style: TextStyle(
+                            color: Colors.green,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
               // --- Connection Status Banner (Fixed Height 60px to prevent shaking) ---
               SizedBox(
                 height: 60,

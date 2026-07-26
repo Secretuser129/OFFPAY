@@ -7,6 +7,7 @@ import 'firebase_service.dart';
 import 'mesh_relay_service.dart';
 import 'profile_service.dart';
 import 'handshake_crypto_service.dart';
+import 'sequence_chaining_service.dart';
 
 /// The Invisible AI Engine that orchestrates offline payments, 
 /// prevents erroneous debits, and seamlessly fails over to Mesh Relay Mode.
@@ -89,11 +90,15 @@ class SmartPaymentManager {
     required String senderId,
     required String senderName,
   }) async {
-    // 1. Create a secure, encrypted Relay Packet using the same Handshake logic
+    // 1. Create a secure, encrypted Relay Packet using the same Handshake logic with sequence chaining
+    final seq = await SequenceChainingService.getNextSequence(recipientDeviceId);
+    final prevHash = await SequenceChainingService.getLastHash(recipientDeviceId);
     final handshake = HandshakeCryptoService.createSenderHandshake(
       senderDeviceId: senderId,
       senderName: senderName,
       amount: amount,
+      seq: seq,
+      prevHash: prevHash,
     );
     
     final txId = 'TXN-${handshake['nonce']}';

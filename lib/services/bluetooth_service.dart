@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'handshake_crypto_service.dart';
 import 'profile_service.dart';
+import 'sequence_chaining_service.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart' as fb;
 
@@ -124,15 +125,36 @@ class OffpayBluetoothService with ChangeNotifier {
           
           if (response != null && _isListeningForIncoming) {
             final senderData = response['senderData'] as Map<String, dynamic>;
+            final incomingSeq = (senderData['seq'] as num?)?.toInt() ?? 1;
+            final prevHash = (senderData['prevHash'] as String?) ?? 'GENESIS_OFFPAY_CHAIN_HASH_00000000';
+            final amount = (senderData['amt'] as num).toDouble();
+            final senderId = senderData['sId'] as String;
+            final nonce = senderData['nonce'] as String;
+            final ts = (senderData['ts'] as num).toInt();
+
+            final seqCheck = await SequenceChainingService.verifyAndRecordIncomingTransaction(
+              senderId: senderId,
+              incomingSeq: incomingSeq,
+              nonce: nonce,
+              prevHash: prevHash,
+              amount: amount,
+              timestamp: ts,
+            );
+
+            if (!seqCheck.isValid) {
+              debugPrint('REJECTED INCOMING TRANSACTION: ${seqCheck.reason}');
+              return;
+            }
+
             _incomingPaymentController.add({
-              'amount': (senderData['amt'] as num).toDouble(),
-              'senderId': senderData['sId'],
+              'amount': amount,
+              'senderId': senderId,
               'senderName': senderData['sName'],
-              'timestamp': senderData['ts'],
-              'transactionId': 'TXN-${senderData['nonce']}',
+              'timestamp': ts,
+              'transactionId': 'TXN-$nonce',
               'signature': payload.split(':').last,
             });
-            debugPrint('Successfully verified incoming GATT payment!');
+            debugPrint('Successfully verified incoming GATT payment with sequence chaining!');
           } else {
             debugPrint('Failed to verify incoming GATT payment payload.');
           }
@@ -454,10 +476,14 @@ class OffpayBluetoothService with ChangeNotifier {
         if (writeChar != null) {
           final senderId = await ProfileService.getDeviceId();
           final senderName = await ProfileService.getUserName();
+          final seq = await SequenceChainingService.getNextSequence(device.remoteId.str);
+          final prevHash = await SequenceChainingService.getLastHash(device.remoteId.str);
           final handshake = HandshakeCryptoService.createSenderHandshake(
             senderDeviceId: senderId,
             senderName: senderName,
             amount: amount,
+            seq: seq,
+            prevHash: prevHash,
           );
           final String payload = handshake['packet']!;
           final List<int> payloadBytes = utf8.encode(payload);

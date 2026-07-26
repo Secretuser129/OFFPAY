@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../services/bluetooth_service.dart';
 import '../services/receipt_service.dart';
+import '../widgets/scratch_card_dialog.dart';
 class PaymentSuccessScreen extends StatefulWidget {
   final double amount;
   final String recipientName;
@@ -79,6 +80,15 @@ class _PaymentSuccessScreenState extends State<PaymentSuccessScreen> with Ticker
         });
         Future.delayed(const Duration(milliseconds: 800), () {
           if (mounted) _fadeAnimationController.forward();
+        });
+        Future.delayed(const Duration(milliseconds: 1600), () {
+          if (mounted) {
+            ScratchCardDialog.show(
+              context,
+              paymentAmount: widget.amount,
+              recipientName: widget.recipientName,
+            );
+          }
         });
       }
     });
@@ -393,6 +403,27 @@ class _PaymentSuccessScreenState extends State<PaymentSuccessScreen> with Ticker
                   Provider.of<OffpayBluetoothService>(context, listen: false).setInPaymentFlow(false);
                   // Navigate and remove all previous routes
                   Navigator.of(context).pushNamedAndRemoveUntil('/home', (Route<dynamic> route) => false);
+                },
+              ),
+
+              const SizedBox(height: 12),
+
+              // View Scratch Card Reward Button
+              ElevatedButton.icon(
+                icon: const Icon(Icons.card_giftcard),
+                label: const Text('🎁 View Scratch Card Reward'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.amber.shade700,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                onPressed: () {
+                  ScratchCardDialog.show(
+                    context,
+                    paymentAmount: widget.amount,
+                    recipientName: widget.recipientName,
+                  );
                 },
               ),
 

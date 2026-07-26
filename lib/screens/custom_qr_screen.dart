@@ -26,29 +26,20 @@ class _CustomQrScreenState extends State<CustomQrScreen> {
   Future<void> _loadProfileData() async {
     final id = await ProfileService.getDeviceId();
     final name = await ProfileService.getUserName();
-    if (_customAmount != null && _customAmount! > 0) {
-      _regenerateQrPayload(id, name, _customAmount);
-    }
-
     if (mounted) {
       setState(() {
         deviceId = id;
         userName = name;
       });
+      _regenerateQrPayload(id, name, _customAmount);
     }
   }
 
   void _regenerateQrPayload(String id, String name, double? amt) {
-    if (amt == null || amt <= 0) {
-      setState(() {
-        encryptedQrPayload = '';
-      });
-      return;
-    }
     final qrData = ProfileService.encryptQrPayload(
       deviceId: id,
       userName: name,
-      amount: amt,
+      amount: amt ?? 0.0,
     );
     setState(() {
       encryptedQrPayload = qrData;
@@ -217,8 +208,8 @@ class _CustomQrScreenState extends State<CustomQrScreen> {
             ),
             const SizedBox(height: 20),
 
-            // Encrypted QR View or Placeholder when no amount is set
-            _customAmount != null && _customAmount! > 0 && encryptedQrPayload.isNotEmpty
+            // Encrypted QR View (Fixed Personal QR by default, Locked Amount QR when set)
+            encryptedQrPayload.isNotEmpty
                 ? Container(
                     decoration: BoxDecoration(
                       color: Colors.white,
@@ -256,11 +247,21 @@ class _CustomQrScreenState extends State<CustomQrScreen> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Icon(Icons.lock, size: 14, color: Colors.green),
+                            Icon(
+                              (_customAmount != null && _customAmount! > 0) ? Icons.lock : Icons.verified_user,
+                              size: 14,
+                              color: (_customAmount != null && _customAmount! > 0) ? Colors.green : theme.primaryColor,
+                            ),
                             const SizedBox(width: 4),
                             Text(
-                              'Encrypted QR Locked at ₹${_customAmount!.toStringAsFixed(2)}',
-                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.green),
+                              (_customAmount != null && _customAmount! > 0)
+                                  ? 'Encrypted QR Locked at ₹${_customAmount!.toStringAsFixed(2)}'
+                                  : 'Fixed Personal Payment QR (Any Amount)',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: (_customAmount != null && _customAmount! > 0) ? Colors.green : theme.primaryColor,
+                              ),
                             ),
                           ],
                         ),
