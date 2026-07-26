@@ -31,7 +31,7 @@ class DiscoveredDevice {
   String get id => device.remoteId.str;
   String get bluetoothAddress => device.remoteId.str;
 
-  String get name {
+  String get _rawName {
     // 1. Check all serviceData entries (supports full UUID and short 16-bit 180A)
     for (final entry in advertisementData.serviceData.entries) {
       final keyStr = entry.key.str.toLowerCase();
@@ -46,7 +46,12 @@ class DiscoveredDevice {
     if (advertisementData.advName.trim().isNotEmpty) return advertisementData.advName.trim();
     // 3. Check platformName
     if (device.platformName.trim().isNotEmpty) return device.platformName.trim();
-    // 4. If it's an OFFPAY broadcast but name wasn't in serviceData
+    return '';
+  }
+
+  String get name {
+    final raw = _rawName;
+    if (raw.isNotEmpty) return raw;
     if (isOffpayUser) {
       return 'OFFPAY User (${id.length >= 8 ? id.substring(id.length - 8) : id})';
     }
@@ -55,7 +60,7 @@ class DiscoveredDevice {
 
   /// Check if device is an authentic OFFPAY broadcast device (checks multiple types!)
   bool get isOffpayUser {
-    final normName = name.toUpperCase().replaceAll(RegExp(r'[\s\-_]'), '');
+    final normName = _rawName.toUpperCase().replaceAll(RegExp(r'[\s\-_]'), '');
     final normId = id.toUpperCase().replaceAll(RegExp(r'[\s\-_]'), '');
     final hasUuid = advertisementData.serviceUuids.any((u) {
       final uStr = u.str.toLowerCase();
