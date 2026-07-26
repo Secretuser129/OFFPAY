@@ -378,10 +378,21 @@ class _HomeScreenState extends State<HomeScreen> {
                 Tooltip(
                   message: 'Refresh Balance',
                   child: InkWell(
-                    onTap: () {
+                    onTap: () async {
                       HapticFeedback.lightImpact();
                       final walletModel = Provider.of<WalletModel>(context, listen: false);
-                      walletModel.refreshBalance();
+                      await walletModel.refreshBalance();
+                      
+                      // Also pull down online transfers from Firebase Server
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Syncing with Server...'), duration: Duration(seconds: 1)),
+                      );
+                      bool synced = await FirebaseService.syncDownFromServer(walletModel);
+                      if (synced && mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Balance and History Synced!'), backgroundColor: Colors.green),
+                        );
+                      }
                     },
                     borderRadius: BorderRadius.circular(24),
                     child: Container(

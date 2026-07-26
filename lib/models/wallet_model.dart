@@ -140,6 +140,27 @@ class WalletModel extends ChangeNotifier {
     }
   }
 
+  // ── Sync from Server (Online transfers) ────────────────────────────────────
+  Future<void> mergeFromServer(double serverBalance, List<TransactionModel> serverHistory) async {
+    _balance = serverBalance;
+    
+    // Merge history without duplicating
+    final Set<String> existingTxIds = _history.map((t) => t.transactionId).toSet();
+    bool changed = false;
+    for (final stx in serverHistory) {
+      if (!existingTxIds.contains(stx.transactionId)) {
+        _history.add(stx);
+        changed = true;
+      }
+    }
+    if (changed) {
+      _history.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+    }
+    
+    await _saveChanges();
+    notifyListeners();
+  }
+
   // ── Restore & Logout ───────────────────────────────────────────────────────
   Future<void> restoreData(double newBalance, List<TransactionModel> newHistory) async {
     _balance = newBalance;

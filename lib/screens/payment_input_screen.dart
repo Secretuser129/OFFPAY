@@ -8,6 +8,7 @@ import '../services/bluetooth_service.dart';
 import '../services/smart_payment_manager.dart';
 import '../services/receipt_service.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import '../services/firebase_service.dart';
 
 class PaymentInputScreen extends StatefulWidget {
   const PaymentInputScreen({super.key});
@@ -24,6 +25,7 @@ class _PaymentInputScreenState extends State<PaymentInputScreen> {
   fb.BluetoothDevice? recipientDevice;
   String customRecipientName = 'Unknown User';
   bool _isAmountLocked = false;
+  bool _isOnlineMode = false;
   
   // Connection State variables
   bool _isConnecting = true;
@@ -63,6 +65,9 @@ class _PaymentInputScreenState extends State<PaymentInputScreen> {
           _isAmountLocked = true;
         }
       }
+      if (args['isOnlineMode'] == true) {
+        _isOnlineMode = true;
+      }
     }
     // Handle the edge case where the device is null
     if (recipientDevice == null) {
@@ -70,8 +75,15 @@ class _PaymentInputScreenState extends State<PaymentInputScreen> {
         Navigator.pop(context); // Go back if no device is found
       });
     } else {
-      // Initiate background connection to the recipient
-      _connectToRecipient();
+      if (_isOnlineMode) {
+        setState(() {
+          _isConnecting = false;
+          _isConnected = true;
+        });
+      } else {
+        // Initiate background connection to the recipient
+        _connectToRecipient();
+      }
     }
   }
 
@@ -114,24 +126,34 @@ class _PaymentInputScreenState extends State<PaymentInputScreen> {
 
     // Find the real RSSI from the discovered devices list
     int currentRssi = -70; // Default fallback
-    try {
-      final discoveredDevice = bluetoothService.discoveredDevices
-          .firstWhere((d) => d.device.remoteId == recipientDevice!.remoteId);
-      currentRssi = discoveredDevice.rssi;
-    } catch (_) {
-      // Ignore if device not found in active list
+    if (!_isOnlineMode) {
+      try {
+        final discoveredDevice = bluetoothService.discoveredDevices
+            .firstWhere((d) => d.device.remoteId == recipientDevice!.remoteId);
+        currentRssi = discoveredDevice.rssi;
+      } catch (_) {
+        // Ignore if device not found in active list
+      }
     }
 
-    // 1. EXECUTE SMART TRANSFER via Invisible Manager
-    // The device should already be connected via _connectToRecipient()
-    bool success = await SmartPaymentManager.executeSmartTransfer(
-      bluetoothService: bluetoothService,
-      walletModel: walletModel,
-      recipientDevice: recipientDevice!,
-      amount: amount,
-      currentRssi: currentRssi, 
-
-    );
+    bool success = false;
+    
+    if (_isOnlineMode) {
+      success = await FirebaseService.executeOnlineTransfer(
+        senderWallet: walletModel,
+        recipientDeviceId: recipientDevice!.remoteId.str,
+        amount: amount,
+      );
+    } else {
+      // 1. EXECUTE SMART TRANSFER via Invisible Manager
+      success = await SmartPaymentManager.executeSmartTransfer(
+        bluetoothService: bluetoothService,
+        walletModel: walletModel,
+        recipientDevice: recipientDevice!,
+        amount: amount,
+        currentRssi: currentRssi, 
+      );
+    }
 
     if (success) {
       final recipientName = customRecipientName.isNotEmpty 
@@ -182,8 +204,31 @@ class _PaymentInputScreenState extends State<PaymentInputScreen> {
           key: _formKey,
           child: ListView(
             children: <Widget>[
+              // --- Online Mode Banner ---
+              if (_isOnlineMode)
+                Container(
+                  margin: const EdgeInsets.only(bottom: 20),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.green.shade300),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.cloud_done, color: Colors.green),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Online Mode Active\n(Encrypted Server Transfer)',
+                          style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               // --- Connection Status Banner ---
-              if (_isConnecting)
+              if (_isConnecting && !_isOnlineMode)
                 Container(
                   margin: const EdgeInsets.only(bottom: 20),
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),

@@ -277,6 +277,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
           'device': device,
           'recipientName': recipientName,
           'amount': setAmount ?? 0.0,
+          'isOnlineMode': true,
         }),
       ),
     );

@@ -264,4 +264,150 @@ class FirebaseService {
       'message': '🟢 All user data, balance & payments synced with Firebase Cloud Server!',
     };
   }
+
+  /// Execute an online transaction directly through Firebase
+  static Future<bool> executeOnlineTransfer({
+    required WalletModel senderWallet,
+    required String recipientDeviceId,
+    required double amount,
+  }) async {
+    try {
+      final firebaseUrl = await getFirebaseUrl();
+      final authToken = await getFirebaseAuthToken();
+      final client = HttpClient();
+      client.connectionTimeout = const Duration(seconds: 4);
+
+      // 1. Get recipient profile to get their current balance
+      String recEndpoint = '$firebaseUrl/users/$recipientDeviceId.json';
+      if (authToken != null && authToken.isNotEmpty) recEndpoint += '?auth=$authToken';
+      
+      final recResponse = await http.get(Uri.parse(recEndpoint)).timeout(const Duration(seconds: 4));
+      if (recResponse.statusCode != 200 || recResponse.body == 'null') {
+        return false; // Recipient not found online
+      }
+      final Map<String, dynamic> recData = jsonDecode(recResponse.body);
+      final double recBalance = (recData['balance'] as num).toDouble();
+      
+      // 2. Deduct from Sender local wallet
+      bool debitSuccess = await senderWallet.sendMoney(amount, recipientDeviceId, status: 'VERIFIED');
+      if (!debitSuccess) return false;
+
+      // 3. Update Recipient balance online
+      final newRecBalance = recBalance + amount;
+      recData['balance'] = newRecBalance;
+      
+      var uri = Uri.parse(recEndpoint);
+      var request = await client.putUrl(uri);
+      request.headers.set('content-type', 'application/json');
+      request.write(jsonEncode(recData));
+      await request.close().timeout(const Duration(seconds: 4));
+
+      // 4. Sync sender's own new balance online
+      await syncUserProfile(balance: senderWallet.balance);
+
+      // 5. Create transaction proof and push to recipient's history
+      final tx = senderWallet.history.first;
+      final signature = generateProofSignature(tx);
+      
+      final senderName = await ProfileService.getUserName();
+      final senderDeviceId = await ProfileService.getDeviceId();
+      final senderIdFull = '$senderName ($senderDeviceId)';
+
+      final txPayload = {
+        'transactionId': tx.transactionId,
+        'amount': tx.amount,
+        'senderId': senderIdFull,
+        'recipientId': recipientDeviceId,
+        'type': 'CREDIT',
+        'dateTime': tx.timestamp.toIso8601String(),
+        'timestamp': tx.timestamp.millisecondsSinceEpoch,
+        'proofSignature': signature,
+        'status': 'VERIFIED',
+        'syncedAt': DateTime.now().toIso8601String(),
+      };
+
+      // Push to Recipient's history
+      String historyEndpoint = '$firebaseUrl/user_history/$recipientDeviceId/${tx.transactionId}.json';
+      if (authToken != null && authToken.isNotEmpty) historyEndpoint += '?auth=$authToken';
+      var historyUri = Uri.parse(historyEndpoint);
+      var historyRequest = await client.putUrl(historyUri);
+      historyRequest.headers.set('content-type', 'application/json');
+      historyRequest.write(jsonEncode(txPayload));
+      await historyRequest.close().timeout(const Duration(seconds: 4));
+
+      // Push to Sender's history
+      final txPayloadSender = Map<String, dynamic>.from(txPayload);
+      txPayloadSender['type'] = 'DEBIT';
+      txPayloadSender['recipientId'] = recData['userName'] ?? recipientDeviceId;
+      String senderHistoryEndpoint = '$firebaseUrl/user_history/$senderDeviceId/${tx.transactionId}.json';
+      if (authToken != null && authToken.isNotEmpty) senderHistoryEndpoint += '?auth=$authToken';
+      var senderHistoryUri = Uri.parse(senderHistoryEndpoint);
+      var senderHistoryReq = await client.putUrl(senderHistoryUri);
+      senderHistoryReq.headers.set('content-type', 'application/json');
+      senderHistoryReq.write(jsonEncode(txPayloadSender));
+      await senderHistoryReq.close().timeout(const Duration(seconds: 4));
+
+      // Master transactions ledger
+      String masterEndpoint = '$firebaseUrl/transactions/${tx.transactionId}.json';
+      if (authToken != null && authToken.isNotEmpty) masterEndpoint += '?auth=$authToken';
+      var masterUri = Uri.parse(masterEndpoint);
+      var masterReq = await client.putUrl(masterUri);
+      masterReq.headers.set('content-type', 'application/json');
+      masterReq.write(jsonEncode(txPayload));
+      await masterReq.close().timeout(const Duration(seconds: 4));
+
+      client.close();
+      return true;
+    } catch (e) {
+      debugPrint('Online transfer failed: $e');
+      return false;
+    }
+  }
+
+  /// Pull down the latest balance and history from Firebase
+  static Future<bool> syncDownFromServer(WalletModel walletModel) async {
+    try {
+      final deviceId = await ProfileService.getDeviceId();
+      final firebaseUrl = await getFirebaseUrl();
+      final authToken = await getFirebaseAuthToken();
+
+      // Get Balance
+      String userEndpoint = '$firebaseUrl/users/$deviceId.json';
+      if (authToken != null && authToken.isNotEmpty) userEndpoint += '?auth=$authToken';
+      final userRes = await http.get(Uri.parse(userEndpoint)).timeout(const Duration(seconds: 4));
+      
+      double serverBalance = walletModel.balance;
+      if (userRes.statusCode == 200 && userRes.body != 'null') {
+        final Map<String, dynamic> userData = jsonDecode(userRes.body);
+        serverBalance = (userData['balance'] as num).toDouble();
+      }
+
+      // Get History
+      String historyEndpoint = '$firebaseUrl/user_history/$deviceId.json';
+      if (authToken != null && authToken.isNotEmpty) historyEndpoint += '?auth=$authToken';
+      final histRes = await http.get(Uri.parse(historyEndpoint)).timeout(const Duration(seconds: 4));
+      
+      List<TransactionModel> serverHistory = [];
+      if (histRes.statusCode == 200 && histRes.body != 'null') {
+        final Map<String, dynamic> histData = jsonDecode(histRes.body);
+        for (var txValue in histData.values) {
+          serverHistory.add(TransactionModel(
+            id: txValue['transactionId'] ?? DateTime.now().millisecondsSinceEpoch.toString(),
+            amount: (txValue['amount'] as num).toDouble(),
+            timestamp: DateTime.parse(txValue['dateTime']),
+            recipientId: txValue['type'] == 'CREDIT' ? txValue['senderId'] : txValue['recipientId'],
+            isCredit: txValue['type'] == 'CREDIT',
+            transactionId: txValue['transactionId'],
+            status: txValue['status'] ?? 'VERIFIED',
+          ));
+        }
+      }
+
+      await walletModel.mergeFromServer(serverBalance, serverHistory);
+      return true;
+    } catch (e) {
+      debugPrint('Failed to sync down: $e');
+      return false;
+    }
+  }
 }

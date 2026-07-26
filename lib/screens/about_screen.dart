@@ -55,7 +55,7 @@ class AboutScreen extends StatelessWidget {
               ),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               child: Text(
-                'Version 2.1.0',
+                'Version 2.2.0',
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
