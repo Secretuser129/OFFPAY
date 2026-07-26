@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:provider/provider.dart';
-import '../models/wallet_model.dart';
-import 'package:intl/intl.dart';
 
 class GlobalAppleDock extends StatelessWidget {
   final String activeRoute;
@@ -58,7 +55,7 @@ class GlobalAppleDock extends StatelessWidget {
               onTap: () => _navigate(context, '/receive'),
             ),
 
-            // Left curved divider line for middle History button
+            // Left curved divider line for middle Home button
             Container(
               height: 28,
               width: 1.5,
@@ -68,24 +65,17 @@ class GlobalAppleDock extends StatelessWidget {
               ),
             ),
 
-            // History button in the middle
+            // Home button in the middle
             _buildDockItem(
               context: context,
-              icon: Icons.history_rounded,
-              label: 'History',
-              isSelected: activeRoute == '/history',
+              icon: Icons.home_rounded,
+              label: 'Home',
+              isSelected: activeRoute == '/home',
               isMiddle: true,
-              onTap: () {
-                HapticFeedback.lightImpact();
-                if (onHistoryTap != null) {
-                  onHistoryTap!();
-                } else {
-                  _showHistorySheet(context);
-                }
-              },
+              onTap: () => _navigate(context, '/home'),
             ),
 
-            // Right curved divider line for middle History button
+            // Right curved divider line for middle Home button
             Container(
               height: 28,
               width: 1.5,
@@ -118,97 +108,11 @@ class GlobalAppleDock extends StatelessWidget {
   void _navigate(BuildContext context, String route) {
     HapticFeedback.lightImpact();
     if (activeRoute == route) return;
+    if (route == '/home') {
+      Navigator.of(context).pushNamedAndRemoveUntil('/home', (r) => false);
+      return;
+    }
     Navigator.pushNamed(context, route);
-  }
-
-  void _showHistorySheet(BuildContext context) {
-    final walletModel = Provider.of<WalletModel>(context, listen: false);
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Theme.of(context).cardTheme.color,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (context) {
-        return DraggableScrollableSheet(
-          initialChildSize: 0.7,
-          minChildSize: 0.4,
-          maxChildSize: 0.9,
-          expand: false,
-          builder: (context, scrollController) {
-            return Column(
-              children: [
-                const SizedBox(height: 12),
-                Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.withValues(alpha: 0.4),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                const Padding(
-                  padding: EdgeInsets.all(16.0),
-                  child: Text(
-                    'Transaction History (30 Days)',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                ),
-                Expanded(
-                  child: walletModel.history.isEmpty
-                      ? Center(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.history, size: 48, color: Colors.grey.shade400),
-                              const SizedBox(height: 12),
-                              Text(
-                                'No recent transactions',
-                                style: TextStyle(color: Colors.grey.shade400),
-                              ),
-                            ],
-                          ),
-                        )
-                      : ListView.builder(
-                          controller: scrollController,
-                          itemCount: walletModel.history.length,
-                          itemBuilder: (context, index) {
-                            final tx = walletModel.history[index];
-                            final formattedTime = DateFormat('MMM d, yyyy • HH:mm').format(tx.timestamp);
-                            return ListTile(
-                              leading: CircleAvatar(
-                                backgroundColor: tx.isCredit
-                                    ? Colors.green.withValues(alpha: 0.15)
-                                    : Colors.red.withValues(alpha: 0.15),
-                                child: Icon(
-                                  tx.isCredit ? Icons.arrow_downward : Icons.arrow_upward,
-                                  color: tx.isCredit ? Colors.green : Colors.red,
-                                ),
-                              ),
-                              title: Text(
-                                tx.isCredit ? 'Received offline' : 'Sent offline',
-                                style: const TextStyle(fontWeight: FontWeight.w600),
-                              ),
-                              subtitle: Text(formattedTime, style: const TextStyle(fontSize: 12)),
-                              trailing: Text(
-                                '${tx.isCredit ? '+' : '-'}\$${tx.amount.toStringAsFixed(2)}',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 15,
-                                  color: tx.isCredit ? Colors.green : Colors.red,
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
   }
 
   Widget _buildDockItem({
