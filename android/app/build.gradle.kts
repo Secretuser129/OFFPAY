@@ -14,7 +14,7 @@ android {
         minSdk = 24
         targetSdk = flutter.targetSdkVersion
         versionCode = 222
-        versionName = "2.2.2-pre222"
+        versionName = "2.2.2"
     }
 
     compileOptions {
