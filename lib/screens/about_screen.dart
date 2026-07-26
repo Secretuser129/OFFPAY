@@ -59,7 +59,7 @@ class AboutScreen extends StatelessWidget {
               ),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               child: Text(
-                'Version 2.2.3 (223)',
+                'Version 2.2.4 (224)',
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
