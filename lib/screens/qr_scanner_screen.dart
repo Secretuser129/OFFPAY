@@ -129,36 +129,57 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
                   ),
                 ),
 
-                // Middle with scanner frame
+                // Middle with glowing neon scanner frame
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                  padding: const EdgeInsets.symmetric(horizontal: 28.0),
                   child: AspectRatio(
                     aspectRatio: 1,
                     child: Container(
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.green, width: 3),
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(color: Colors.greenAccent.withValues(alpha: 0.85), width: 2.5),
                         color: Colors.transparent,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.greenAccent.withValues(alpha: 0.3),
+                            blurRadius: 20,
+                            spreadRadius: 1,
+                          ),
+                        ],
                       ),
                       child: Stack(
                         children: [
-                          // Corner indicators (simplified for brevity)
-                          ..._buildScannerCorners(context), 
+                          ..._buildScannerCorners(context),
                           
-                          // Scanning line animation
+                          // Animated Glowing Neon Laser Beam
                           Center(
                             child: TweenAnimationBuilder<double>(
                               tween: Tween(begin: -1, end: 1),
-                              duration: const Duration(seconds: 2),
-                              curve: Curves.linear,
+                              duration: const Duration(milliseconds: 1800),
+                              curve: Curves.easeInOut,
                               onEnd: () {},
                               builder: (context, value, child) {
                                 return Transform.translate(
-                                  offset: Offset(0, value * 100),
+                                  offset: Offset(0, value * 110),
                                   child: Container(
-                                    height: 2,
+                                    height: 3,
                                     width: double.infinity,
-                                    color: Colors.green.withValues(alpha: 0.7),
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        colors: [
+                                          Colors.transparent,
+                                          Colors.greenAccent.shade400,
+                                          Colors.transparent,
+                                        ],
+                                      ),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.greenAccent.withValues(alpha: 0.8),
+                                          blurRadius: 12,
+                                          spreadRadius: 2,
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 );
                               },
@@ -170,31 +191,48 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
                   ),
                 ),
 
-                // Bottom overlay
+                // Bottom overlay with sleek glassmorphism instruction badge
                 Expanded(
                   flex: 1,
                   child: Container(
                     color: Colors.black.withValues(alpha: 0.6),
                     child: Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: const [
-                          Icon(
-                            Icons.qr_code_2,
-                            size: 40,
-                            color: Colors.white,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF14141E).withValues(alpha: 0.85),
+                          borderRadius: BorderRadius.circular(30),
+                          border: Border.all(
+                            color: Colors.greenAccent.withValues(alpha: 0.4),
+                            width: 1.2,
                           ),
-                          SizedBox(height: 16),
-                          Text(
-                            'Position QR code within the frame',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.3),
+                              blurRadius: 15,
+                              offset: const Offset(0, 5),
                             ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: const [
+                            Icon(
+                              Icons.qr_code_scanner,
+                              size: 22,
+                              color: Colors.greenAccent,
+                            ),
+                            SizedBox(width: 12),
+                            Text(
+                              'Align QR code within glowing frame',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),

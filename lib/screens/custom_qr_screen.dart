@@ -48,8 +48,10 @@ class _CustomQrScreenState extends State<CustomQrScreen> {
 
   void _onAmountChanged(String val) {
     final parsed = double.tryParse(val.trim());
+    final newAmount = (parsed != null && parsed > 0) ? parsed : null;
+    if (_customAmount == newAmount) return;
     setState(() {
-      _customAmount = (parsed != null && parsed > 0) ? parsed : null;
+      _customAmount = newAmount;
     });
     _regenerateQrPayload(deviceId, userName, _customAmount);
   }

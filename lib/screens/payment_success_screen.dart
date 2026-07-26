@@ -30,6 +30,7 @@ class _PaymentSuccessScreenState extends State<PaymentSuccessScreen> with Ticker
   // Variables to hold stable transaction data
   late String transactionId;
   late String timestamp;
+  bool _isProcessing = true; // Shows animated user avatar before morphing into success logo
 
   @override
   void initState() {
@@ -66,13 +67,20 @@ class _PaymentSuccessScreenState extends State<PaymentSuccessScreen> with Ticker
       CurvedAnimation(parent: _fadeAnimationController, curve: Curves.easeIn),
     );
 
-    // Start animations in sequence
-    _checkAnimationController.forward();
-    Future.delayed(const Duration(milliseconds: 500), () {
-      if (mounted) _slideAnimationController.forward();
-    });
-    Future.delayed(const Duration(milliseconds: 1300), () {
-      if (mounted) _fadeAnimationController.forward();
+    // Wait 1.7 seconds for user avatar processing animation, then morph into success checkmark logo!
+    Future.delayed(const Duration(milliseconds: 1700), () {
+      if (mounted) {
+        setState(() {
+          _isProcessing = false;
+        });
+        _checkAnimationController.forward();
+        Future.delayed(const Duration(milliseconds: 350), () {
+          if (mounted) _slideAnimationController.forward();
+        });
+        Future.delayed(const Duration(milliseconds: 800), () {
+          if (mounted) _fadeAnimationController.forward();
+        });
+      }
     });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -105,166 +113,314 @@ class _PaymentSuccessScreenState extends State<PaymentSuccessScreen> with Ticker
           child: SingleChildScrollView(
             child: Padding(
               padding: const EdgeInsets.all(20.0),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: <Widget>[
-                  // Animated Success Icon with confetti effect
-                  ScaleTransition(
-                    scale: _checkAnimation,
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        // Pulsing background circles
-                        AnimatedBuilder(
-                          animation: _checkAnimationController,
-                          builder: (context, child) {
-                            return Container(
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: Colors.green.withValues(alpha: 0.1 * (1 - _checkAnimationController.value)),
-                              ),
-                              padding: EdgeInsets.all(80 * (1 + _checkAnimationController.value * 0.3)),
-                            );
-                          },
-                        ),
-                        Container(
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: isDark ? Colors.green.withValues(alpha: 0.2) : Colors.green[50],
-                          ),
-                          padding: const EdgeInsets.all(24),
-                          child: const Icon(
-                            Icons.check_circle,
-                            color: Colors.green,
-                            size: 80.0,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  
-                  const SizedBox(height: 30),
-
-                  // Animated Success Message
-                  SlideTransition(
-                    position: _slideAnimation,
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 850),
+                switchInCurve: Curves.elasticOut,
+                switchOutCurve: Curves.easeInBack,
+                transitionBuilder: (Widget child, Animation<double> animation) {
+                  final scaleAnim = Tween<double>(begin: 0.75, end: 1.0).animate(animation);
+                  return ScaleTransition(
+                    scale: scaleAnim,
                     child: FadeTransition(
-                      opacity: _slideAnimationController.drive(Tween(begin: 0.0, end: 1.0)),
-                      child: Column(
-                        children: [
-                          Text(
-                            'Payment Successful!',
-                            style: TextStyle(
-                              fontSize: 28,
-                              fontWeight: FontWeight.bold,
-                              color: isDark ? Colors.greenAccent : Colors.green[800],
-                            ),
-                          ),
-                          
-                          const SizedBox(height: 10),
-                          
-                          Text(
-                            'Your offline payment has been completed.',
-                            style: TextStyle(fontSize: 16, color: theme.hintColor),
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
-                      ),
+                      opacity: animation,
+                      child: child,
                     ),
-                  ),
-
-                  const SizedBox(height: 40),
-
-                  // Animated Transaction Details Card
-                  SlideTransition(
-                    position: _slideAnimation,
-                    child: FadeTransition(
-                      opacity: _slideAnimationController.drive(Tween(begin: 0.0, end: 1.0)),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: cardColor,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: borderColor),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.05),
-                              blurRadius: 10,
-                              offset: const Offset(0, 5),
-                            ),
-                          ],
-                        ),
-                        padding: const EdgeInsets.all(20),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Use widget.amount and widget.recipientName here
-                            _buildAnimatedDetailRow('Amount', '₹${widget.amount.toStringAsFixed(2)}', Colors.green, theme),
-                            const Divider(height: 20),
-                            _buildAnimatedDetailRow('Recipient', widget.recipientName, Colors.blue, theme),
-                            const Divider(height: 20),
-                            _buildAnimatedDetailRow('Date & Time', timestamp, theme.textTheme.bodyMedium?.color, theme),
-                            const Divider(height: 20),
-                            _buildAnimatedDetailRow('Transaction ID', transactionId, theme.textTheme.bodyMedium?.color, theme),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 60),
-
-                  // Animated Buttons
-                  FadeTransition(
-                    opacity: _fadeAnimation,
-                    child: Column(
-                      children: [
-                        // Return Button with hover effect
-                        ElevatedButton.icon(
-                          icon: const Icon(Icons.home),
-                          label: const Text('Return to Dashboard', style: TextStyle(fontSize: 16)),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: theme.primaryColor,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                          ),
-                          onPressed: () {
-                            Provider.of<OffpayBluetoothService>(context, listen: false).setInPaymentFlow(false);
-                            // Navigate and remove all previous routes
-                            Navigator.of(context).pushNamedAndRemoveUntil('/', (Route<dynamic> route) => false);
-                          },
-                        ),
-
-                        const SizedBox(height: 12),
-
-                        // Share Receipt Button
-                        OutlinedButton.icon(
-                          icon: const Icon(Icons.share),
-                          label: const Text('Share Receipt'),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 12),
-                            side: BorderSide(color: theme.primaryColor),
-                          ),
-                          onPressed: () async {
-                            await ReceiptService.generateAndShareReceipt(
-                              amount: widget.amount,
-                              recipientId: widget.recipientName,
-                              transactionId: transactionId,
-                              timestamp: DateTime.now(),
-                              isCredit: false,
-                              status: 'SUCCESS',
-                            );
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+                  );
+                },
+                child: _isProcessing
+                    ? _buildProcessingAvatar(theme, isDark)
+                    : _buildSuccessContent(theme, isDark, cardColor, borderColor),
               ),
             ),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildProcessingAvatar(ThemeData theme, bool isDark) {
+    final String initial = widget.recipientName.isNotEmpty ? widget.recipientName.trim()[0].toUpperCase() : 'U';
+
+    return Column(
+      key: const ValueKey<String>('processing_avatar'),
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const SizedBox(height: 40),
+        SizedBox(
+          width: 170,
+          height: 170,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              // Outer rotating neon glow ring
+              TweenAnimationBuilder<double>(
+                tween: Tween(begin: 0, end: 1),
+                duration: const Duration(milliseconds: 1700),
+                builder: (context, val, child) {
+                  return Transform.rotate(
+                    angle: val * 4 * 3.14159265,
+                    child: Container(
+                      width: 170,
+                      height: 170,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: SweepGradient(
+                          colors: [
+                            Colors.transparent,
+                            theme.primaryColor,
+                            Colors.greenAccent,
+                            Colors.transparent,
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+              // Inner dark background padding
+              Container(
+                width: 154,
+                height: 154,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: theme.scaffoldBackgroundColor,
+                ),
+              ),
+              // User Picture / Avatar Container
+              Container(
+                width: 130,
+                height: 130,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    colors: [theme.primaryColor, theme.primaryColorDark],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: theme.primaryColor.withValues(alpha: 0.5),
+                      blurRadius: 25,
+                      spreadRadius: 4,
+                    ),
+                  ],
+                ),
+                child: Center(
+                  child: Text(
+                    initial,
+                    style: const TextStyle(
+                      fontSize: 54,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.white,
+                      shadows: [
+                        Shadow(color: Colors.black45, blurRadius: 6, offset: Offset(2, 2)),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 44),
+        Text(
+          'Transferring to ${widget.recipientName}...',
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            color: isDark ? Colors.white : Colors.black87,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 14),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          decoration: BoxDecoration(
+            color: theme.primaryColor.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: theme.primaryColor.withValues(alpha: 0.35)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2.2, color: theme.primaryColor),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'Verifying offline BLE cryptographic proof',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: theme.primaryColor,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 60),
+      ],
+    );
+  }
+
+  Widget _buildSuccessContent(ThemeData theme, bool isDark, Color? cardColor, Color borderColor) {
+    return Column(
+      key: const ValueKey<String>('success_content'),
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: <Widget>[
+        // Animated Success Icon with confetti effect
+        ScaleTransition(
+          scale: _checkAnimation,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              // Pulsing background circles
+              AnimatedBuilder(
+                animation: _checkAnimationController,
+                builder: (context, child) {
+                  return Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.green.withValues(alpha: 0.1 * (1 - _checkAnimationController.value)),
+                    ),
+                    padding: EdgeInsets.all(80 * (1 + _checkAnimationController.value * 0.3)),
+                  );
+                },
+              ),
+              Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: isDark ? Colors.green.withValues(alpha: 0.2) : Colors.green[50],
+                ),
+                padding: const EdgeInsets.all(24),
+                child: const Icon(
+                  Icons.check_circle,
+                  color: Colors.green,
+                  size: 80.0,
+                ),
+              ),
+            ],
+          ),
+        ),
+        
+        const SizedBox(height: 30),
+
+        // Animated Success Message
+        SlideTransition(
+          position: _slideAnimation,
+          child: FadeTransition(
+            opacity: _slideAnimationController.drive(Tween(begin: 0.0, end: 1.0)),
+            child: Column(
+              children: [
+                Text(
+                  'Payment Successful!',
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.greenAccent : Colors.green[800],
+                  ),
+                ),
+                
+                const SizedBox(height: 10),
+                
+                Text(
+                  'Your offline payment has been completed.',
+                  style: TextStyle(fontSize: 16, color: theme.hintColor),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 40),
+
+        // Animated Transaction Details Card
+        SlideTransition(
+          position: _slideAnimation,
+          child: FadeTransition(
+            opacity: _slideAnimationController.drive(Tween(begin: 0.0, end: 1.0)),
+            child: Container(
+              decoration: BoxDecoration(
+                color: cardColor,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: borderColor),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
+              ),
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildAnimatedDetailRow('Amount', '₹${widget.amount.toStringAsFixed(2)}', Colors.green, theme),
+                  const Divider(height: 20),
+                  _buildAnimatedDetailRow('Recipient', widget.recipientName, Colors.blue, theme),
+                  const Divider(height: 20),
+                  _buildAnimatedDetailRow('Date & Time', timestamp, theme.textTheme.bodyMedium?.color, theme),
+                  const Divider(height: 20),
+                  _buildAnimatedDetailRow('Transaction ID', transactionId, theme.textTheme.bodyMedium?.color, theme),
+                ],
+              ),
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 60),
+
+        // Animated Buttons
+        FadeTransition(
+          opacity: _fadeAnimation,
+          child: Column(
+            children: [
+              // Return Button with hover effect
+              ElevatedButton.icon(
+                icon: const Icon(Icons.home),
+                label: const Text('Done • Return to Dashboard', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: theme.primaryColor,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                onPressed: () {
+                  Provider.of<OffpayBluetoothService>(context, listen: false).setInPaymentFlow(false);
+                  // Navigate and remove all previous routes
+                  Navigator.of(context).pushNamedAndRemoveUntil('/home', (Route<dynamic> route) => false);
+                },
+              ),
+
+              const SizedBox(height: 12),
+
+              // Share Receipt Button
+              OutlinedButton.icon(
+                icon: const Icon(Icons.share),
+                label: const Text('Share Receipt'),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 12),
+                  side: BorderSide(color: theme.primaryColor),
+                ),
+                onPressed: () async {
+                  await ReceiptService.generateAndShareReceipt(
+                    amount: widget.amount,
+                    recipientId: widget.recipientName,
+                    transactionId: transactionId,
+                    timestamp: DateTime.now(),
+                    isCredit: false,
+                    status: 'SUCCESS',
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 

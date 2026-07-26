@@ -6,9 +6,9 @@ import 'package:provider/provider.dart';
 import '../models/wallet_model.dart'; 
 import '../services/bluetooth_service.dart';
 import '../services/smart_payment_manager.dart';
-import '../services/receipt_service.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../services/firebase_service.dart';
+import 'payment_success_screen.dart';
 
 class PaymentInputScreen extends StatefulWidget {
   const PaymentInputScreen({super.key});
@@ -24,7 +24,6 @@ class _PaymentInputScreenState extends State<PaymentInputScreen> {
   // Variable to hold the device received from arguments
   fb.BluetoothDevice? recipientDevice;
   String customRecipientName = 'Unknown User';
-  bool _isAmountLocked = false;
   bool _isOnlineMode = false;
   
   // Connection State variables
@@ -62,7 +61,6 @@ class _PaymentInputScreenState extends State<PaymentInputScreen> {
         final amt = (args['amount'] as num).toDouble();
         if (amt > 0) {
           _amountController.text = amt.toStringAsFixed(2);
-          _isAmountLocked = true;
         }
       }
       if (args['isOnlineMode'] == true) {
@@ -227,81 +225,81 @@ class _PaymentInputScreenState extends State<PaymentInputScreen> {
                     ],
                   ),
                 ),
-              // --- Connection Status Banner ---
-              if (_isConnecting && !_isOnlineMode)
-                Container(
-                  margin: const EdgeInsets.only(bottom: 20),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: Colors.amber.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.amber.shade300),
-                  ),
-                  child: Row(
-                    children: [
-                      const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.amber),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'Connecting to ${displayRecipientName}...',
-                          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.amber),
+              // --- Connection Status Banner (Fixed Height 60px to prevent shaking) ---
+              SizedBox(
+                height: 60,
+                child: _isConnecting && !_isOnlineMode
+                    ? Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.amber.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.amber.shade300),
                         ),
-                      ),
-                    ],
-                  ),
-                )
-              else if (!_isConnected)
-                Container(
-                  margin: const EdgeInsets.only(bottom: 20),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: Colors.red.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.red.shade300),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.error_outline, color: Colors.red, size: 24),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          _connectionError,
-                          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red),
+                        child: Row(
+                          children: [
+                            const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.amber),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                'Connecting to ${displayRecipientName}...',
+                                style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.amber),
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
-                      TextButton(
-                        onPressed: _connectToRecipient,
-                        child: const Text('Retry', style: TextStyle(color: Colors.red)),
                       )
-                    ],
-                  ),
-                )
-              else
-                Container(
-                  margin: const EdgeInsets.only(bottom: 20),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: Colors.green.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.green.shade300),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.check_circle, color: Colors.green, size: 24),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'Connected securely to ${displayRecipientName}',
-                          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                    : (!_isConnected
+                        ? Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: Colors.red.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.red.shade300),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.error_outline, color: Colors.red, size: 24),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    _connectionError,
+                                    style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red),
+                                  ),
+                                ),
+                                TextButton(
+                                  onPressed: _connectToRecipient,
+                                  child: const Text('Retry', style: TextStyle(color: Colors.red)),
+                                )
+                              ],
+                            ),
+                          )
+                        : Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: Colors.green.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.green.shade300),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.check_circle, color: Colors.green, size: 24),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    'Connected securely to ${displayRecipientName}',
+                                    style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )),
+              ),
+              const SizedBox(height: 12),
               // --- End Status Banner ---
 
               // Recipient Info Card
@@ -364,10 +362,10 @@ class _PaymentInputScreenState extends State<PaymentInputScreen> {
               const SizedBox(height: 8),
               TextFormField(
                 controller: _amountController,
-                readOnly: _isAmountLocked || _isConnecting || !_isConnected,
+                readOnly: false, // Permanently unlocked amount input!
                 keyboardType: TextInputType.number,
                 style: TextStyle(
-                  color: _isAmountLocked ? Colors.grey : theme.textTheme.bodyLarge?.color,
+                  color: theme.textTheme.bodyLarge?.color,
                   fontWeight: FontWeight.bold,
                   fontSize: 18,
                 ),
@@ -456,77 +454,6 @@ class _PaymentInputScreenState extends State<PaymentInputScreen> {
                 child: Text('Cancel', style: TextStyle(color: Colors.grey[700])),
               ),
             ].animate(interval: 50.ms).fade().slideY(begin: 0.1, end: 0),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// Dummy Payment Success Screen (Ensure you have this file)
-class PaymentSuccessScreen extends StatelessWidget {
-  final double amount;
-  final String recipientName;
-  final String? transactionId;
-  final DateTime? timestamp;
-  
-  const PaymentSuccessScreen({
-    required this.amount, 
-    required this.recipientName, 
-    this.transactionId,
-    this.timestamp,
-    super.key,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Payment Success'), automaticallyImplyLeading: false),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(30.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.check_circle_outline, color: Colors.green, size: 100),
-              const SizedBox(height: 20),
-              const Text('Payment Sent!', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 10),
-              Text(
-                '₹${amount.toStringAsFixed(2)}',
-                style: const TextStyle(fontSize: 48, fontWeight: FontWeight.w900, color: Colors.green),
-              ),
-              const SizedBox(height: 20),
-              Text('Successfully transferred to: $recipientName', style: TextStyle(fontSize: 18, color: Colors.grey.shade700), textAlign: TextAlign.center),
-              const SizedBox(height: 30),
-              if (transactionId != null)
-                OutlinedButton.icon(
-                  icon: const Icon(Icons.share, color: Colors.indigo),
-                  label: const Text('Share Receipt', style: TextStyle(color: Colors.indigo, fontWeight: FontWeight.bold)),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                    side: const BorderSide(color: Colors.indigo),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  onPressed: () async {
-                    await ReceiptService.generateAndShareReceipt(
-                      amount: amount,
-                      recipientId: recipientName,
-                      transactionId: transactionId!,
-                      timestamp: timestamp ?? DateTime.now(),
-                      isCredit: false,
-                      status: 'PENDING',
-                    );
-                  },
-                ),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
-                },
-                child: const Text('Done'),
-              ),
-            ],
           ),
         ),
       ),

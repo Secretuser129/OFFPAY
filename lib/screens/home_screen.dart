@@ -37,6 +37,7 @@ class _HomeScreenState extends State<HomeScreen> {
       
       // Auto-sync offline transactions silently on load (no popup for normal users)
       FirebaseService.syncWithFirebase(walletModel).catchError((_) => <String, dynamic>{});
+      FirebaseService.startAutoSync(walletModel);
       
       UpdateService.checkForUpdates(context, silent: true);
     });
@@ -56,6 +57,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
+    FirebaseService.stopAutoSync();
     _autoReloadTimer?.cancel();
     super.dispose();
   }
@@ -279,13 +281,12 @@ class _HomeScreenState extends State<HomeScreen> {
             children: <Widget>[
               _buildBalanceCard(walletModel).animate().fade(duration: 500.ms).scale(begin: const Offset(0.95, 0.95)),
               const SizedBox(height: 24),
-              _buildActionButtons(context).animate().fade(delay: 200.ms).slideY(begin: 0.1, end: 0),
-              const SizedBox(height: 24),
               _buildTransactionHistory(walletModel),
             ],
           ),
         ),
       ),
+      bottomNavigationBar: _buildApplePillDock(context),
     );
   }
 
@@ -298,7 +299,9 @@ class _HomeScreenState extends State<HomeScreen> {
       curve: Curves.easeInOut,
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: _isBalanceHidden ? [Colors.grey.shade600, Colors.grey.shade800] : [Colors.indigo, Colors.indigo.shade700],
+          colors: _isBalanceHidden
+              ? [Colors.grey.shade600, Colors.grey.shade800]
+              : [Theme.of(context).primaryColor, Theme.of(context).primaryColorDark],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -414,108 +417,124 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildActionButtons(BuildContext context) {
+  Widget _buildApplePillDock(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    return Row(
-      children: [
-        Expanded(
-          child: ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: theme.primaryColor,
-              foregroundColor: Colors.white,
-              elevation: 3,
-              shadowColor: theme.primaryColor.withValues(alpha: 0.4),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              padding: const EdgeInsets.symmetric(vertical: 16),
-            ),
-            icon: const Icon(Icons.send, size: 18),
-            label: const Text('Send', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-            onPressed: () {
-              HapticFeedback.lightImpact();
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => const SendOptionsScreen(),
-                ),
-              );
-            },
+    return SafeArea(
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF14141C).withValues(alpha: 0.95) : Colors.white.withValues(alpha: 0.95),
+          borderRadius: BorderRadius.circular(35),
+          border: Border.all(
+            color: theme.primaryColor.withValues(alpha: 0.35),
+            width: 1.5,
           ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: isDark ? theme.cardTheme.color : theme.primaryColor.withValues(alpha: 0.1),
-              foregroundColor: isDark ? theme.primaryColorLight : theme.primaryColorDark,
-              elevation: 3,
-              shadowColor: theme.primaryColor.withValues(alpha: 0.4),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              padding: const EdgeInsets.symmetric(vertical: 16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.25),
+              blurRadius: 15,
+              offset: const Offset(0, 8),
             ),
-            icon: const Icon(Icons.call_received, size: 18),
-            label: const Text('Receive', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-            onPressed: () {
-              HapticFeedback.lightImpact();
-              Navigator.pushNamed(context, '/receive');
-            },
-          ),
+          ],
         ),
-        const SizedBox(width: 10),
-        Tooltip(
-          message: 'Custom Amount QR',
-          child: InkWell(
-            onTap: () {
-              HapticFeedback.lightImpact();
-              Navigator.pushNamed(context, '/custom_qr');
-            },
-            borderRadius: BorderRadius.circular(30),
-            child: Container(
-              width: 50,
-              height: 50,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: theme.primaryColor,
-                boxShadow: [
-                  BoxShadow(
-                    color: theme.primaryColor.withValues(alpha: 0.35),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
-              ),
-              child: const Icon(Icons.qr_code_2, color: Colors.white, size: 26),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            _buildDockItem(
+              context: context,
+              icon: Icons.send,
+              label: 'Send',
+              color: theme.primaryColor,
+              onTap: () {
+                HapticFeedback.lightImpact();
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (context) => const SendOptionsScreen()),
+                );
+              },
+            ),
+            _buildDockItem(
+              context: context,
+              icon: Icons.call_received,
+              label: 'Receive',
+              color: Colors.green,
+              isGlowing: true,
+              onTap: () {
+                HapticFeedback.lightImpact();
+                Navigator.pushNamed(context, '/receive');
+              },
+            ),
+            _buildDockItem(
+              context: context,
+              icon: Icons.qr_code_2,
+              label: 'QR Code',
+              color: theme.primaryColor,
+              onTap: () {
+                HapticFeedback.lightImpact();
+                Navigator.pushNamed(context, '/custom_qr');
+              },
+            ),
+            _buildDockItem(
+              context: context,
+              icon: Icons.contacts,
+              label: 'Contacts',
+              color: theme.primaryColor,
+              onTap: () {
+                HapticFeedback.lightImpact();
+                Navigator.pushNamed(context, '/contacts');
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDockItem({
+    required BuildContext context,
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+    bool isGlowing = false,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.15),
+              shape: BoxShape.circle,
+              border: Border.all(color: color.withValues(alpha: 0.4), width: 1.5),
+              boxShadow: isGlowing
+                  ? [
+                      BoxShadow(
+                        color: color.withValues(alpha: 0.5),
+                        blurRadius: 12,
+                        spreadRadius: 2,
+                      ),
+                    ]
+                  : null,
+            ),
+            child: Icon(icon, color: color, size: 22),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+              color: Theme.of(context).textTheme.bodySmall?.color,
             ),
           ),
-        ),
-        const SizedBox(width: 10),
-        Tooltip(
-          message: 'Trusted Contacts',
-          child: InkWell(
-            onTap: () {
-              HapticFeedback.lightImpact();
-              Navigator.pushNamed(context, '/contacts');
-            },
-            borderRadius: BorderRadius.circular(30),
-            child: Container(
-              width: 50,
-              height: 50,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: isDark ? Colors.black : Colors.indigo.shade50,
-                border: Border.all(
-                  color: isDark ? Colors.indigo.withValues(alpha: 0.3) : Colors.indigo.withValues(alpha: 0.2),
-                ),
-              ),
-              child: Icon(Icons.contacts, color: isDark ? Colors.indigo.shade200 : Colors.indigo.shade900, size: 22),
-            ),
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -652,13 +671,31 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildTransactionHistory(WalletModel walletModel) {
-    final Color secondaryTextColor = Theme.of(context).textTheme.bodySmall?.color ?? Colors.grey.shade600;
+    final theme = Theme.of(context);
+    final Color secondaryTextColor = theme.textTheme.bodySmall?.color ?? Colors.grey.shade600;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: theme.cardTheme.color,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: theme.primaryColor.withValues(alpha: 0.25),
+          width: 1.2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             const Text(
               'History',
@@ -704,7 +741,8 @@ class _HomeScreenState extends State<HomeScreen> {
               return _buildTransactionTile(transaction).animate(delay: (100 * index).ms).fade().slideX(begin: 0.1, end: 0);
             },
           ),
-      ],
+        ],
+      ),
     );
   }
 

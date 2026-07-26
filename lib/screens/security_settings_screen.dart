@@ -9,6 +9,7 @@ class SecuritySettingsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
         title: const Text('Settings Hub'),
@@ -16,9 +17,9 @@ class SecuritySettingsScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(16.0),
         children: [
-          const Text(
+          Text(
             'General',
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.indigo),
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: theme.primaryColor),
           ),
           const SizedBox(height: 8),
           
@@ -39,9 +40,9 @@ class SecuritySettingsScreen extends StatelessWidget {
           ),
 
           const SizedBox(height: 24),
-          const Text(
+          Text(
             'About & Updates',
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.indigo),
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: theme.primaryColor),
           ),
           const SizedBox(height: 8),
 
@@ -49,7 +50,7 @@ class SecuritySettingsScreen extends StatelessWidget {
             context: context,
             icon: Icons.system_update_outlined,
             title: 'Check for Updates',
-            subtitle: 'Version 2.2.0',
+            subtitle: 'Version 2.2.1',
             onTap: () => UpdateService.checkForUpdates(context, silent: false),
           ),
 
@@ -98,20 +99,25 @@ class SecuritySettingsScreen extends StatelessWidget {
     final theme = Theme.of(context);
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      color: theme.cardTheme.color,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: theme.primaryColor.withValues(alpha: 0.25), width: 1),
+      ),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         leading: Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: theme.primaryColor.withValues(alpha: 0.1),
+            color: theme.primaryColor.withValues(alpha: 0.15),
             shape: BoxShape.circle,
+            border: Border.all(color: theme.primaryColor.withValues(alpha: 0.3)),
           ),
           child: Icon(icon, color: theme.primaryColor),
         ),
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
         subtitle: Text(subtitle, style: TextStyle(fontSize: 12, color: theme.hintColor)),
-        trailing: const Icon(Icons.chevron_right),
+        trailing: Icon(Icons.chevron_right, color: theme.primaryColor),
         onTap: onTap,
       ),
     );
