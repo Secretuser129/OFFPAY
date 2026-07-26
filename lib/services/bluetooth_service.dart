@@ -385,8 +385,6 @@ class OffpayBluetoothService with ChangeNotifier {
   // -------------------------
   // Real-time Connect & Transfer (GATT 133 Retry Counter Countermeasure)
   // -------------------------
-
-
   /// Step 1: Connect to the device separately (Powerful & Stable for Android 11 & Android 14)
   Future<bool> connectToDevice(fb.BluetoothDevice device) async {
     final isRadioOn = await enableBluetoothRadio();
@@ -394,45 +392,63 @@ class OffpayBluetoothService with ChangeNotifier {
 
     await stopScan();
     // Allow Android BLE radio to transition cleanly out of scan mode
-    await Future.delayed(const Duration(milliseconds: 300));
+    await Future.delayed(const Duration(milliseconds: 500));
     final deviceId = device.remoteId.str;
     
-    // Check if already connected
+    // Check if already connected in Android GATT stack
     try {
       final current = await device.connectionState.first;
       if (current == fb.BluetoothConnectionState.connected) {
         _connectedDevice = device;
+        if (_deviceMap.containsKey(deviceId)) {
+          _deviceMap[deviceId]!.connectionState = fb.BluetoothConnectionState.connected;
+          notifyListeners();
+        }
+        debugPrint('GATT already connected: $deviceId');
         return true;
       }
     } catch (_) {}
 
-    const int maxRetries = 3;
+    const int maxRetries = 2;
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         debugPrint('GATT Connection Attempt $attempt of $maxRetries for $deviceId');
-        await device.connect(autoConnect: false, timeout: const Duration(seconds: 15), license: fb.License.nonprofit);
+        // Give 35 seconds timeout so Android pairing code / PIN confirmation popup has plenty of time!
+        await device.connect(
+          autoConnect: false,
+          timeout: const Duration(seconds: 35),
+          license: fb.License.nonprofit,
+        );
 
-        final connectedState = await device.connectionState
-            .firstWhere((s) => s == fb.BluetoothConnectionState.connected || s == fb.BluetoothConnectionState.disconnected)
-            .timeout(const Duration(seconds: 15), onTimeout: () => fb.BluetoothConnectionState.disconnected);
-
-        if (connectedState == fb.BluetoothConnectionState.connected) {
+        final current = await device.connectionState.first;
+        if (current == fb.BluetoothConnectionState.connected) {
           _connectedDevice = device;
           if (_deviceMap.containsKey(deviceId)) {
             _deviceMap[deviceId]!.connectionState = fb.BluetoothConnectionState.connected;
             notifyListeners();
           }
+          // Request MTU on Android to stabilize GATT link layer
+          if (defaultTargetPlatform == TargetPlatform.android) {
+            try {
+              await device.requestMtu(512);
+            } catch (e) {
+              debugPrint('MTU request note: $e');
+            }
+          }
+          // Allow GATT connection interval to stabilize before any service discovery
+          await Future.delayed(const Duration(milliseconds: 600));
+
           debugPrint('GATT Connected successfully on attempt $attempt: $deviceId');
           return true;
-        } else {
-          try { await device.disconnect(); } catch (_) {}
         }
       } catch (e) {
         debugPrint('GATT Attempt $attempt error: $e');
-        try { await device.disconnect(); } catch (_) {}
+        try {
+          await device.disconnect();
+        } catch (_) {}
       }
       if (attempt < maxRetries) {
-        await Future.delayed(Duration(milliseconds: 800 * attempt));
+        await Future.delayed(const Duration(milliseconds: 1500));
       }
     }
     return false;
@@ -448,65 +464,70 @@ class OffpayBluetoothService with ChangeNotifier {
       }
 
       final List<fb.BluetoothService> services = await device.discoverServices().timeout(
-        const Duration(seconds: 12),
+        const Duration(seconds: 15),
         onTimeout: () => [],
       );
 
       fb.BluetoothService? offpayService;
       try {
         offpayService = services.firstWhere((s) {
-          final uStr = s.uuid.str.toLowerCase();
+          final uStr = s.serviceUuid.str.toLowerCase();
           return uStr == OFFPAY_SERVICE_UUID.str.toLowerCase() || uStr.contains('180a');
         });
       } catch (_) {
-        offpayService = null;
+        offpayService = services.isNotEmpty ? services.first : null;
       }
 
       if (offpayService != null) {
         fb.BluetoothCharacteristic? writeChar;
-        try {
-          writeChar = offpayService.characteristics.firstWhere((c) {
-            final uStr = c.uuid.str.toLowerCase();
-            return uStr == OFFPAY_CHAR_UUID.str.toLowerCase() || uStr.contains('2a29');
-          });
-        } catch (_) {
-          writeChar = null;
+        for (fb.BluetoothCharacteristic c in offpayService.characteristics) {
+          final uStr = c.characteristicUuid.str.toLowerCase();
+          if (uStr == OFFPAY_CHAR_UUID.str.toLowerCase() || uStr.contains('2a29')) {
+            writeChar = c;
+            break;
+          }
+        }
+        if (writeChar == null && offpayService.characteristics.isNotEmpty) {
+          writeChar = offpayService.characteristics.first;
         }
 
-        if (writeChar != null) {
-          final senderId = await ProfileService.getDeviceId();
-          final senderName = await ProfileService.getUserName();
-          final seq = await SequenceChainingService.getNextSequence(device.remoteId.str);
-          final prevHash = await SequenceChainingService.getLastHash(device.remoteId.str);
-          final handshake = HandshakeCryptoService.createSenderHandshake(
-            senderDeviceId: senderId,
-            senderName: senderName,
-            amount: amount,
-            seq: seq,
-            prevHash: prevHash,
-          );
-          final String payload = handshake['packet']!;
-          final List<int> payloadBytes = utf8.encode(payload);
+        if (writeChar == null) {
+          debugPrint('No write characteristic found.');
+          return null;
+        }
 
-          final canWrite = writeChar.properties.write;
-          final canWriteWithoutResponse = writeChar.properties.writeWithoutResponse;
+        // Secure Handshake & Cryptographic Sequence Chaining
+        final senderId = await ProfileService.getDeviceId();
+        final senderName = await ProfileService.getBluetoothName();
+        final seq = await SequenceChainingService.getNextSequence(device.remoteId.str);
+        final prevHash = await SequenceChainingService.getLastHash(device.remoteId.str);
+        final handshake = HandshakeCryptoService.createSenderHandshake(
+          senderDeviceId: senderId,
+          senderName: senderName,
+          amount: amount,
+          seq: seq,
+          prevHash: prevHash,
+        );
+        final String payload = handshake['packet']!;
+        final List<int> payloadBytes = utf8.encode(payload);
 
-          if (canWrite || canWriteWithoutResponse) {
-            await writeChar.write(payloadBytes, withoutResponse: !canWrite);
-            debugPrint('Wrote secure GATT payment payload to ${device.remoteId.str}: $payload');
-            
-            try { await device.disconnect(); } catch (_) {}
-            
-            return 'TXN-${handshake['nonce']}';
-          }
+        final canWrite = writeChar.properties.write;
+        final canWriteWithoutResponse = writeChar.properties.writeWithoutResponse;
+
+        if (canWrite || canWriteWithoutResponse) {
+          await writeChar.write(payloadBytes, withoutResponse: !canWrite);
+          debugPrint('Wrote secure GATT payment payload to ${device.remoteId.str}: $payload');
+          
+          // Allow 800ms for BLE link layer to complete air transmission without disconnecting
+          await Future.delayed(const Duration(milliseconds: 800));
+          
+          return 'TXN-${handshake['nonce']}';
         }
       }
     } catch (e, st) {
       debugPrint('transferToConnectedDevice error: $e\n$st');
     }
 
-    try { await device.disconnect(); } catch (_) {}
-    _connectedDevice = null;
     return null;
   }
 

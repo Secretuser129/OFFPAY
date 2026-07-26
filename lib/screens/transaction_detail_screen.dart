@@ -262,9 +262,9 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
               ? Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: value == 'VERIFIED'
+                    color: (value == 'VERIFIED' || value == 'RECEIVED')
                         ? Colors.green.withValues(alpha: 0.15)
-                        : value == 'PENDING'
+                        : (value == 'PENDING' || value == 'PROCESS' || value == 'QUEUED_FOR_RELAY')
                             ? Colors.amber.withValues(alpha: 0.15)
                             : Colors.red.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(6),
@@ -273,27 +273,31 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
-                        value == 'VERIFIED'
+                        (value == 'VERIFIED' || value == 'RECEIVED')
                             ? Icons.verified
-                            : value == 'PENDING'
-                                ? Icons.hourglass_top
+                            : (value == 'PENDING' || value == 'PROCESS' || value == 'QUEUED_FOR_RELAY')
+                                ? Icons.sync
                                 : Icons.cancel,
                         size: 14,
-                        color: value == 'VERIFIED'
+                        color: (value == 'VERIFIED' || value == 'RECEIVED')
                             ? (isDark ? Colors.greenAccent : Colors.green)
-                            : value == 'PENDING'
+                            : (value == 'PENDING' || value == 'PROCESS' || value == 'QUEUED_FOR_RELAY')
                                 ? (isDark ? Colors.amberAccent : Colors.amber.shade900)
                                 : (isDark ? Colors.redAccent : Colors.red),
                       ),
                       const SizedBox(width: 6),
                       Text(
-                        value == 'VERIFIED' ? 'Verified by Server Proof' : value == 'PENDING' ? 'Pending Server Sync' : 'Transfer Failed',
+                        (value == 'VERIFIED' || value == 'RECEIVED')
+                            ? 'Received • Server Verified'
+                            : (value == 'PENDING' || value == 'PROCESS' || value == 'QUEUED_FOR_RELAY')
+                                ? 'In Process • Relay Sync'
+                                : 'Transfer Failed',
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
-                          color: value == 'VERIFIED'
+                          color: (value == 'VERIFIED' || value == 'RECEIVED')
                               ? (isDark ? Colors.greenAccent : Colors.green)
-                              : value == 'PENDING'
+                              : (value == 'PENDING' || value == 'PROCESS' || value == 'QUEUED_FOR_RELAY')
                                   ? (isDark ? Colors.amberAccent : Colors.amber.shade900)
                                   : (isDark ? Colors.redAccent : Colors.red),
                         ),

@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../services/bluetooth_service.dart';
 import '../services/receipt_service.dart';
+import '../services/reward_service.dart';
 import '../widgets/scratch_card_dialog.dart';
 class PaymentSuccessScreen extends StatefulWidget {
   final double amount;
@@ -81,13 +82,15 @@ class _PaymentSuccessScreenState extends State<PaymentSuccessScreen> with Ticker
         Future.delayed(const Duration(milliseconds: 800), () {
           if (mounted) _fadeAnimationController.forward();
         });
-        Future.delayed(const Duration(milliseconds: 1600), () {
+        Future.delayed(const Duration(milliseconds: 1600), () async {
           if (mounted) {
-            ScratchCardDialog.show(
-              context,
-              paymentAmount: widget.amount,
-              recipientName: widget.recipientName,
+            final card = await RewardService.generateRewardForTransaction(
+              transactionId: transactionId,
+              amount: widget.amount,
             );
+            if (card != null && mounted) {
+              ScratchCardDialog.show(context, rewardCard: card);
+            }
           }
         });
       }
@@ -408,26 +411,30 @@ class _PaymentSuccessScreenState extends State<PaymentSuccessScreen> with Ticker
 
               const SizedBox(height: 12),
 
-              // View Scratch Card Reward Button
-              ElevatedButton.icon(
-                icon: const Icon(Icons.card_giftcard),
-                label: const Text('🎁 View Scratch Card Reward'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.amber.shade700,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              // View Scratch Card Reward Button (Only for eligible amounts >= 1000)
+              if (RewardService.isEligibleForScratchCard(widget.amount)) ...[
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.card_giftcard),
+                  label: const Text('🎁 View Scratch Card Reward'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.amber.shade700,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  onPressed: () async {
+                    var card = RewardService.getCardForTransaction(transactionId);
+                    card ??= await RewardService.generateRewardForTransaction(
+                      transactionId: transactionId,
+                      amount: widget.amount,
+                    );
+                    if (card != null && context.mounted) {
+                      ScratchCardDialog.show(context, rewardCard: card);
+                    }
+                  },
                 ),
-                onPressed: () {
-                  ScratchCardDialog.show(
-                    context,
-                    paymentAmount: widget.amount,
-                    recipientName: widget.recipientName,
-                  );
-                },
-              ),
-
-              const SizedBox(height: 12),
+                const SizedBox(height: 12),
+              ],
 
               // Share Receipt Button
               OutlinedButton.icon(

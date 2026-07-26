@@ -14,7 +14,6 @@ import '../services/firebase_service.dart';
 import '../services/update_service.dart';
 import '../widgets/global_apple_dock.dart';
 import 'transaction_detail_screen.dart';
-import 'nfc_tap_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -247,24 +246,24 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Row(
-          children: [
-            Container(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Theme.of(context).brightness == Brightness.light ? Colors.white : Theme.of(context).cardTheme.color,
-              ),
-              padding: const EdgeInsets.all(6),
-              child: Image.asset(
-                'assets/images/logo.png',
-                width: 28,
-                height: 28,
-                color: Theme.of(context).brightness == Brightness.dark ? Colors.white : null,
-              ),
-            ),
-            const SizedBox(width: 12),
-            const Text('OFF-PAY'),
-          ],
+        title: const Text(
+          'OFFPAY',
+          style: TextStyle(
+            fontFamily: '.SF Pro Display',
+            fontFamilyFallback: [
+              '-apple-system',
+              'BlinkMacSystemFont',
+              'SF Pro Text',
+              'SF Pro Icons',
+              'Helvetica Neue',
+              'Helvetica',
+              'Arial',
+              'sans-serif',
+            ],
+            fontWeight: FontWeight.w800,
+            fontSize: 24,
+            letterSpacing: -0.6,
+          ),
         ),
         centerTitle: false,
         elevation: 0,
@@ -292,8 +291,6 @@ class _HomeScreenState extends State<HomeScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
               _buildBalanceCard(walletModel).animate().fade(duration: 500.ms).scale(begin: const Offset(0.95, 0.95)),
-              const SizedBox(height: 20),
-              _buildQuickActionsBar(context).animate(delay: 150.ms).fade().slideY(begin: 0.1, end: 0),
               const SizedBox(height: 24),
               _buildTransactionHistory(walletModel),
             ],
@@ -431,111 +428,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildQuickActionsBar(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: _buildQuickActionButton(
-            context: context,
-            icon: Icons.send,
-            label: 'Send',
-            color: Colors.indigo,
-            onTap: () => Navigator.pushNamed(context, '/send_options'),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _buildQuickActionButton(
-            context: context,
-            icon: Icons.contactless,
-            label: 'NFC Tap',
-            color: Colors.cyan.shade700,
-            badge: '<100ms',
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const NfcTapScreen()),
-            ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _buildQuickActionButton(
-            context: context,
-            icon: Icons.qr_code_scanner,
-            label: 'Receive',
-            color: Colors.teal,
-            onTap: () => Navigator.pushNamed(context, '/receive'),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildQuickActionButton({
-    required BuildContext context,
-    required IconData icon,
-    required String label,
-    required Color color,
-    required VoidCallback onTap,
-    String? badge,
-  }) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
-        decoration: BoxDecoration(
-          color: isDark ? color.withValues(alpha: 0.2) : color.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: isDark ? color.withValues(alpha: 0.5) : color.withValues(alpha: 0.3),
-          ),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Icon(icon, color: color, size: 26),
-                if (badge != null)
-                  Positioned(
-                    right: -18,
-                    top: -8,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: Colors.cyan.shade600,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        badge,
-                        style: const TextStyle(
-                          fontSize: 8,
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.bold,
-                color: isDark ? Colors.white : Colors.black87,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildTransactionTile(TransactionModel transaction) {
     final isCredit = transaction.isCredit;
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -626,30 +518,27 @@ class _HomeScreenState extends State<HomeScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     switch (status.toUpperCase()) {
-      case 'QUEUED_FOR_RELAY':
-        bg = Colors.blue.withValues(alpha: 0.15);
-        text = isDark ? Colors.blueAccent : Colors.blue.shade900;
-        label = 'Pending Sync';
-        icon = Icons.sync;
+      case 'RECEIVED':
+      case 'VERIFIED':
+        bg = Colors.green.withValues(alpha: 0.15);
+        text = isDark ? Colors.greenAccent : Colors.green;
+        label = 'Received';
+        icon = Icons.check_circle;
         break;
+      case 'PROCESS':
+      case 'QUEUED_FOR_RELAY':
       case 'PENDING':
         bg = Colors.amber.withValues(alpha: 0.15);
         text = isDark ? Colors.amberAccent : Colors.amber.shade900;
-        label = 'Pending';
-        icon = Icons.hourglass_top;
+        label = 'In Process';
+        icon = Icons.sync;
         break;
       case 'FAILED':
+      default:
         bg = Colors.red.withValues(alpha: 0.15);
         text = isDark ? Colors.redAccent : Colors.red;
         label = 'Failed';
         icon = Icons.cancel;
-        break;
-      case 'VERIFIED':
-      default:
-        bg = Colors.green.withValues(alpha: 0.15);
-        text = isDark ? Colors.greenAccent : Colors.green;
-        label = 'Verified';
-        icon = Icons.check_circle;
         break;
     }
 

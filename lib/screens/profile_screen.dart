@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../services/profile_service.dart';
+import '../services/reward_service.dart';
 import '../widgets/global_apple_dock.dart';
+import 'rewards_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -186,9 +188,42 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       helperText: 'Unique ID linked to your account for offline BLE payments',
                     ),
                   ),
-                  const SizedBox(height: 36),
+                  const SizedBox(height: 28),
 
-                  // 4. Save Profile Button
+                  // 4. Rewards & Scratch Cards Button
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.card_giftcard),
+                    label: const Text(
+                      '🎁 My Rewards & Scratch Cards',
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.amber.shade700,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const RewardsScreen()),
+                      );
+                    },
+                  ),
+
+                  const SizedBox(height: 28),
+
+                  // 5. Collectible Roles & Abilities Section
+                  Text(
+                    'My Collectible Roles & Special Abilities',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: theme.textTheme.bodyLarge?.color),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildCollectibleRolesSection(theme),
+
+                  const SizedBox(height: 28),
+
+                  // 6. Save Profile Button
                   ElevatedButton.icon(
                     icon: const Icon(Icons.save),
                     label: const Text('Save Profile & Settings', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
@@ -206,6 +241,87 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ),
       bottomNavigationBar: const GlobalAppleDock(activeRoute: '/profile'),
+    );
+  }
+
+  Widget _buildCollectibleRolesSection(ThemeData theme) {
+    final unlockedRoles = RewardService.getUnlockedRoles();
+    final allRoles = RewardService.getAllAvailableRoles();
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Column(
+      children: allRoles.map((role) {
+        final isUnlocked = unlockedRoles.any((r) => r.id == role.id) ||
+            role.id == 'pioneer'; // Pioneer unlocked by default as welcome badge
+
+        return Container(
+          margin: const EdgeInsets.only(bottom: 10),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: isUnlocked
+                ? (isDark ? Colors.indigo.withValues(alpha: 0.25) : Colors.indigo.withValues(alpha: 0.08))
+                : (isDark ? Colors.grey.withValues(alpha: 0.1) : Colors.grey.withValues(alpha: 0.1)),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isUnlocked
+                  ? Colors.indigo.withValues(alpha: 0.5)
+                  : Colors.grey.withValues(alpha: 0.3),
+            ),
+          ),
+          child: Row(
+            children: [
+              Text(
+                role.icon,
+                style: const TextStyle(fontSize: 26),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      role.title,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                        color: isUnlocked
+                            ? (isDark ? Colors.white : Colors.black87)
+                            : Colors.grey,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      role.ability,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: isUnlocked ? theme.hintColor : Colors.grey,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (isUnlocked)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Text(
+                    'ACTIVE',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.green,
+                    ),
+                  ),
+                )
+              else
+                const Icon(Icons.lock_outline, size: 18, color: Colors.grey),
+            ],
+          ),
+        );
+      }).toList(),
     );
   }
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../services/nfc_service.dart';
 import 'discovery_screen.dart';
 import 'qr_scanner_screen.dart';
 import 'nfc_tap_screen.dart';
@@ -40,9 +41,24 @@ class SendOptionsScreen extends StatelessWidget {
               title: 'NFC Contactless Tap',
               subtitle: 'Touch phones back-to-back (<100ms transfer)',
               color: Colors.cyan.shade700,
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const NfcTapScreen()),
-              ),
+              onTap: () async {
+                final supported = await NfcService.isNfcSupported();
+                if (!supported && context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: const Text(
+                        '🔒 NFC Contactless is locked or unsupported on this device. Unlock Developer Option in About settings (10 taps on Flutter word)!',
+                      ),
+                      backgroundColor: Colors.red.shade700,
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                } else if (context.mounted) {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const NfcTapScreen()),
+                  );
+                }
+              },
             ),
 
             const SizedBox(height: 18),

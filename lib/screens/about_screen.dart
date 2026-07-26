@@ -1,9 +1,54 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../widgets/global_apple_dock.dart';
 
-class AboutScreen extends StatelessWidget {
+class AboutScreen extends StatefulWidget {
   const AboutScreen({super.key});
+
+  @override
+  State<AboutScreen> createState() => _AboutScreenState();
+}
+
+class _AboutScreenState extends State<AboutScreen> {
+  int _secretTapCount = 0;
+
+  Future<void> _onSecretTap() async {
+    _secretTapCount++;
+    if (_secretTapCount >= 3 && _secretTapCount < 10) {
+      final remaining = 10 - _secretTapCount;
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Tap $remaining more times to unlock Developer Mode...'),
+            duration: const Duration(milliseconds: 700),
+          ),
+        );
+      }
+    } else if (_secretTapCount == 10) {
+      _secretTapCount = 0;
+      HapticFeedback.heavyImpact();
+      final prefs = await SharedPreferences.getInstance();
+      final current = prefs.getBool('nfc_developer_enabled') ?? false;
+      await prefs.setBool('nfc_developer_enabled', !current);
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              !current
+                  ? '🔓 Developer Mode Unlocked: NFC Contactless Pay Enabled!'
+                  : '🔒 Developer Mode Disabled: NFC Toggle Locked',
+            ),
+            backgroundColor: !current ? Colors.green.shade700 : Colors.red.shade700,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -224,10 +269,18 @@ class AboutScreen extends StatelessWidget {
   }
 
   Widget _buildTechChip(String label, IconData icon, ThemeData theme) {
-    return Chip(
+    final chip = Chip(
       avatar: Icon(icon, size: 16),
       label: Text(label),
       backgroundColor: theme.cardTheme.color ?? theme.cardColor,
     );
+    if (label == 'Flutter') {
+      return InkWell(
+        onTap: _onSecretTap,
+        borderRadius: BorderRadius.circular(16),
+        child: chip,
+      );
+    }
+    return chip;
   }
 }

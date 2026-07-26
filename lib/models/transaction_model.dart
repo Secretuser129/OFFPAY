@@ -23,7 +23,7 @@ class TransactionModel extends HiveObject {
   final String transactionId;
 
   @HiveField(6)
-  final String status; // 'VERIFIED', 'PENDING', 'FAILED'
+  final String status; // 'RECEIVED', 'PROCESS', 'FAILED'
 
   TransactionModel({
     required this.id,
@@ -32,7 +32,7 @@ class TransactionModel extends HiveObject {
     required this.recipientId,
     required this.isCredit,
     required this.transactionId,
-    this.status = 'VERIFIED',
+    this.status = 'RECEIVED',
   });
 
   Map<String, dynamic> toMap() {
@@ -57,7 +57,7 @@ class TransactionModel extends HiveObject {
       recipientId: map['recipientId']?.toString() ?? 'Unknown',
       isCredit: map['isCredit'] as bool? ?? false,
       transactionId: map['transactionId']?.toString() ?? 'TXN${map['id']}',
-      status: map['status']?.toString() ?? 'VERIFIED',
+      status: map['status']?.toString() ?? 'RECEIVED',
     );
   }
 }

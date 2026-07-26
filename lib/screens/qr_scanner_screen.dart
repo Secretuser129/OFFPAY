@@ -23,10 +23,11 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
   @override
   void initState() {
     super.initState();
-    // Initialize with settings for scanning from gallery
+    // Optimized for ultra-fast QR detection without live camera bitmap lag
     cameraController = MobileScannerController(
-      // Ensure this is true to allow image picking to work smoothly
-      returnImage: true, 
+      formats: const [BarcodeFormat.qrCode],
+      detectionSpeed: DetectionSpeed.noDuplicates,
+      returnImage: false,
     );
   }
 
@@ -36,33 +37,43 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
     super.dispose();
   }
   
-  // --- 💡 Function to pick and scan QR code from album ---
+  // --- 💡 Function to pick and scan QR code from album/screenshots ---
   Future<void> _scanFromGallery() async {
-    // 1. Pick the image from the device's gallery
     final XFile? pickedFile = await _picker.pickImage(source: ImageSource.gallery);
+    if (pickedFile == null) return;
 
-    if (pickedFile != null) {
+    // Stop live camera so MLKit can dedicate 100% of processing to the static screenshot/image
+    await cameraController.stop();
+
+    try {
       final BarcodeCapture? capture = await cameraController.analyzeImage(pickedFile.path);
 
       if (capture != null && capture.barcodes.isNotEmpty) {
-        if (!_scannedOnce) {
-          final List<Barcode> barcodes = capture.barcodes;
-          for (final barcode in barcodes) {
-            if (barcode.rawValue != null) {
-              _scannedOnce = true;
-              cameraController.stop(); 
-              _handleQRCode(barcode.rawValue!);
-              return; 
-            }
+        for (final barcode in capture.barcodes) {
+          if (barcode.rawValue != null && barcode.rawValue!.isNotEmpty) {
+            _scannedOnce = true;
+            _handleQRCode(barcode.rawValue!);
+            return;
           }
         }
-      } else {
-        // Show an error if the image was picked but scanning failed
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Could not find a valid QR code in the image.')),
-          );
-        }
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not detect a valid OFFPAY QR code in this image.'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+        await cameraController.start();
+      }
+    } catch (e) {
+      debugPrint('Gallery scan error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error analyzing image: $e')),
+        );
+        await cameraController.start();
       }
     }
   }

@@ -4,6 +4,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'handshake_crypto_service.dart';
 import 'profile_service.dart';
 import 'sequence_chaining_service.dart';
@@ -18,8 +19,15 @@ class NfcService {
   static Stream<Map<String, dynamic>> get incomingNfcPayments =>
       _nfcIncomingController.stream;
 
-  /// Check if NFC hardware is enabled/supported on the device
+  static Future<bool> isNfcDeveloperEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool('nfc_developer_enabled') ?? false;
+  }
+
+  /// Check if NFC hardware is enabled/supported on the device and secret developer option is active
   static Future<bool> isNfcSupported() async {
+    final devEnabled = await isNfcDeveloperEnabled();
+    if (!devEnabled) return false;
     // In production, queries platform channels for NFC hardware capabilities
     return true;
   }

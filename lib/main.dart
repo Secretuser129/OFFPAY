@@ -27,7 +27,7 @@ import 'screens/contacts_screen.dart';
 
 import 'screens/login_screen.dart';
 import 'services/profile_service.dart';
-
+import 'services/reward_service.dart';
 import 'services/theme_service.dart';
 
 void main() async {
@@ -39,8 +39,9 @@ void main() async {
     Hive.registerAdapter(TransactionModelAdapter());
   }
 
-  // Initialize Trusted Contacts Hive box
+  // Initialize Trusted Contacts Hive box & Rewards Service
   await TrustedContactService.init();
+  await RewardService.init();
   
   final bool isLoggedIn = await ProfileService.isLoggedIn();
 

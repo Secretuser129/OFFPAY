@@ -1,33 +1,27 @@
 // lib/widgets/scratch_card_dialog.dart
 
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:provider/provider.dart';
-import '../models/wallet_model.dart';
+import '../services/reward_service.dart';
 
 class ScratchCardDialog extends StatefulWidget {
-  final double paymentAmount;
-  final String recipientName;
+  final RewardCard rewardCard;
 
   const ScratchCardDialog({
     super.key,
-    required this.paymentAmount,
-    required this.recipientName,
+    required this.rewardCard,
   });
 
   static Future<void> show(
     BuildContext context, {
-    required double paymentAmount,
-    required String recipientName,
+    required RewardCard rewardCard,
   }) async {
     await showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => ScratchCardDialog(
-        paymentAmount: paymentAmount,
-        recipientName: recipientName,
+        rewardCard: rewardCard,
       ),
     );
   }
@@ -39,28 +33,13 @@ class ScratchCardDialog extends StatefulWidget {
 class _ScratchCardDialogState extends State<ScratchCardDialog>
     with SingleTickerProviderStateMixin {
   final List<Offset> _scratchedPoints = [];
-  bool _isRevealed = false;
-  bool _rewardClaimed = false;
-
-  late final bool _isCashback;
-  late final int _cashbackAmount;
-  late final String _badgeTitle;
+  late bool _isRevealed;
+  bool _isClaiming = false;
 
   @override
   void initState() {
     super.initState();
-    final random = Random();
-    // 70% chance of cashback, 30% chance of badge unlock
-    _isCashback = random.nextDouble() < 0.70;
-    _cashbackAmount = random.nextInt(46) + 5; // Between ₹5 and ₹50
-
-    final badges = [
-      '⚡ Offline Pioneer Badge',
-      '🛡️ Zero-Net Defender',
-      '🚀 Bluetooth Voyager',
-      '💎 Sovereign Offline User',
-    ];
-    _badgeTitle = badges[random.nextInt(badges.length)];
+    _isRevealed = widget.rewardCard.isClaimed;
   }
 
   void _onPanUpdate(DragUpdateDetails details, Size cardSize) {
@@ -78,12 +57,10 @@ class _ScratchCardDialogState extends State<ScratchCardDialog>
         _scratchedPoints.add(localPosition);
       });
 
-      // Haptic feedback while scratching
       if (_scratchedPoints.length % 4 == 0) {
         HapticFeedback.selectionClick();
       }
 
-      // Check if enough area is scratched (~35 points)
       if (_scratchedPoints.length > 35 && !_isRevealed) {
         _revealCard();
       }
@@ -98,21 +75,32 @@ class _ScratchCardDialogState extends State<ScratchCardDialog>
   }
 
   Future<void> _claimReward() async {
-    if (_rewardClaimed) return;
+    if (_isClaiming || widget.rewardCard.isClaimed) {
+      Navigator.of(context).pop();
+      return;
+    }
     setState(() {
-      _rewardClaimed = true;
+      _isClaiming = true;
     });
 
-    if (_isCashback) {
-      final walletModel = Provider.of<WalletModel>(context, listen: false);
-      await walletModel.receiveMoney(
-        _cashbackAmount.toDouble(),
-        'OFFPAY Cashback Reward',
-        status: 'CASHBACK',
-      );
-    }
+    await RewardService.claimCard(context, widget.rewardCard);
 
     if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          widget.rewardCard.rewardType == 'CASHBACK'
+              ? '🎉 Claimed ₹${widget.rewardCard.rewardValue} Cashback into your wallet!'
+              : widget.rewardCard.rewardType == 'CASHBACK_COUPON'
+                  ? '🎉 Claimed ₹25 Cashback + AMZN-OFFPAY Coupon Code included!'
+                  : widget.rewardCard.rewardType == 'AMAZON_COUPON'
+                      ? '🎉 Amazon Coupon Code copied: ${widget.rewardCard.rewardValue}'
+                      : '🎉 Unlocked Collectible Role: ${widget.rewardCard.rewardValue}!',
+        ),
+        backgroundColor: Colors.amber.shade800,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
     Navigator.of(context).pop();
   }
 
@@ -121,6 +109,30 @@ class _ScratchCardDialogState extends State<ScratchCardDialog>
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     const cardSize = Size(280, 180);
+
+    final card = widget.rewardCard;
+
+    IconData icon;
+    String mainTitle;
+    String subTitle;
+
+    if (card.rewardType == 'CASHBACK') {
+      icon = Icons.account_balance_wallet;
+      mainTitle = '₹${card.rewardValue} Cashback';
+      subTitle = 'Added directly to your offline wallet';
+    } else if (card.rewardType == 'CASHBACK_COUPON') {
+      icon = Icons.card_giftcard;
+      mainTitle = '₹${card.rewardValue} + Amazon Coupon';
+      subTitle = '₹25 Cashback added to wallet & Coupon code included!';
+    } else if (card.rewardType == 'AMAZON_COUPON') {
+      icon = Icons.local_offer;
+      mainTitle = card.rewardValue;
+      subTitle = 'Amazon Special Coupon Reward!';
+    } else {
+      icon = Icons.military_tech;
+      mainTitle = card.rewardValue;
+      subTitle = card.roleAbility ?? 'Special achievement unlocked!';
+    }
 
     return Dialog(
       shape: RoundedRectangleBorder(
@@ -133,13 +145,12 @@ class _ScratchCardDialogState extends State<ScratchCardDialog>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Celebratory Header
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 const Text('🎉 ', style: TextStyle(fontSize: 24)),
                 Text(
-                  'Scratch Card Reward!',
+                  card.isClaimed ? 'Reward Claimed' : 'Scratch Card Reward!',
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -153,9 +164,11 @@ class _ScratchCardDialogState extends State<ScratchCardDialog>
             const SizedBox(height: 8),
 
             Text(
-              _isRevealed
-                  ? 'Congratulations! Claim your reward below:'
-                  : 'Scratch the foil card with your finger to reveal!',
+              card.isClaimed
+                  ? 'You have already collected this reward for Transaction #${card.transactionId}.'
+                  : _isRevealed
+                      ? 'Congratulations! Claim your reward below:'
+                      : 'Scratch the foil card with your finger to reveal!',
               style: TextStyle(
                 fontSize: 13,
                 color: theme.hintColor,
@@ -193,20 +206,12 @@ class _ScratchCardDialogState extends State<ScratchCardDialog>
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(
-                            _isCashback
-                                ? Icons.card_giftcard
-                                : Icons.military_tech,
-                            size: 44,
-                            color: Colors.white,
-                          ),
+                          Icon(icon, size: 44, color: Colors.white),
                           const SizedBox(height: 8),
                           Text(
-                            _isCashback
-                                ? '₹$_cashbackAmount CASHBACK'
-                                : _badgeTitle,
+                            mainTitle,
                             style: const TextStyle(
-                              fontSize: 22,
+                              fontSize: 20,
                               fontWeight: FontWeight.w900,
                               color: Colors.white,
                               letterSpacing: 0.8,
@@ -215,19 +220,18 @@ class _ScratchCardDialogState extends State<ScratchCardDialog>
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            _isCashback
-                                ? 'Added directly to your offline wallet'
-                                : 'Special Achievement Unlocked!',
+                            subTitle,
                             style: TextStyle(
                               fontSize: 11,
                               color: Colors.white.withValues(alpha: 0.9),
                             ),
+                            textAlign: TextAlign.center,
                           ),
                         ],
                       ),
                     ),
 
-                    // Metallic Foil Scratch Layer (Hidden when revealed)
+                    // Metallic Foil Scratch Layer (Hidden when revealed or already claimed)
                     if (!_isRevealed)
                       GestureDetector(
                         onPanUpdate: (details) =>
@@ -240,7 +244,6 @@ class _ScratchCardDialogState extends State<ScratchCardDialog>
                         ),
                       ),
 
-                    // Confetti and celebratory shine when revealed
                     if (_isRevealed)
                       Positioned.fill(
                         child: IgnorePointer(
@@ -263,7 +266,22 @@ class _ScratchCardDialogState extends State<ScratchCardDialog>
             const SizedBox(height: 24),
 
             // Action Buttons
-            if (_isRevealed)
+            if (card.isClaimed)
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: OutlinedButton.icon(
+                  onPressed: () => Navigator.of(context).pop(),
+                  icon: const Icon(Icons.check, color: Colors.green),
+                  label: const Text('Already Claimed • Close'),
+                  style: OutlinedButton.styleFrom(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                ),
+              )
+            else if (_isRevealed)
               SizedBox(
                 width: double.infinity,
                 height: 50,
@@ -271,11 +289,15 @@ class _ScratchCardDialogState extends State<ScratchCardDialog>
                   onPressed: _claimReward,
                   icon: const Icon(Icons.check_circle_outline, size: 22),
                   label: Text(
-                    _isCashback
-                        ? 'Claim ₹$_cashbackAmount Cashback'
-                        : 'Claim Special Badge',
+                    card.rewardType == 'CASHBACK'
+                        ? 'Claim ₹${card.rewardValue} Cashback'
+                        : card.rewardType == 'CASHBACK_COUPON'
+                            ? 'Claim ₹${card.rewardValue} + Amazon Coupon'
+                            : card.rewardType == 'AMAZON_COUPON'
+                                ? 'Claim Amazon Coupon Code'
+                                : 'Claim Collectible Role',
                     style: const TextStyle(
-                      fontSize: 16,
+                      fontSize: 15,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -304,7 +326,6 @@ class _ScratchCardDialogState extends State<ScratchCardDialog>
   }
 }
 
-/// Painter that renders the metallic foil cover and cuts out scratched areas
 class _FoilScratchPainter extends CustomPainter {
   final List<Offset> points;
 
@@ -312,10 +333,8 @@ class _FoilScratchPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // Save layer to apply eraser clipping
     canvas.saveLayer(Rect.fromLTWH(0, 0, size.width, size.height), Paint());
 
-    // 1. Draw Metallic Foil Cover
     final foilPaint = Paint()
       ..shader = LinearGradient(
         colors: [
@@ -333,7 +352,6 @@ class _FoilScratchPainter extends CustomPainter {
     );
     canvas.drawRRect(rrect, foilPaint);
 
-    // Draw Decorative pattern on foil
     final textPainter = TextPainter(
       text: const TextSpan(
         text: '💎 SCRATCH & WIN 💎',
@@ -355,7 +373,6 @@ class _FoilScratchPainter extends CustomPainter {
       ),
     );
 
-    // 2. Erase Scratched Points
     final clearPaint = Paint()
       ..blendMode = BlendMode.clear
       ..strokeCap = StrokeCap.round
