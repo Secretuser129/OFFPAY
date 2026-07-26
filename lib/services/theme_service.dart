@@ -4,15 +4,18 @@ import 'package:shared_preferences/shared_preferences.dart';
 const String _themeModeKey = 'offpay_theme_mode';
 const String _fontSizeKey = 'offpay_font_size';
 const String _accentColorKey = 'offpay_accent_color';
+const String _useAppleFontKey = 'offpay_use_apple_font';
 
 class ThemeProvider extends ChangeNotifier {
   ThemeMode _themeMode = ThemeMode.dark;
   double _fontSizeScale = 1.0;
   Color _accentColor = Colors.indigo;
+  bool _useAppleFont = true;
 
   ThemeMode get themeMode => _themeMode;
   double get fontSizeScale => _fontSizeScale;
   Color get accentColor => _accentColor;
+  bool get useAppleFont => _useAppleFont;
 
   bool isDarkMode(BuildContext context) {
     if (_themeMode == ThemeMode.system) {
@@ -41,6 +44,9 @@ class ThemeProvider extends ChangeNotifier {
 
       // Load Font Size Scale
       _fontSizeScale = prefs.getDouble(_fontSizeKey) ?? 1.0;
+
+      // Load Apple Font toggle
+      _useAppleFont = prefs.getBool(_useAppleFontKey) ?? true;
 
       // Load Accent Color
       final colorValue = prefs.getInt(_accentColorKey);
@@ -94,6 +100,17 @@ class ThemeProvider extends ChangeNotifier {
       await prefs.setInt(_accentColorKey, color.toARGB32());
     } catch (e) {
       debugPrint('Error saving accent color: $e');
+    }
+  }
+
+  Future<void> setUseAppleFont(bool useApple) async {
+    _useAppleFont = useApple;
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_useAppleFontKey, useApple);
+    } catch (e) {
+      debugPrint('Error saving apple font preference: $e');
     }
   }
 }

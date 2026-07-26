@@ -67,12 +67,28 @@ class OffPayApp extends StatelessWidget {
   final bool isLoggedIn;
   const OffPayApp({super.key, this.isLoggedIn = false});
 
-  ThemeData _buildLightTheme(Color accentColor, double fontScale) {
+  ThemeData _buildLightTheme(Color accentColor, double fontScale, bool useAppleFont) {
+    final String? family = useAppleFont ? '.SF Pro Display' : null;
+    final List<String>? fallbacks = useAppleFont
+        ? const [
+            '-apple-system',
+            'BlinkMacSystemFont',
+            'SF Pro Text',
+            'SF Pro Icons',
+            'Helvetica Neue',
+            'Helvetica',
+            'Arial',
+            'sans-serif',
+          ]
+        : null;
+
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
       colorSchemeSeed: accentColor,
       scaffoldBackgroundColor: Colors.white,
+      fontFamily: family,
+      fontFamilyFallback: fallbacks,
       appBarTheme: AppBarTheme(
         backgroundColor: accentColor,
         foregroundColor: Colors.white,
@@ -85,16 +101,33 @@ class OffPayApp extends StatelessWidget {
       ),
       textTheme: const TextTheme().apply(
         fontSizeFactor: fontScale,
+        fontFamily: family,
       ),
     );
   }
 
-  ThemeData _buildDarkTheme(Color accentColor, double fontScale) {
+  ThemeData _buildDarkTheme(Color accentColor, double fontScale, bool useAppleFont) {
+    final String? family = useAppleFont ? '.SF Pro Display' : null;
+    final List<String>? fallbacks = useAppleFont
+        ? const [
+            '-apple-system',
+            'BlinkMacSystemFont',
+            'SF Pro Text',
+            'SF Pro Icons',
+            'Helvetica Neue',
+            'Helvetica',
+            'Arial',
+            'sans-serif',
+          ]
+        : null;
+
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
       colorSchemeSeed: accentColor,
       scaffoldBackgroundColor: const Color(0xFF000000), // Pure AMOLED Black
+      fontFamily: family,
+      fontFamilyFallback: fallbacks,
       appBarTheme: const AppBarTheme(
         backgroundColor: Color(0xFF000000),
         foregroundColor: Colors.white,
@@ -124,6 +157,7 @@ class OffPayApp extends StatelessWidget {
       ),
       textTheme: ThemeData.dark().textTheme.apply(
         fontSizeFactor: fontScale,
+        fontFamily: family,
       ),
     );
   }
@@ -134,8 +168,16 @@ class OffPayApp extends StatelessWidget {
 
     return MaterialApp(
       title: 'OFF-PAY',
-      theme: _buildLightTheme(themeProvider.accentColor, themeProvider.fontSizeScale),
-      darkTheme: _buildDarkTheme(themeProvider.accentColor, themeProvider.fontSizeScale),
+      theme: _buildLightTheme(
+        themeProvider.accentColor,
+        themeProvider.fontSizeScale,
+        themeProvider.useAppleFont,
+      ),
+      darkTheme: _buildDarkTheme(
+        themeProvider.accentColor,
+        themeProvider.fontSizeScale,
+        themeProvider.useAppleFont,
+      ),
       themeMode: themeProvider.themeMode,
 
       initialRoute: isLoggedIn ? '/home' : '/login',

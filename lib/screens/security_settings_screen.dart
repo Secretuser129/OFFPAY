@@ -51,7 +51,7 @@ class SecuritySettingsScreen extends StatelessWidget {
             context: context,
             icon: Icons.system_update_outlined,
             title: 'Check for Updates',
-            subtitle: 'Version 2.2.4 (224)',
+            subtitle: 'Version 2.2.6 (226)',
             onTap: () => UpdateService.checkForUpdates(context, silent: false),
           ),
 

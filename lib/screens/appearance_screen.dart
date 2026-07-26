@@ -76,6 +76,64 @@ class AppearanceScreen extends StatelessWidget {
               );
             },
           ),
+
+          const SizedBox(height: 24),
+          // Section B: Typography & Font Style
+          const Text(
+            'Typography & Font Style',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Switch between Apple typography and system default font',
+            style: TextStyle(
+              fontSize: 14,
+              color: theme.hintColor,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Consumer<ThemeProvider>(
+            builder: (context, themeProvider, child) {
+              return Card(
+                elevation: 0,
+                color: theme.cardColor,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(
+                    color: theme.dividerColor.withAlpha(50),
+                  ),
+                ),
+                child: ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: Colors.blue.withAlpha(38),
+                    child: Icon(
+                      Icons.font_download_outlined,
+                      color: Colors.blue.shade400,
+                    ),
+                  ),
+                  title: const Text(
+                    'Apple San Francisco Font',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: Text(
+                    themeProvider.useAppleFont
+                        ? 'Active across the entire app (.SF Pro Display)'
+                        : 'System default font (Normal Android/system sans-serif)',
+                  ),
+                  trailing: Switch.adaptive(
+                    value: themeProvider.useAppleFont,
+                    activeThumbColor: Colors.indigo,
+                    onChanged: (value) {
+                      themeProvider.setUseAppleFont(value);
+                    },
+                  ),
+                ),
+              );
+            },
+          ),
         ],
       ),
       bottomNavigationBar: const GlobalAppleDock(activeRoute: '/appearance'),
