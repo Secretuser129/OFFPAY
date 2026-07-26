@@ -84,7 +84,7 @@ class _NfcTapScreenState extends State<NfcTapScreen>
       if (!mounted) return;
       if (success) {
         final walletModel = Provider.of<WalletModel>(context, listen: false);
-        await walletModel.addMoney(amount, 'NFC Payer');
+        await walletModel.receiveMoney(amount, 'NFC Payer', status: 'VERIFIED');
         HapticFeedback.heavyImpact();
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(

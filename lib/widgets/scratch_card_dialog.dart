@@ -105,9 +105,10 @@ class _ScratchCardDialogState extends State<ScratchCardDialog>
 
     if (_isCashback) {
       final walletModel = Provider.of<WalletModel>(context, listen: false);
-      await walletModel.addMoney(
+      await walletModel.receiveMoney(
         _cashbackAmount.toDouble(),
         'OFFPAY Cashback Reward',
+        status: 'CASHBACK',
       );
     }
 
