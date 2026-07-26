@@ -31,23 +31,36 @@ class DiscoveredDevice {
   String get bluetoothAddress => device.remoteId.str;
 
   String get name {
-    if (advertisementData.serviceData.containsKey(OFFPAY_SERVICE_UUID)) {
-      try {
-        final decodedName = utf8.decode(advertisementData.serviceData[OFFPAY_SERVICE_UUID]!);
-        if (decodedName.isNotEmpty) return decodedName;
-      } catch (_) {}
+    // 1. Check all serviceData entries (supports full UUID and short 16-bit 180A)
+    for (final entry in advertisementData.serviceData.entries) {
+      final keyStr = entry.key.str.toLowerCase();
+      if (keyStr == OFFPAY_SERVICE_UUID.str.toLowerCase() || keyStr.contains('180a')) {
+        try {
+          final decodedName = utf8.decode(entry.value);
+          if (decodedName.trim().isNotEmpty) return decodedName.trim();
+        } catch (_) {}
+      }
     }
-    if (device.platformName.isNotEmpty) return device.platformName;
-    if (advertisementData.advName.isNotEmpty) return advertisementData.advName;
+    // 2. Check advertisement advName
+    if (advertisementData.advName.trim().isNotEmpty) return advertisementData.advName.trim();
+    // 3. Check platformName
+    if (device.platformName.trim().isNotEmpty) return device.platformName.trim();
     return id;
   }
 
-  /// Check if device is an authentic OFFPAY broadcast device
+  /// Check if device is an authentic OFFPAY broadcast device (checks multiple types!)
   bool get isOffpayUser {
     final normName = name.toUpperCase().replaceAll(RegExp(r'[\s\-_]'), '');
     final normId = id.toUpperCase().replaceAll(RegExp(r'[\s\-_]'), '');
-    final hasUuid = advertisementData.serviceUuids.contains(OFFPAY_SERVICE_UUID);
-    return normName.contains('OFFPAY') || normId.contains('OFFPAY') || hasUuid;
+    final hasUuid = advertisementData.serviceUuids.any((u) {
+      final uStr = u.str.toLowerCase();
+      return uStr == OFFPAY_SERVICE_UUID.str.toLowerCase() || uStr.contains('180a');
+    });
+    final hasServiceData = advertisementData.serviceData.keys.any((u) {
+      final uStr = u.str.toLowerCase();
+      return uStr == OFFPAY_SERVICE_UUID.str.toLowerCase() || uStr.contains('180a');
+    });
+    return normName.contains('OFFPAY') || normId.contains('OFFPAY') || hasUuid || hasServiceData;
   }
 
   /// Categorize signal strength for user display
@@ -282,6 +295,7 @@ class OffpayBluetoothService with ChangeNotifier {
     _scanResultsSubscription = fb.FlutterBluePlus.scanResults.listen(
       (results) {
         final now = DateTime.now();
+        bool changed = false;
         for (fb.ScanResult r in results) {
           final deviceId = r.device.remoteId.str;
           final discovered = DiscoveredDevice(
@@ -290,6 +304,9 @@ class OffpayBluetoothService with ChangeNotifier {
             lastSeen: now,
             advertisementData: r.advertisementData,
           );
+          if (!_deviceMap.containsKey(deviceId) || _deviceMap[deviceId]!.name != discovered.name) {
+            changed = true;
+          }
           _deviceMap[deviceId] = discovered;
 
           // Emit proximity pop-up trigger if device is close (side-by-side RSSI >= -65)
@@ -297,7 +314,9 @@ class OffpayBluetoothService with ChangeNotifier {
             _proximityController.add(discovered);
           }
         }
-        notifyListeners();
+        if (changed) {
+          notifyListeners();
+        }
       },
       onError: (e) => debugPrint('Scan Stream Error: $e'),
     );
@@ -346,12 +365,14 @@ class OffpayBluetoothService with ChangeNotifier {
   // -------------------------
 
 
-  /// Step 1: Connect to the device separately
+  /// Step 1: Connect to the device separately (Powerful & Stable for Android 11 & Android 14)
   Future<bool> connectToDevice(fb.BluetoothDevice device) async {
     final isRadioOn = await enableBluetoothRadio();
     if (!isRadioOn) return false;
 
     await stopScan();
+    // Allow Android BLE radio to transition cleanly out of scan mode
+    await Future.delayed(const Duration(milliseconds: 300));
     final deviceId = device.remoteId.str;
     
     // Check if already connected
@@ -367,11 +388,11 @@ class OffpayBluetoothService with ChangeNotifier {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         debugPrint('GATT Connection Attempt $attempt of $maxRetries for $deviceId');
-        await device.connect(autoConnect: false, license: fb.License.nonprofit);
+        await device.connect(autoConnect: false, timeout: const Duration(seconds: 15), license: fb.License.nonprofit);
 
         final connectedState = await device.connectionState
             .firstWhere((s) => s == fb.BluetoothConnectionState.connected || s == fb.BluetoothConnectionState.disconnected)
-            .timeout(const Duration(seconds: 3), onTimeout: () => fb.BluetoothConnectionState.disconnected);
+            .timeout(const Duration(seconds: 15), onTimeout: () => fb.BluetoothConnectionState.disconnected);
 
         if (connectedState == fb.BluetoothConnectionState.connected) {
           _connectedDevice = device;
@@ -388,12 +409,14 @@ class OffpayBluetoothService with ChangeNotifier {
         debugPrint('GATT Attempt $attempt error: $e');
         try { await device.disconnect(); } catch (_) {}
       }
-      if (attempt < maxRetries) await Future.delayed(Duration(milliseconds: 300 * attempt));
+      if (attempt < maxRetries) {
+        await Future.delayed(Duration(milliseconds: 800 * attempt));
+      }
     }
     return false;
   }
 
-  /// Step 2: Transfer to an already connected device
+  /// Step 2: Transfer to an already connected device (Robust Service & Char discovery)
   Future<String?> transferToConnectedDevice(fb.BluetoothDevice device, double amount) async {
     try {
       final current = await device.connectionState.first;
@@ -403,13 +426,16 @@ class OffpayBluetoothService with ChangeNotifier {
       }
 
       final List<fb.BluetoothService> services = await device.discoverServices().timeout(
-        const Duration(seconds: 4),
+        const Duration(seconds: 12),
         onTimeout: () => [],
       );
 
       fb.BluetoothService? offpayService;
       try {
-        offpayService = services.firstWhere((s) => s.uuid == OFFPAY_SERVICE_UUID);
+        offpayService = services.firstWhere((s) {
+          final uStr = s.uuid.str.toLowerCase();
+          return uStr == OFFPAY_SERVICE_UUID.str.toLowerCase() || uStr.contains('180a');
+        });
       } catch (_) {
         offpayService = null;
       }
@@ -417,7 +443,10 @@ class OffpayBluetoothService with ChangeNotifier {
       if (offpayService != null) {
         fb.BluetoothCharacteristic? writeChar;
         try {
-          writeChar = offpayService.characteristics.firstWhere((c) => c.uuid == OFFPAY_CHAR_UUID);
+          writeChar = offpayService.characteristics.firstWhere((c) {
+            final uStr = c.uuid.str.toLowerCase();
+            return uStr == OFFPAY_CHAR_UUID.str.toLowerCase() || uStr.contains('2a29');
+          });
         } catch (_) {
           writeChar = null;
         }

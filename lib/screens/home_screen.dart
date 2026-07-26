@@ -42,8 +42,8 @@ class _HomeScreenState extends State<HomeScreen> {
       UpdateService.checkForUpdates(context, silent: true);
     });
 
-    // Auto-reload balance every 500 milliseconds for real-time fast updates
-    _autoReloadTimer = Timer.periodic(const Duration(milliseconds: 500), (_) {
+    // Auto-reload balance every 3 seconds for responsive updates without stuttering
+    _autoReloadTimer = Timer.periodic(const Duration(seconds: 3), (_) {
       final walletModel = Provider.of<WalletModel>(context, listen: false);
       walletModel.refreshBalance();
     });
@@ -52,6 +52,17 @@ class _HomeScreenState extends State<HomeScreen> {
     final btService = Provider.of<OffpayBluetoothService>(context, listen: false);
     btService.onProximityDeviceDetected.listen((device) {
       _showSideBySideProximityPopup(device);
+    });
+
+    // Listen for incoming BLE payments while on HomeScreen
+    btService.onIncomingPayment.listen((data) async {
+      if (!mounted || ModalRoute.of(context)?.isCurrent != true) return;
+      final double amount = (data['amount'] as num).toDouble();
+      final String senderId = data['senderId'] as String;
+      final String? txId = data['transactionId'] as String?;
+      final walletModel = Provider.of<WalletModel>(context, listen: false);
+      await walletModel.receiveMoney(amount, senderId, status: 'VERIFIED', transactionId: txId);
+      FirebaseService.syncWithFirebase(walletModel).catchError((_) => <String, dynamic>{});
     });
   }
 

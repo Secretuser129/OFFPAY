@@ -133,6 +133,7 @@ class FirebaseService {
       client.close();
       
       if (response.statusCode == 200 || response.statusCode == 201) {
+        await syncUserProfile(balance: 500.0);
         return {'success': true, 'deviceId': deviceId, 'balance': 500.0};
       }
       return {'success': false, 'message': 'Failed to create account.'};
@@ -174,6 +175,7 @@ class FirebaseService {
         historyList = histData.values.toList();
       }
 
+      await syncUserProfile(balance: (data['balance'] as num).toDouble());
       return {
         'success': true,
         'deviceId': data['deviceId'],

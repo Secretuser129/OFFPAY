@@ -52,12 +52,18 @@ class WalletModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ── Auto-reload / Sync ───────────────────────────────────────────────────
+  // ── Auto-reload / Sync (Optimized for 60 FPS smooth UI) ─────────────────
   Future<void> refreshBalance() async {
     if (!_isInitialized) return;
-    _balance = (_walletBox.get(_balanceKey, defaultValue: _balance) as num).toDouble();
-
+    final newBalance = (_walletBox.get(_balanceKey, defaultValue: _balance) as num).toDouble();
     final rawList = _walletBox.get(_historyKey, defaultValue: <dynamic>[]) as List;
+
+    // Short-circuit if nothing changed to prevent unnecessary 60 FPS UI rebuilds
+    if (newBalance == _balance && rawList.length == _history.length) {
+      return;
+    }
+
+    _balance = newBalance;
     final loadedHistory = <TransactionModel>[];
 
     for (final item in rawList) {
@@ -147,17 +153,34 @@ class WalletModel extends ChangeNotifier {
   Future<void> mergeFromServer(double serverBalance, List<TransactionModel> serverHistory) async {
     final Set<String> existingTxIds = _history.map((t) => t.transactionId).toSet();
     bool hasNewTx = false;
+    double addedCredits = 0.0;
     for (final stx in serverHistory) {
       if (!existingTxIds.contains(stx.transactionId)) {
         _history.add(stx);
         hasNewTx = true;
+        if (stx.isCredit) {
+          addedCredits += stx.amount;
+        } else {
+          addedCredits -= stx.amount;
+        }
       }
     }
-    // Only update balance from server if there is a new transaction OR serverBalance > _balance.
-    // This prevents a stale/older server balance from decreasing a recently added local balance.
-    if (hasNewTx || serverBalance > _balance) {
+    // When nothing changed in balance or history, short-circuit to prevent unnecessary disk writes and UI rebuilds
+    if (!hasNewTx && serverBalance == _balance) {
+      return;
+    }
+
+    // When a new transaction is received, adjust our local balance by the net added credits/debits
+    if (hasNewTx) {
+      _balance += addedCredits;
+      if (_balance < 0) _balance = 0.0;
+      // Sync the newly credited balance back to Firebase server so both local & server match!
+      FirebaseService.syncUserProfile(balance: _balance);
+    } else if (serverBalance > _balance) {
+      // No new transactions, but server balance is higher (e.g. admin update / bonus)
       _balance = serverBalance;
     } else if (_balance > serverBalance) {
+      // Ensure server reflects our higher local balance
       FirebaseService.syncUserProfile(balance: _balance);
     }
     if (hasNewTx) {

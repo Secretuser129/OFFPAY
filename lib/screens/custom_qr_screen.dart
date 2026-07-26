@@ -13,7 +13,7 @@ class CustomQrScreen extends StatefulWidget {
 class _CustomQrScreenState extends State<CustomQrScreen> {
   String deviceId = 'OFFPAY-LOADING';
   String userName = 'OFFPAY User';
-  String encryptedQrPayload = 'OFFPAY_SECURE_V2:LOADING';
+  String encryptedQrPayload = '';
   double? _customAmount;
   final TextEditingController _amountController = TextEditingController();
 
@@ -26,7 +26,9 @@ class _CustomQrScreenState extends State<CustomQrScreen> {
   Future<void> _loadProfileData() async {
     final id = await ProfileService.getDeviceId();
     final name = await ProfileService.getUserName();
-    _regenerateQrPayload(id, name, _customAmount);
+    if (_customAmount != null && _customAmount! > 0) {
+      _regenerateQrPayload(id, name, _customAmount);
+    }
 
     if (mounted) {
       setState(() {
@@ -37,6 +39,12 @@ class _CustomQrScreenState extends State<CustomQrScreen> {
   }
 
   void _regenerateQrPayload(String id, String name, double? amt) {
+    if (amt == null || amt <= 0) {
+      setState(() {
+        encryptedQrPayload = '';
+      });
+      return;
+    }
     final qrData = ProfileService.encryptQrPayload(
       deviceId: id,
       userName: name,
@@ -209,57 +217,88 @@ class _CustomQrScreenState extends State<CustomQrScreen> {
             ),
             const SizedBox(height: 20),
 
-            // Encrypted QR View
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.grey[300]!, width: 2),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.08),
-                    blurRadius: 10,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
-              ),
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                children: [
-                  QrImageView(
-                    data: encryptedQrPayload,
-                    size: 240.0,
-                    errorCorrectionLevel: QrErrorCorrectLevel.H,
-                    dataModuleStyle: const QrDataModuleStyle(
-                      color: Colors.black,
-                      dataModuleShape: QrDataModuleShape.square,
+            // Encrypted QR View or Placeholder when no amount is set
+            _customAmount != null && _customAmount! > 0 && encryptedQrPayload.isNotEmpty
+                ? Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.grey[300]!, width: 2),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.08),
+                          blurRadius: 10,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
                     ),
-                    eyeStyle: const QrEyeStyle(
-                      color: Colors.black,
-                      eyeShape: QrEyeShape.square,
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      children: [
+                        QrImageView(
+                          data: encryptedQrPayload,
+                          size: 240.0,
+                          errorCorrectionLevel: QrErrorCorrectLevel.H,
+                          dataModuleStyle: const QrDataModuleStyle(
+                            color: Colors.black,
+                            dataModuleShape: QrDataModuleShape.square,
+                          ),
+                          eyeStyle: const QrEyeStyle(
+                            color: Colors.black,
+                            eyeShape: QrEyeShape.square,
+                          ),
+                          embeddedImage: const AssetImage('assets/images/bluetooth_black.png'),
+                          embeddedImageStyle: const QrEmbeddedImageStyle(
+                            size: Size(44, 44),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.lock, size: 14, color: Colors.green),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Encrypted QR Locked at ₹${_customAmount!.toStringAsFixed(2)}',
+                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.green),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
-                    embeddedImage: const AssetImage('assets/images/bluetooth_black.png'),
-                    embeddedImageStyle: const QrEmbeddedImageStyle(
-                      size: Size(44, 44),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.lock, size: 14, color: Colors.green),
-                      const SizedBox(width: 4),
-                      Text(
-                        _customAmount != null
-                            ? 'Encrypted QR Locked at ₹${_customAmount!.toStringAsFixed(2)}'
-                            : 'Encrypted Secure QR (AES-256)',
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.green),
+                  )
+                : Container(
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF1E1E2A) : Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: theme.primaryColor.withValues(alpha: 0.3),
+                        width: 1.5,
                       ),
-                    ],
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 24),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.qr_code_2_rounded,
+                          size: 64,
+                          color: theme.hintColor.withValues(alpha: 0.6),
+                        ),
+                        const SizedBox(height: 14),
+                        const Text(
+                          'No Amount Set Yet',
+                          style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Enter an amount above or pick a quick chip to generate a locked payment QR code.',
+                          style: TextStyle(fontSize: 13, color: theme.hintColor),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
                   ),
-                ],
-              ),
-            ),
             const SizedBox(height: 24),
 
             OutlinedButton(

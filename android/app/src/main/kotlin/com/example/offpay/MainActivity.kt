@@ -103,20 +103,20 @@ class MainActivity : FlutterActivity() {
 
         val pUuid = ParcelUuid(UUID.fromString(serviceUuidStr))
 
-        // Primary advertisement data: Service UUID only (no name, no TX power)
-        // This keeps primary payload well under 31 bytes
+        // Primary advertisement data: Service UUID and Service Data (name) in primary packet
+        // This ensures Android 14 background scanners detect OFFPAY immediately without relying on scan response.
         val data = AdvertiseData.Builder()
             .setIncludeDeviceName(false)
             .setIncludeTxPowerLevel(false)
             .addServiceUuid(pUuid)
+            .addServiceData(pUuid, safeName.toByteArray(Charsets.UTF_8))
             .build()
 
-        // Scan response: Device name embedded in Service Data to prevent DATA_TOO_LARGE errors on Android 11
-        // since setIncludeDeviceName(true) fails if the system Bluetooth name is too long.
+        // Scan response: Include device name for scanners looking for advName
         val scanResponse = AdvertiseData.Builder()
-            .setIncludeDeviceName(false)
+            .setIncludeDeviceName(true)
             .setIncludeTxPowerLevel(false)
-            .addServiceData(pUuid, safeName.toByteArray(Charsets.UTF_8))
+            .addServiceUuid(pUuid)
             .build()
 
         stopAdvertisingInternal()
@@ -139,6 +139,21 @@ class MainActivity : FlutterActivity() {
                     else -> "UNKNOWN ($errorCode)"
                 }
                 Log.e("OFFPAY_BLE", "❌ BLE Advertising FAILED: $reason")
+                if (errorCode == ADVERTISE_FAILED_DATA_TOO_LARGE) {
+                    Log.w("OFFPAY_BLE", "Retrying BLE advertising without scanResponse to avoid DATA_TOO_LARGE...")
+                    try {
+                        bluetoothAdvertiser?.startAdvertising(settings, data, null, object : AdvertiseCallback() {
+                            override fun onStartSuccess(settingsInEffect: AdvertiseSettings?) {
+                                Log.d("OFFPAY_BLE", "✅ BLE Advertising retry SUCCESS as: $safeName")
+                                result.success(true)
+                            }
+                            override fun onStartFailure(err: Int) {
+                                result.error("ADVERTISE_FAILED", "Retry failed: $err", null)
+                            }
+                        })
+                        return
+                    } catch (e: Exception) {}
+                }
                 result.error("ADVERTISE_FAILED", "Failed: $reason", null)
             }
         }

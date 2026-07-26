@@ -26,6 +26,7 @@ class _PaymentInputScreenState extends State<PaymentInputScreen> {
   fb.BluetoothDevice? recipientDevice;
   String customRecipientName = 'Unknown User';
   bool _isOnlineMode = false;
+  bool _isAmountLocked = false;
   
   // Connection State variables
   bool _isConnecting = true;
@@ -58,10 +59,13 @@ class _PaymentInputScreenState extends State<PaymentInputScreen> {
       if (args['recipientName'] != null && (args['recipientName'] as String).trim().isNotEmpty) {
         customRecipientName = (args['recipientName'] as String).trim();
       }
-      if (args['amount'] != null && _amountController.text.isEmpty) {
+      if (args['amount'] != null) {
         final amt = (args['amount'] as num).toDouble();
         if (amt > 0) {
-          _amountController.text = amt.toStringAsFixed(2);
+          if (_amountController.text.isEmpty) {
+            _amountController.text = amt.toStringAsFixed(2);
+          }
+          _isAmountLocked = true;
         }
       }
       if (args['isOnlineMode'] == true) {
@@ -219,29 +223,40 @@ class _PaymentInputScreenState extends State<PaymentInputScreen> {
           key: _formKey,
           child: ListView(
             children: <Widget>[
-              // --- Online Mode Banner ---
-              if (_isOnlineMode)
-                Container(
-                  margin: const EdgeInsets.only(bottom: 20),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: Colors.green.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.green.shade300),
-                  ),
-                  child: const Row(
-                    children: [
-                      Icon(Icons.cloud_done, color: Colors.green),
-                      SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'Online Mode Active\n(Encrypted Server Transfer)',
-                          style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                    ],
+              // --- Server Connection Status Banner ---
+              Container(
+                margin: const EdgeInsets.only(bottom: 20),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: _isOnlineMode
+                      ? Colors.green.withValues(alpha: 0.15)
+                      : Colors.orange.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: _isOnlineMode ? Colors.green.shade300 : Colors.orange.shade300,
                   ),
                 ),
+                child: Row(
+                  children: [
+                    Icon(
+                      _isOnlineMode ? Icons.cloud_done : Icons.cloud_off,
+                      color: _isOnlineMode ? Colors.green : Colors.orange,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        _isOnlineMode
+                            ? 'You Are connected with server'
+                            : 'You are offline (not connected with server)',
+                        style: TextStyle(
+                          color: _isOnlineMode ? Colors.green : Colors.orange,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               // --- Connection Status Banner (Fixed Height 60px to prevent shaking) ---
               SizedBox(
                 height: 60,
@@ -379,7 +394,7 @@ class _PaymentInputScreenState extends State<PaymentInputScreen> {
               const SizedBox(height: 8),
               TextFormField(
                 controller: _amountController,
-                readOnly: false, // Permanently unlocked amount input!
+                readOnly: _isAmountLocked,
                 keyboardType: TextInputType.number,
                 style: TextStyle(
                   color: theme.textTheme.bodyLarge?.color,
@@ -412,6 +427,33 @@ class _PaymentInputScreenState extends State<PaymentInputScreen> {
                   return null;
                 },
               ),
+              if (_isAmountLocked) ...[
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.green.withValues(alpha: 0.4)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.lock, color: Colors.green, size: 16),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Amount locked by recipient QR code (₹${_amountController.text}). Cannot be changed.',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
 
               const SizedBox(height: 20),
 
