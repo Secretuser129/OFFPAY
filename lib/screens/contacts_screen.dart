@@ -371,7 +371,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
                 final bool success = await walletModel.sendMoney(
                   amount,
                   contact.deviceId,
-                  status: 'RECEIVED',
+                  status: 'SUCCESS',
                   transactionId: txId,
                 );
 
@@ -431,7 +431,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
                           transactionId: txId,
                           timestamp: DateTime.now(),
                           isCredit: false,
-                          status: 'RECEIVED',
+                          status: 'SUCCESS',
                         );
                       },
                     ),

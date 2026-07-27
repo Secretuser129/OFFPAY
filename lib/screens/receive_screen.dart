@@ -79,7 +79,7 @@ class _ReceiveScreenState extends State<ReceiveScreen> with SingleTickerProvider
     HapticFeedback.vibrate();
 
     final walletModel = Provider.of<WalletModel>(context, listen: false);
-    await walletModel.receiveMoney(amount, senderId, status: 'PENDING', transactionId: txId);
+    await walletModel.receiveMoney(amount, senderId, status: 'PENDING', transactionId: txId, notify: false);
 
     // Update Server Cloud Ledger automatically in background
     FirebaseService.syncWithFirebase(walletModel).catchError((_) => <String, dynamic>{});

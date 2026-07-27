@@ -61,7 +61,7 @@ class _HomeScreenState extends State<HomeScreen> {
       final String senderId = data['senderId'] as String;
       final String? txId = data['transactionId'] as String?;
       final walletModel = Provider.of<WalletModel>(context, listen: false);
-      await walletModel.receiveMoney(amount, senderId, status: 'VERIFIED', transactionId: txId);
+      await walletModel.receiveMoney(amount, senderId, status: 'VERIFIED', transactionId: txId, notify: false);
       FirebaseService.syncWithFirebase(walletModel).catchError((_) => <String, dynamic>{});
     });
   }
@@ -510,14 +510,14 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             const SizedBox(height: 4),
-            _buildStatusBadge(transaction.status),
+            _buildStatusBadge(transaction.status, transaction.isCredit),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildStatusBadge(String status) {
+  Widget _buildStatusBadge(String status, bool isCredit) {
     Color bg;
     Color text;
     String label;
@@ -527,9 +527,12 @@ class _HomeScreenState extends State<HomeScreen> {
     switch (status.toUpperCase()) {
       case 'RECEIVED':
       case 'VERIFIED':
+      case 'SUCCESS':
+      case 'SENT':
+      case 'NFC_SUCCESS':
         bg = Colors.green.withValues(alpha: 0.15);
         text = isDark ? Colors.greenAccent : Colors.green;
-        label = 'Received';
+        label = isCredit ? 'Received' : 'Success';
         icon = Icons.check_circle;
         break;
       case 'PROCESS':

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'transaction_model.dart';
 import '../services/firebase_service.dart';
+import '../services/notification_service.dart';
 
 const String _walletBoxName = 'walletBox';
 const String _balanceKey = 'currentBalance';
@@ -86,7 +87,7 @@ class WalletModel extends ChangeNotifier {
   }
 
   // ── Send (debit) ──────────────────────────────────────────────────────────
-  Future<bool> sendMoney(double amount, String recipientId, {String status = 'RECEIVED', String? transactionId}) async {
+  Future<bool> sendMoney(double amount, String recipientId, {String status = 'SUCCESS', String? transactionId}) async {
     if (_balance < amount) return false;
 
     _balance -= amount;
@@ -110,7 +111,7 @@ class WalletModel extends ChangeNotifier {
   }
 
   // ── Receive (credit) ──────────────────────────────────────────────────────
-  Future<void> receiveMoney(double amount, String senderId, {String status = 'RECEIVED', String? transactionId}) async {
+  Future<void> receiveMoney(double amount, String senderId, {String status = 'RECEIVED', String? transactionId, bool notify = true, String? senderName}) async {
     _balance += amount;
 
     final now = DateTime.now();
@@ -128,6 +129,14 @@ class WalletModel extends ChangeNotifier {
     await _saveChanges();
     FirebaseService.syncUserProfile(balance: _balance);
     notifyListeners();
+
+    if (notify && senderId != 'OFFPAY Rewards') {
+      await NotificationService.showPaymentReceivedNotification(
+        amount: amount,
+        senderName: senderName ?? senderId,
+        transactionId: newTx.transactionId,
+      );
+    }
   }
 
   // ── Status Update (Server Ledger Proof Sync) ──────────────────────────────

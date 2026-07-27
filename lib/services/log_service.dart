@@ -73,7 +73,7 @@ class LogService {
       LogEntry(
         timestamp: now.subtract(const Duration(minutes: 1)),
         category: 'SUCCESS',
-        message: 'OFFPAY Offline Payment Engine v2.2.7 (Build 227) Operational',
+        message: 'OFFPAY Offline Payment Engine v2.2.8 (Build 228) Operational',
         source: 'CoreManager',
       ),
     ];
@@ -104,7 +104,7 @@ class LogService {
   static String exportAsText() {
     final buffer = StringBuffer();
     buffer.writeln('==================================================');
-    buffer.writeln('OFFPAY v2.2.7 (227) — SYSTEM & SECURITY LOG REPORT');
+    buffer.writeln('OFFPAY v2.2.8 (228) — SYSTEM & SECURITY LOG REPORT');
     buffer.writeln('Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}');
     buffer.writeln('==================================================\n');
 

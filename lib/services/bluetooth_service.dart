@@ -7,6 +7,7 @@ import 'handshake_crypto_service.dart';
 import 'profile_service.dart';
 import 'sequence_chaining_service.dart';
 import 'log_service.dart';
+import 'notification_service.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart' as fb;
 
@@ -156,14 +157,23 @@ class OffpayBluetoothService with ChangeNotifier {
               return;
             }
 
+            final String senderDisplayName =
+                (senderData['sName']?.toString().isNotEmpty == true)
+                    ? senderData['sName']
+                    : senderId;
             _incomingPaymentController.add({
               'amount': amount,
               'senderId': senderId,
-              'senderName': senderData['sName'],
+              'senderName': senderDisplayName,
               'timestamp': ts,
               'transactionId': 'TXN-$nonce',
               'signature': payload.split(':').last,
             });
+            await NotificationService.showPaymentReceivedNotification(
+              amount: amount,
+              senderName: senderDisplayName,
+              transactionId: 'TXN-$nonce',
+            );
             debugPrint('Successfully verified incoming GATT payment with sequence chaining!');
           } else {
             debugPrint('Failed to verify incoming GATT payment payload.');
@@ -633,6 +643,11 @@ class OffpayBluetoothService with ChangeNotifier {
       'senderId': senderId,
       'timestamp': DateTime.now(),
     });
+
+    NotificationService.showPaymentReceivedNotification(
+      amount: amount,
+      senderName: senderId,
+    );
 
     debugPrint('Simulated incoming Bluetooth payment received: ₹$amount from $senderId');
   }

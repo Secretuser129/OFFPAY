@@ -262,7 +262,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
               ? Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: (value == 'VERIFIED' || value == 'RECEIVED')
+                    color: (value == 'VERIFIED' || value == 'RECEIVED' || value == 'SUCCESS' || value == 'SENT' || value == 'NFC_SUCCESS')
                         ? Colors.green.withValues(alpha: 0.15)
                         : (value == 'PENDING' || value == 'PROCESS' || value == 'QUEUED_FOR_RELAY')
                             ? Colors.amber.withValues(alpha: 0.15)
@@ -273,13 +273,13 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
-                        (value == 'VERIFIED' || value == 'RECEIVED')
+                        (value == 'VERIFIED' || value == 'RECEIVED' || value == 'SUCCESS' || value == 'SENT' || value == 'NFC_SUCCESS')
                             ? Icons.verified
                             : (value == 'PENDING' || value == 'PROCESS' || value == 'QUEUED_FOR_RELAY')
                                 ? Icons.sync
                                 : Icons.cancel,
                         size: 14,
-                        color: (value == 'VERIFIED' || value == 'RECEIVED')
+                        color: (value == 'VERIFIED' || value == 'RECEIVED' || value == 'SUCCESS' || value == 'SENT' || value == 'NFC_SUCCESS')
                             ? (isDark ? Colors.greenAccent : Colors.green)
                             : (value == 'PENDING' || value == 'PROCESS' || value == 'QUEUED_FOR_RELAY')
                                 ? (isDark ? Colors.amberAccent : Colors.amber.shade900)
@@ -287,15 +287,15 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
                       ),
                       const SizedBox(width: 6),
                       Text(
-                        (value == 'VERIFIED' || value == 'RECEIVED')
-                            ? 'Received • Server Verified'
+                        (value == 'VERIFIED' || value == 'RECEIVED' || value == 'SUCCESS' || value == 'SENT' || value == 'NFC_SUCCESS')
+                            ? (widget.transaction.isCredit ? 'Received • Server Verified' : 'Sent • Server Verified')
                             : (value == 'PENDING' || value == 'PROCESS' || value == 'QUEUED_FOR_RELAY')
                                 ? 'In Process • Relay Sync'
                                 : 'Transfer Failed',
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
-                          color: (value == 'VERIFIED' || value == 'RECEIVED')
+                          color: (value == 'VERIFIED' || value == 'RECEIVED' || value == 'SUCCESS' || value == 'SENT' || value == 'NFC_SUCCESS')
                               ? (isDark ? Colors.greenAccent : Colors.green)
                               : (value == 'PENDING' || value == 'PROCESS' || value == 'QUEUED_FOR_RELAY')
                                   ? (isDark ? Colors.amberAccent : Colors.amber.shade900)

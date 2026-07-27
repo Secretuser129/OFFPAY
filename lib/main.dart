@@ -30,6 +30,7 @@ import 'screens/login_screen.dart';
 import 'services/profile_service.dart';
 import 'services/reward_service.dart';
 import 'services/theme_service.dart';
+import 'services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -40,9 +41,10 @@ void main() async {
     Hive.registerAdapter(TransactionModelAdapter());
   }
 
-  // Initialize Trusted Contacts Hive box & Rewards Service
+  // Initialize Trusted Contacts Hive box, Rewards & Notifications
   await TrustedContactService.init();
   await RewardService.init();
+  await NotificationService.init();
   
   final bool isLoggedIn = await ProfileService.isLoggedIn();
 

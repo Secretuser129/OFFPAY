@@ -1,6 +1,6 @@
 {
-  "versionCode": 227,
-  "versionName": "2.2.7",
+  "versionCode": 228,
+  "versionName": "2.2.8",
   "downloadUrl": "https://github.com/Secretuser129/OFFPAY/releases/latest/download/app-release.apk",
-  "changelog": "🚀 What's New in OffPay v2.2.7 :\n• Trusted Contacts Hybrid Pay (Online Server Priority + Offline BLE Direct)\n• App Security Architecture Interactive Modal (AES-GCM-256, Zero-Net Defender, PIN Gate)\n• Apple San Francisco Typography Across Whole App & Font Toggle in Settings\n• QR Code Scanner Gallery Upload Screenshot Bug Fix\n• Secret 10-Tap NFC Developer Mode Gesture\n• BLE MAC Address Display & Smart Fallback Naming\n• Updated Team Credits (Vedansh, Ayush, Shaurya Prakash, Priyanshu, Mohit)"
+  "changelog": "🚀 What's New in OffPay v2.2.8 :\n• Custom App Logo (Wallet with ₹ Notes & BLE Emblem) Across Whole App & Android Launcher\n• Real-Time System & Security Logs Option (Home Screen AppBar & Settings Hub)\n• Background Error & Warning Audit for Android Location & GATT Connection Failures\n• Trusted Contacts Hybrid Pay (Online Server Priority + Offline BLE Direct)\n• App Security Architecture Interactive Modal (AES-GCM-256, Zero-Net Defender, PIN Gate)\n• Apple San Francisco Typography Across Whole App & Font Toggle in Settings\n• QR Code Scanner Gallery Upload Screenshot Bug Fix\n• Secret 10-Tap NFC Developer Mode Gesture\n• BLE MAC Address Display & Smart Fallback Naming\n• Updated Team Credits (Vedansh, Ayush, Shaurya Prakash, Priyanshu, Mohit)"
 }
