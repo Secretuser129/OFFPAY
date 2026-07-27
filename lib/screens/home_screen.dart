@@ -237,7 +237,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void _triggerJudgeDemo() async {
     final walletModel = Provider.of<WalletModel>(context, listen: false);
     // Directly add ₹500.00 to balance for instant update without snackbar
-    await walletModel.receiveMoney(500.00, 'STAGE-JUDGE-DEMO');
+    await walletModel.receiveMoney(500.00, 'OFFPAY-DEMO');
   }
 
   @override

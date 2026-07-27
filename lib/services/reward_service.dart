@@ -175,7 +175,7 @@ class RewardService {
     }
   }
 
-  /// Generates a staged reward based on transaction amount
+  /// Generates a tiered reward based on transaction amount
   static Future<RewardCard?> generateRewardForTransaction({
     required String transactionId,
     required double amount,

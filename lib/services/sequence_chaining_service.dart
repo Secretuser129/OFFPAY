@@ -43,7 +43,7 @@ class SequenceChainingService {
     final dataStr = '$prevHash:$nonce:$seq:$amount:$timestamp';
     final bytes = utf8.encode(dataStr);
     final digest = sha256.convert(bytes);
-    return digest.toString().substring(0, 16);
+    return digest.toString();
   }
 
   /// Verify incoming transaction sequence number, replay nonce, and update local ledger chain.

@@ -188,6 +188,8 @@ class MainActivity : FlutterActivity() {
         }
     }
 
+    private val writeBuffers = HashMap<String, java.io.ByteArrayOutputStream>()
+
     private fun startGattServer(serviceUuidStr: String, charUuidStr: String) {
         val bluetoothManager = getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
         if (gattServer != null) {
@@ -199,6 +201,9 @@ class MainActivity : FlutterActivity() {
                 override fun onConnectionStateChange(device: BluetoothDevice, status: Int, newState: Int) {
                     super.onConnectionStateChange(device, status, newState)
                     Log.d("OFFPAY_BLE", "GATT Connection state change: $newState")
+                    if (newState == android.bluetooth.BluetoothProfile.STATE_DISCONNECTED) {
+                        writeBuffers.remove(device.address)
+                    }
                 }
 
                 override fun onCharacteristicWriteRequest(
@@ -211,18 +216,46 @@ class MainActivity : FlutterActivity() {
                     value: ByteArray?
                 ) {
                     super.onCharacteristicWriteRequest(device, requestId, characteristic, preparedWrite, responseNeeded, offset, value)
-                    Log.d("OFFPAY_BLE", "GATT Write received")
+                    Log.d("OFFPAY_BLE", "GATT Write received: preparedWrite=$preparedWrite, offset=$offset, size=${value?.size ?: 0}")
                     
+                    if (value != null) {
+                        val deviceAddress = device.address
+                        if (preparedWrite) {
+                            val buffer = writeBuffers.getOrPut(deviceAddress) { java.io.ByteArrayOutputStream() }
+                            buffer.write(value)
+                        } else {
+                            val payload = String(value, Charsets.UTF_8)
+                            Handler(Looper.getMainLooper()).post {
+                                methodChannel?.invokeMethod("onPaymentReceived", payload)
+                            }
+                        }
+                    }
+
                     if (responseNeeded) {
                         gattServer?.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, offset, value)
                     }
-                    
-                    if (value != null) {
-                        val payload = String(value)
+                }
+
+                override fun onExecuteWrite(
+                    device: BluetoothDevice,
+                    requestId: Int,
+                    execute: Boolean
+                ) {
+                    super.onExecuteWrite(device, requestId, execute)
+                    Log.d("OFFPAY_BLE", "GATT Execute write request: execute=$execute")
+                    val deviceAddress = device.address
+                    val buffer = writeBuffers.remove(deviceAddress)
+
+                    if (execute && buffer != null) {
+                        val fullData = buffer.toByteArray()
+                        val payload = String(fullData, Charsets.UTF_8)
+                        Log.d("OFFPAY_BLE", "GATT Execute write payload size: ${fullData.size}")
                         Handler(Looper.getMainLooper()).post {
                             methodChannel?.invokeMethod("onPaymentReceived", payload)
                         }
                     }
+
+                    gattServer?.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, 0, null)
                 }
             })
 

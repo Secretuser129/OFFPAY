@@ -545,7 +545,7 @@ class OffpayBluetoothService with ChangeNotifier {
         if (canWrite || canWriteWithoutResponse) {
           await writeChar.write(payloadBytes, withoutResponse: !canWrite);
           debugPrint('Wrote secure GATT payment payload to ${device.remoteId.str}: $payload');
-          LogService.log('Transmitted AES-GCM encrypted payment packet (seq: $seq) over BLE GATT to ${device.remoteId.str}', category: 'SECURITY', source: 'HandshakeCrypto');
+          LogService.log('Transmitted AES-256-CBC encrypted & HMAC-SHA256 signed payment packet (seq: $seq) over BLE GATT to ${device.remoteId.str}', category: 'SECURITY', source: 'HandshakeCrypto');
           
           // Allow 800ms for BLE link layer to complete air transmission without disconnecting
           await Future.delayed(const Duration(milliseconds: 800));
@@ -634,7 +634,7 @@ class OffpayBluetoothService with ChangeNotifier {
     }
   }
 
-  /// Simulate receiving an incoming Bluetooth payment for stage/judge presentation demos
+  /// Simulate receiving an incoming Bluetooth payment for live presentation demos
   void simulateIncomingPayment(double amount, String senderId) {
     if (!_isListeningForIncoming) return;
 

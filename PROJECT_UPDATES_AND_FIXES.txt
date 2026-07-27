@@ -1,0 +1,308 @@
+OFFPAY PROJECT REVIEW
+Created: 2026-07-28
+
+Purpose
+This file collects the best updates to apply next, the major bugs and risks found in the current codebase, and practical fixes for each issue.
+
+==================================================
+1. BEST UPDATES TO APPLY FIRST
+==================================================
+
+1. Fix transaction status truth
+Priority: Critical
+Why:
+The app currently marks some transactions as VERIFIED even when Firebase writes fail. This can make the UI and local ledger say a payment succeeded when the server did not actually save it.
+Where:
+lib/services/firebase_service.dart
+What to do:
+- Only set VERIFIED after confirmed HTTP success.
+- Add clear states such as PENDING, SYNCED, FAILED, and RETRYING.
+- If network sync fails, keep the transaction pending and retry later.
+
+2. Strengthen security and crypto design
+Priority: Critical
+Why:
+The app uses one hardcoded secret for all installations, and QR protection is closer to obfuscation than strong encryption.
+Where:
+lib/services/handshake_crypto_service.dart
+lib/services/profile_service.dart
+What to do:
+- Replace the global hardcoded secret with per-device or per-user keys.
+- Use authenticated encryption for payloads.
+- Avoid XOR-based protection for QR payloads.
+- Consider a real key exchange or signed device identity model.
+
+3. Refactor HomeScreen orchestration
+Priority: High
+Why:
+HomeScreen currently initializes wallet state, starts sync, listens for BLE events, handles update checks, and refreshes balance. That is too much responsibility for one screen.
+Where:
+lib/screens/home_screen.dart
+What to do:
+- Move sync startup into a dedicated controller/service.
+- Move BLE subscriptions into a lifecycle-safe manager.
+- Keep HomeScreen focused on UI rendering and user interaction.
+
+4. Add real tests
+Priority: High
+Why:
+The current test suite is only a sample counter test and does not validate wallet logic, sync behavior, replay protection, or BLE flow.
+Where:
+test/widget_test.dart
+What to do:
+- Add unit tests for WalletModel.
+- Add tests for SequenceChainingService.
+- Add tests for Firebase sync success/failure behavior.
+- Add tests for handshake validation and replay rejection.
+
+5. Synchronize docs with implementation
+Priority: Medium
+Why:
+README claims do not fully match the actual code and service layout.
+Where:
+README.md
+What to do:
+- Correct the documented BLE characteristic UUID.
+- Remove references to missing files such as server_sync_service.dart.
+- Update architecture notes to match the current service structure.
+
+6. Improve platform readiness
+Priority: Medium
+Why:
+Android permissions are fairly complete, but iOS setup does not appear ready for BLE and camera-heavy workflows.
+Where:
+android/app/src/main/AndroidManifest.xml
+ios/Runner/Info.plist
+What to do:
+- Add missing iOS usage descriptions for Bluetooth, camera, and notifications if needed.
+- Recheck platform-specific permission prompts and failure handling.
+
+==================================================
+2. BUGS AND PROBLEMS FOUND
+==================================================
+
+BUG 1: Failed cloud writes can still become VERIFIED
+Severity: Critical
+Where:
+lib/services/firebase_service.dart
+Problem:
+syncWithFirebase() updates transaction status to VERIFIED in both success and failure paths.
+Impact:
+- False sense of successful sync
+- Ledger inconsistency
+- Harder recovery after network failures
+Fix:
+- Update status to VERIFIED only when the remote write succeeds.
+- On failure, set FAILED or keep PENDING.
+- Store last error and retry count.
+
+BUG 2: Account creation mixes username key and device identity
+Severity: High
+Where:
+lib/services/firebase_service.dart
+Problem:
+createAccount() stores the account under a username-derived Firebase path, then calls syncUserProfile(), which writes to a deviceId-based path. This can split one user across multiple server records.
+Impact:
+- Duplicate or inconsistent user records
+- Login/sync confusion
+- Harder profile recovery
+Fix:
+- Choose one canonical server identity model.
+- Recommended: store users by deviceId and maintain a username index separately.
+- Update login, profile sync, and history sync to use the same identity scheme.
+
+BUG 3: Shared master secret for every install
+Severity: High
+Where:
+lib/services/handshake_crypto_service.dart
+Problem:
+All users share the same hardcoded secret salt, so compromise of the app logic weakens every installation.
+Impact:
+- No per-user trust boundary
+- Security claims are overstated
+- Easier spoofing if protocol details are extracted
+Fix:
+- Generate unique keys per installation or account.
+- Store secrets in secure storage.
+- Introduce signed identity or key exchange for trust.
+
+BUG 4: QR payload "encryption" is weak
+Severity: High
+Where:
+lib/services/profile_service.dart
+Problem:
+QR payload protection is XOR with a derived byte stream and a short signature.
+Impact:
+- Easy to reverse once scheme is known
+- Weak tamper resistance
+- Not suitable for high-trust payment claims
+Fix:
+- Use proper authenticated encryption.
+- Include expiry, nonce, and signature validation.
+- Keep QR payloads minimal and verifiable.
+
+BUG 5: HomeScreen sets long-lived listeners without clear ownership separation
+Severity: Medium
+Where:
+lib/screens/home_screen.dart
+Problem:
+The screen subscribes to BLE proximity and payment streams and also starts periodic reload and sync behavior.
+Impact:
+- Harder debugging
+- Risk of duplicate listeners if lifecycle flows change
+- Screen becomes difficult to maintain
+Fix:
+- Move listeners into a scoped controller/service.
+- Keep one source of truth for subscriptions.
+- Add disposal and subscription ownership tests.
+
+BUG 6: Polling-heavy sync strategy
+Severity: Medium
+Where:
+lib/services/firebase_service.dart
+lib/screens/home_screen.dart
+Problem:
+The app polls frequently for balance refresh and server sync.
+Impact:
+- Battery drain
+- Wasteful network usage
+- More chances of conflicting updates
+Fix:
+- Use backoff retry logic.
+- Sync on meaningful events where possible.
+- Reduce background polling frequency.
+
+BUG 7: Documentation mismatch with actual BLE implementation
+Severity: Medium
+Where:
+README.md
+lib/services/bluetooth_service.dart
+android/app/src/main/kotlin/com/example/offpay/MainActivity.kt
+Problem:
+README documents a different characteristic UUID and references a service file that does not exist.
+Impact:
+- Slower onboarding
+- Misleading maintenance docs
+- Harder debugging for new contributors
+Fix:
+- Update README to match the live implementation exactly.
+
+BUG 8: Test coverage is not representative of the app
+Severity: Medium
+Where:
+test/widget_test.dart
+Problem:
+The only test is a generic counter widget test unrelated to the app.
+Impact:
+- Core regressions can ship unnoticed
+- Refactoring is risky
+Fix:
+- Replace sample test with app-specific tests.
+
+==================================================
+3. DESIGN PROBLEMS AND SUGGESTED FIXES
+==================================================
+
+Problem: Too much business logic in service classes without clear boundaries
+Fix:
+- Separate transport, ledger, auth/profile, sync, and UI orchestration into cleaner modules.
+
+Problem: Offline payment trust model is stronger in marketing than in implementation
+Fix:
+- Narrow product claims or improve protocol design to match them.
+- Document exact threat model.
+
+Problem: Sync engine does not clearly model eventual consistency
+Fix:
+- Introduce a transaction queue with retry metadata, timestamps, sync results, and conflict handling.
+
+Problem: No clear audit trail for failures
+Fix:
+- Add structured logs for BLE handshake, sync failure, auth failure, and ledger mutation results.
+
+Problem: Login/profile/cloud model is tightly coupled to Firebase shape
+Fix:
+- Define one account schema first, then make all reads and writes conform to it.
+
+==================================================
+4. BRILLIANT IMPROVEMENTS THAT WOULD RAISE THE PROJECT FAST
+==================================================
+
+1. Create a proper transaction state machine
+Suggested states:
+CREATED -> SENT_OFFLINE -> RECEIVED_LOCAL -> PENDING_SYNC -> SYNCED
+Failure branches:
+FAILED_LOCAL
+FAILED_SYNC
+RETRYING
+
+2. Introduce a SyncQueue service
+Features:
+- Queue pending writes
+- Retry with exponential backoff
+- Record failure reason
+- Mark final success only after remote confirmation
+
+3. Create a PaymentCoordinator
+Responsibilities:
+- Start handshake
+- Verify replay/sequence
+- Write to wallet
+- Emit UI events
+- Trigger sync
+This would reduce cross-service coupling.
+
+4. Add secure storage for secrets and account-sensitive data
+Suggested use:
+- Tokens
+- Key material
+- Sensitive identity data
+
+5. Build a debug diagnostics screen
+Show:
+- Bluetooth status
+- Active device ID
+- Last handshake result
+- Last sync result
+- Pending transaction count
+- Permission status
+This would help enormously during testing.
+
+6. Add an audit-friendly transaction detail model
+Suggested fields:
+- localCreatedAt
+- receivedAt
+- syncAttemptCount
+- lastSyncError
+- transportType
+- remoteConfirmedAt
+
+==================================================
+5. RECOMMENDED NEXT 10 TASKS
+==================================================
+
+1. Fix VERIFIED status handling in Firebase sync.
+2. Standardize user identity and server schema.
+3. Replace weak QR protection with authenticated encryption.
+4. Move HomeScreen side effects into dedicated services/controllers.
+5. Add transaction queue and retry model.
+6. Add unit tests for wallet, replay, and sync logic.
+7. Update README to match real BLE and service behavior.
+8. Add iOS permission and capability review.
+9. Add structured logging and diagnostics screen.
+10. Add analysis_options.yaml and clean static warnings.
+
+==================================================
+6. FINAL ASSESSMENT
+==================================================
+
+This is a promising and ambitious Flutter project with meaningful BLE/offline payment work already in place. The biggest gap is not effort or features. The biggest gap is trustworthiness of the core payment and sync model.
+
+If the next development phase focuses on:
+- ledger correctness
+- identity consistency
+- stronger crypto
+- cleaner orchestration
+- real tests
+
+then the project can improve quickly and become much more maintainable and credible.

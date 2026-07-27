@@ -1,9 +1,12 @@
 import 'dart:convert';
 import 'dart:math';
+import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
+import 'package:encrypt/encrypt.dart' as enc;
 
 class HandshakeCryptoService {
   static final Random _random = Random.secure();
+  static const String _masterSalt = 'OFFPAY_2WAY_MUTUAL_HANDSHAKE_SALT_2026';
 
   /// Generate a 16-byte random cryptographic nonce
   static String generateNonce() {
@@ -11,8 +14,11 @@ class HandshakeCryptoService {
     return base64Url.encode(values);
   }
 
-  /// Shared Master Salt for OFFPAY 2-Way Handshake
-  static const String _masterSalt = 'OFFPAY_2WAY_MUTUAL_HANDSHAKE_SALT_2026';
+  /// Get the derived 32-byte Key for AES-256
+  static enc.Key _getEncryptionKey() {
+    final keyBytes = sha256.convert(utf8.encode(_masterSalt)).bytes;
+    return enc.Key(Uint8List.fromList(keyBytes));
+  }
 
   /// Step 1: Sender generates Handshake Challenge packet to send to Receiver
   static Map<String, String> createSenderHandshake({
@@ -36,10 +42,21 @@ class HandshakeCryptoService {
     };
 
     final jsonStr = jsonEncode(rawPayload);
-    final signature = sha256.convert(utf8.encode('$jsonStr:$_masterSalt')).toString().substring(0, 10);
+    
+    // 1. Encrypt via AES-256-CBC
+    final key = _getEncryptionKey();
+    final iv = enc.IV.fromSecureRandom(16);
+    final encrypter = enc.Encrypter(enc.AES(key, mode: enc.AESMode.cbc));
+    final encrypted = encrypter.encrypt(jsonStr, iv: iv);
+    
+    // Packet content is "IV_base64:Ciphertext_base64"
+    final packetPayload = '${iv.base64}:${encrypted.base64}';
+    
+    // 2. Sign via HMAC-SHA256
+    final hmac = Hmac(sha256, utf8.encode(_masterSalt));
+    final signature = hmac.convert(utf8.encode(packetPayload)).toString();
 
-    final payloadBase64 = base64Url.encode(utf8.encode(jsonStr));
-    final fullPacket = 'OFFPAY_HS_STEP1:$payloadBase64:$signature';
+    final fullPacket = 'OFFPAY_HS_SEC1:$packetPayload:$signature';
 
     return {
       'packet': fullPacket,
@@ -54,21 +71,30 @@ class HandshakeCryptoService {
     required String receiverDeviceId,
   }) {
     try {
-      if (!step1Packet.startsWith('OFFPAY_HS_STEP1:')) return null;
+      if (!step1Packet.startsWith('OFFPAY_HS_SEC1:')) return null;
 
       final parts = step1Packet.split(':');
-      if (parts.length < 3) return null;
+      // Format: OFFPAY_HS_SEC1 : IV_base64 : Ciphertext_base64 : Signature_hex
+      if (parts.length < 4) return null;
 
-      final payloadBase64 = parts[1];
-      final signature = parts[2];
+      final ivBase64 = parts[1];
+      final ciphertextBase64 = parts[2];
+      final signature = parts[3];
 
-      final jsonStr = utf8.decode(base64Url.decode(payloadBase64));
-      final expectedSig = sha256.convert(utf8.encode('$jsonStr:$_masterSalt')).toString().substring(0, 10);
+      final packetPayload = '$ivBase64:$ciphertextBase64';
 
-      // Validate cryptographic signature
+      // 1. Verify HMAC-SHA256 signature
+      final hmac = Hmac(sha256, utf8.encode(_masterSalt));
+      final expectedSig = hmac.convert(utf8.encode(packetPayload)).toString();
       if (signature != expectedSig) return null;
 
-      final senderData = jsonDecode(jsonStr) as Map<String, dynamic>;
+      // 2. Decrypt via AES-256-CBC
+      final key = _getEncryptionKey();
+      final iv = enc.IV.fromBase64(ivBase64);
+      final encrypter = enc.Encrypter(enc.AES(key, mode: enc.AESMode.cbc));
+      final decryptedStr = encrypter.decrypt(enc.Encrypted.fromBase64(ciphertextBase64), iv: iv);
+
+      final senderData = jsonDecode(decryptedStr) as Map<String, dynamic>;
       final receiverNonce = generateNonce();
       final responseTimestamp = DateTime.now().millisecondsSinceEpoch;
 
@@ -82,16 +108,21 @@ class HandshakeCryptoService {
       };
 
       final responseJson = jsonEncode(rawResponse);
-      final responseSig = sha256.convert(utf8.encode('$responseJson:$_masterSalt')).toString().substring(0, 10);
-      final responseBase64 = base64Url.encode(utf8.encode(responseJson));
-
-      final step2Packet = 'OFFPAY_HS_STEP2:$responseBase64:$responseSig';
+      
+      // Encrypt response payload
+      final respIv = enc.IV.fromSecureRandom(16);
+      final respEncrypted = encrypter.encrypt(responseJson, iv: respIv);
+      final respPacketPayload = '${respIv.base64}:${respEncrypted.base64}';
+      
+      // Sign response payload
+      final respSignature = hmac.convert(utf8.encode(respPacketPayload)).toString();
+      final step2Packet = 'OFFPAY_HS_SEC2:$respPacketPayload:$respSignature';
 
       return {
         'packet': step2Packet,
         'senderData': senderData,
         'receiverNonce': receiverNonce,
-        'signature': responseSig,
+        'signature': respSignature,
       };
     } catch (_) {
       return null;
@@ -104,20 +135,30 @@ class HandshakeCryptoService {
     required String expectedSenderNonce,
   }) {
     try {
-      if (!step2Packet.startsWith('OFFPAY_HS_STEP2:')) return false;
+      if (!step2Packet.startsWith('OFFPAY_HS_SEC2:')) return false;
 
       final parts = step2Packet.split(':');
-      if (parts.length < 3) return false;
+      // Format: OFFPAY_HS_SEC2 : IV_base64 : Ciphertext_base64 : Signature_hex
+      if (parts.length < 4) return false;
 
-      final payloadBase64 = parts[1];
-      final signature = parts[2];
+      final ivBase64 = parts[1];
+      final ciphertextBase64 = parts[2];
+      final signature = parts[3];
 
-      final jsonStr = utf8.decode(base64Url.decode(payloadBase64));
-      final expectedSig = sha256.convert(utf8.encode('$jsonStr:$_masterSalt')).toString().substring(0, 10);
+      final packetPayload = '$ivBase64:$ciphertextBase64';
 
+      // 1. Verify HMAC-SHA256 signature
+      final hmac = Hmac(sha256, utf8.encode(_masterSalt));
+      final expectedSig = hmac.convert(utf8.encode(packetPayload)).toString();
       if (signature != expectedSig) return false;
 
-      final map = jsonDecode(jsonStr) as Map<String, dynamic>;
+      // 2. Decrypt via AES-256-CBC
+      final key = _getEncryptionKey();
+      final iv = enc.IV.fromBase64(ivBase64);
+      final encrypter = enc.Encrypter(enc.AES(key, mode: enc.AESMode.cbc));
+      final decryptedStr = encrypter.decrypt(enc.Encrypted.fromBase64(ciphertextBase64), iv: iv);
+
+      final map = jsonDecode(decryptedStr) as Map<String, dynamic>;
       return map['sNonce'] == expectedSenderNonce && map['status'] == 'MUTUAL_VERIFIED';
     } catch (_) {
       return false;
