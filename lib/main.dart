@@ -24,6 +24,7 @@ import 'screens/pin_settings_screen.dart';
 import 'screens/about_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/contacts_screen.dart';
+import 'screens/logs_screen.dart';
 
 import 'screens/login_screen.dart';
 import 'services/profile_service.dart';
@@ -208,6 +209,7 @@ class OffPayApp extends StatelessWidget {
         '/about': (context) => const AboutScreen(),
         '/profile': (context) => const ProfileScreen(),
         '/contacts': (context) => const ContactsScreen(),
+        '/logs': (context) => const LogsScreen(),
 
         // NOTE: PaymentSuccessScreen often needs runtime arguments (amount, recipient, etc.)
         // It's safer to navigate to that screen using MaterialPageRoute and pass required args:

@@ -269,6 +269,13 @@ class _HomeScreenState extends State<HomeScreen> {
         elevation: 0,
         actions: [
           IconButton(
+            icon: const Icon(Icons.notes_outlined),
+            tooltip: 'System & Security Logs',
+            onPressed: () {
+              Navigator.pushNamed(context, '/logs');
+            },
+          ),
+          IconButton(
             icon: const Icon(Icons.person_outline),
             tooltip: 'Profile',
             onPressed: () {

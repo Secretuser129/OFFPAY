@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'handshake_crypto_service.dart';
 import 'profile_service.dart';
 import 'sequence_chaining_service.dart';
+import 'log_service.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart' as fb;
 
@@ -289,6 +290,9 @@ class OffpayBluetoothService with ChangeNotifier {
     try {
       final status = await Permission.locationWhenInUse.serviceStatus;
       _isLocationEnabled = status.isEnabled;
+      if (!_isLocationEnabled) {
+        LogService.log('Location service is DISABLED on device. Android BLE scans require Location to be ON.', category: 'ERROR', source: 'LocationService');
+      }
       notifyListeners();
       return _isLocationEnabled;
     } catch (e) {
@@ -316,9 +320,11 @@ class OffpayBluetoothService with ChangeNotifier {
     await checkLocationEnabled();
     if (!_isLocationEnabled) {
       debugPrint('Location service is OFF. BLE scanning will return 0 results on Android 10/11.');
+      LogService.log('Location service is OFF! BLE scanning may return 0 results on Android.', category: 'WARN', source: 'BluetoothService');
     }
 
     _isScanning = true;
+    LogService.log('Started BLE Nearby Peripheral Scan (15s sweep)', category: 'BLE', source: 'BluetoothService');
     _deviceMap.clear();
     notifyListeners();
 
@@ -373,6 +379,7 @@ class OffpayBluetoothService with ChangeNotifier {
       debugPrint('stopScan error: $e');
     }
     _isScanning = false;
+    LogService.log('BLE Scan Completed — Found ${_deviceMap.length} nearby device(s)', category: 'BLE', source: 'BluetoothService');
     await _scanResultsSubscription?.cancel();
     _scanResultsSubscription = null;
     notifyListeners();
@@ -448,10 +455,12 @@ class OffpayBluetoothService with ChangeNotifier {
           await Future.delayed(const Duration(milliseconds: 600));
 
           debugPrint('GATT Connected successfully on attempt $attempt: $deviceId');
+          LogService.log('GATT Connected successfully on attempt $attempt to $deviceId (MTU: 512)', category: 'SUCCESS', source: 'BluetoothService');
           return true;
         }
       } catch (e) {
         debugPrint('GATT Attempt $attempt error: $e');
+        LogService.log('GATT Attempt $attempt error for $deviceId: $e', category: 'WARN', source: 'BluetoothService');
         try {
           await device.disconnect();
         } catch (_) {}
@@ -526,6 +535,7 @@ class OffpayBluetoothService with ChangeNotifier {
         if (canWrite || canWriteWithoutResponse) {
           await writeChar.write(payloadBytes, withoutResponse: !canWrite);
           debugPrint('Wrote secure GATT payment payload to ${device.remoteId.str}: $payload');
+          LogService.log('Transmitted AES-GCM encrypted payment packet (seq: $seq) over BLE GATT to ${device.remoteId.str}', category: 'SECURITY', source: 'HandshakeCrypto');
           
           // Allow 800ms for BLE link layer to complete air transmission without disconnecting
           await Future.delayed(const Duration(milliseconds: 800));

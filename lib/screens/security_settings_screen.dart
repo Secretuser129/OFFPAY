@@ -48,6 +48,14 @@ class SecuritySettingsScreen extends StatelessWidget {
             onTap: () => Navigator.pushNamed(context, '/pin_settings'),
           ),
 
+          _buildSettingsCard(
+            context: context,
+            icon: Icons.notes_outlined,
+            title: 'System & Security Logs',
+            subtitle: 'Live diagnostics, BLE telemetry & crypto audit',
+            onTap: () => Navigator.pushNamed(context, '/logs'),
+          ),
+
           const SizedBox(height: 24),
           Text(
             'About & Updates',
