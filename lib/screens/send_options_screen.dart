@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../services/nfc_service.dart';
 import 'discovery_screen.dart';
 import 'qr_scanner_screen.dart';
-import 'nfc_tap_screen.dart'
+import 'nfc_tap_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class SendOptionsScreen extends StatefulWidget {
