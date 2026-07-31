@@ -158,13 +158,19 @@ class WalletModel extends ChangeNotifier {
     }
   }
 
-  // ── Sync from Server (Online transfers) ────────────────────────────────────
+  // ── Sync from Server (Online & Offline convergence) ───────────────────────
   Future<void> mergeFromServer(double serverBalance, List<TransactionModel> serverHistory) async {
-    final Set<String> existingTxIds = _history.map((t) => t.transactionId).toSet();
+    final Map<String, TransactionModel> existingMap = {
+      for (var t in _history) t.transactionId: t
+    };
     bool hasNewTx = false;
+    bool hasStatusChange = false;
     double addedCredits = 0.0;
+
     for (final stx in serverHistory) {
-      if (!existingTxIds.contains(stx.transactionId)) {
+      final localTx = existingMap[stx.transactionId];
+      if (localTx == null) {
+        // Entirely new transaction from server
         _history.add(stx);
         hasNewTx = true;
         if (stx.isCredit) {
@@ -172,10 +178,21 @@ class WalletModel extends ChangeNotifier {
         } else {
           addedCredits -= stx.amount;
         }
+      } else {
+        // Transaction already exists locally; check if server confirmed it
+        if ((localTx.status == 'PENDING' ||
+                localTx.status == 'RETRYING' ||
+                localTx.status == 'QUEUED_FOR_RELAY' ||
+                localTx.status == 'PROCESS') &&
+            (stx.status == 'VERIFIED' || stx.status == 'SYNCED' || stx.status == 'SUCCESS')) {
+          localTx.status = 'VERIFIED';
+          hasStatusChange = true;
+        }
       }
     }
-    // When nothing changed in balance or history, short-circuit to prevent unnecessary disk writes and UI rebuilds
-    if (!hasNewTx && serverBalance == _balance) {
+
+    // When nothing changed in balance, history, or transaction statuses, short-circuit
+    if (!hasNewTx && !hasStatusChange && serverBalance == _balance) {
       return;
     }
 
@@ -183,7 +200,7 @@ class WalletModel extends ChangeNotifier {
     if (hasNewTx) {
       _balance += addedCredits;
       if (_balance < 0) _balance = 0.0;
-      // Sync the newly credited balance back to Firebase server so both local & server match!
+      // Sync the newly reconciled balance back to Firebase server so both local & server match
       FirebaseService.syncUserProfile(balance: _balance);
     } else if (serverBalance > _balance) {
       // No new transactions, but server balance is higher (e.g. admin update / bonus)
@@ -192,6 +209,7 @@ class WalletModel extends ChangeNotifier {
       // Ensure server reflects our higher local balance
       FirebaseService.syncUserProfile(balance: _balance);
     }
+
     if (hasNewTx) {
       _history.sort((a, b) => b.timestamp.compareTo(a.timestamp));
     }

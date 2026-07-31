@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import '../models/transaction_model.dart';
 import '../models/trusted_contact.dart';
+import '../models/wallet_model.dart';
 import '../services/receipt_service.dart';
+import '../services/sync_queue_service.dart';
 
 class TransactionDetailScreen extends StatefulWidget {
   final TransactionModel transaction;
@@ -197,6 +200,34 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
 
             const SizedBox(height: 20),
 
+            // Retry Cloud Sync Button (only for unverified offline transactions)
+            if (widget.transaction.status != 'VERIFIED' && widget.transaction.status != 'SYNCED') ...[
+              ElevatedButton.icon(
+                icon: const Icon(Icons.sync),
+                label: const Text('Retry Cloud Sync Now'),
+                style: ElevatedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(50),
+                  backgroundColor: Colors.amber.shade700,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                onPressed: () async {
+                  final wallet = Provider.of<WalletModel>(context, listen: false);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Retrying synchronization with cloud...')),
+                  );
+                  await SyncQueueService.resetAndRetryTransaction(wallet, widget.transaction.transactionId);
+                  if (context.mounted) {
+                    setState(() {});
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Sync check complete. Check transaction status above.')),
+                    );
+                  }
+                },
+              ),
+              const SizedBox(height: 12),
+            ],
+
             // Share Receipt Button
             ElevatedButton.icon(
               icon: const Icon(Icons.picture_as_pdf),
@@ -262,9 +293,9 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
               ? Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: (value == 'VERIFIED' || value == 'RECEIVED' || value == 'SUCCESS' || value == 'SENT' || value == 'NFC_SUCCESS')
+                    color: (value == 'VERIFIED' || value == 'SYNCED' || value == 'RECEIVED' || value == 'SUCCESS' || value == 'SENT' || value == 'NFC_SUCCESS')
                         ? Colors.green.withValues(alpha: 0.15)
-                        : (value == 'PENDING' || value == 'PROCESS' || value == 'QUEUED_FOR_RELAY')
+                        : (value == 'PENDING' || value == 'PROCESS' || value == 'QUEUED_FOR_RELAY' || value == 'RETRYING')
                             ? Colors.amber.withValues(alpha: 0.15)
                             : Colors.red.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(6),
@@ -273,31 +304,31 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
-                        (value == 'VERIFIED' || value == 'RECEIVED' || value == 'SUCCESS' || value == 'SENT' || value == 'NFC_SUCCESS')
+                        (value == 'VERIFIED' || value == 'SYNCED' || value == 'RECEIVED' || value == 'SUCCESS' || value == 'SENT' || value == 'NFC_SUCCESS')
                             ? Icons.verified
-                            : (value == 'PENDING' || value == 'PROCESS' || value == 'QUEUED_FOR_RELAY')
+                            : (value == 'PENDING' || value == 'PROCESS' || value == 'QUEUED_FOR_RELAY' || value == 'RETRYING')
                                 ? Icons.sync
                                 : Icons.cancel,
                         size: 14,
-                        color: (value == 'VERIFIED' || value == 'RECEIVED' || value == 'SUCCESS' || value == 'SENT' || value == 'NFC_SUCCESS')
+                        color: (value == 'VERIFIED' || value == 'SYNCED' || value == 'RECEIVED' || value == 'SUCCESS' || value == 'SENT' || value == 'NFC_SUCCESS')
                             ? (isDark ? Colors.greenAccent : Colors.green)
-                            : (value == 'PENDING' || value == 'PROCESS' || value == 'QUEUED_FOR_RELAY')
+                            : (value == 'PENDING' || value == 'PROCESS' || value == 'QUEUED_FOR_RELAY' || value == 'RETRYING')
                                 ? (isDark ? Colors.amberAccent : Colors.amber.shade900)
                                 : (isDark ? Colors.redAccent : Colors.red),
                       ),
                       const SizedBox(width: 6),
                       Text(
-                        (value == 'VERIFIED' || value == 'RECEIVED' || value == 'SUCCESS' || value == 'SENT' || value == 'NFC_SUCCESS')
+                        (value == 'VERIFIED' || value == 'SYNCED' || value == 'RECEIVED' || value == 'SUCCESS' || value == 'SENT' || value == 'NFC_SUCCESS')
                             ? (widget.transaction.isCredit ? 'Received • Server Verified' : 'Sent • Server Verified')
-                            : (value == 'PENDING' || value == 'PROCESS' || value == 'QUEUED_FOR_RELAY')
-                                ? 'In Process • Relay Sync'
+                            : (value == 'PENDING' || value == 'PROCESS' || value == 'QUEUED_FOR_RELAY' || value == 'RETRYING')
+                                ? (value == 'RETRYING' ? 'Pending • Retrying Sync' : 'In Process • Relay Sync')
                                 : 'Transfer Failed',
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
-                          color: (value == 'VERIFIED' || value == 'RECEIVED' || value == 'SUCCESS' || value == 'SENT' || value == 'NFC_SUCCESS')
+                          color: (value == 'VERIFIED' || value == 'SYNCED' || value == 'RECEIVED' || value == 'SUCCESS' || value == 'SENT' || value == 'NFC_SUCCESS')
                               ? (isDark ? Colors.greenAccent : Colors.green)
-                              : (value == 'PENDING' || value == 'PROCESS' || value == 'QUEUED_FOR_RELAY')
+                              : (value == 'PENDING' || value == 'PROCESS' || value == 'QUEUED_FOR_RELAY' || value == 'RETRYING')
                                   ? (isDark ? Colors.amberAccent : Colors.amber.shade900)
                                   : (isDark ? Colors.redAccent : Colors.red),
                         ),

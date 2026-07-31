@@ -41,14 +41,27 @@ class FirebaseService {
     return sha256.convert(utf8.encode(raw)).toString();
   }
 
+  static String _extractDeviceIdFromRaw(String rawId) {
+    if (rawId.contains('(') && rawId.contains(')')) {
+      final startIndex = rawId.lastIndexOf('(') + 1;
+      final endIndex = rawId.lastIndexOf(')');
+      if (endIndex > startIndex) {
+        return rawId.substring(startIndex, endIndex).trim();
+      }
+    }
+    return rawId.trim();
+  }
+
   /// Sync User Profile Data, Balance, PIN Hash, and Device details to Firebase Cloud Database
   static Future<bool> syncUserProfile({
     required double balance,
     String? pinHash,
+    String? overrideDeviceId,
+    String? overrideUserName,
   }) async {
     try {
-      final deviceId = await ProfileService.getDeviceId();
-      final userName = await ProfileService.getUserName();
+      final deviceId = overrideDeviceId ?? await ProfileService.getDeviceId();
+      final userName = overrideUserName ?? await ProfileService.getUserName();
       final firebaseUrl = await getFirebaseUrl();
       final authToken = await getFirebaseAuthToken();
 
@@ -74,6 +87,23 @@ class FirebaseService {
       request.write(jsonEncode(userPayload));
 
       final response = await request.close().timeout(const Duration(seconds: 4));
+
+      // Dual-write to username path so lookup by username or device ID is always synchronized
+      if (userName != 'Unknown User' && userName.trim().isNotEmpty) {
+        final usernameKey = base64UrlEncode(utf8.encode(userName.trim()));
+        String userEndpoint = '$firebaseUrl/users/$usernameKey.json';
+        if (authToken != null && authToken.isNotEmpty) {
+          userEndpoint += '?auth=$authToken';
+        }
+        try {
+          final uriUser = Uri.parse(userEndpoint);
+          final reqUser = await client.putUrl(uriUser);
+          reqUser.headers.set('content-type', 'application/json');
+          reqUser.write(jsonEncode(userPayload));
+          await reqUser.close().timeout(const Duration(seconds: 4));
+        } catch (_) {}
+      }
+
       client.close();
       return response.statusCode == 200 || response.statusCode == 201;
     } catch (e) {
@@ -133,7 +163,11 @@ class FirebaseService {
       client.close();
       
       if (response.statusCode == 200 || response.statusCode == 201) {
-        await syncUserProfile(balance: 500.0);
+        await syncUserProfile(
+          balance: 500.0,
+          overrideDeviceId: deviceId,
+          overrideUserName: username.trim(),
+        );
         return {'success': true, 'deviceId': deviceId, 'balance': 500.0};
       }
       return {'success': false, 'message': 'Failed to create account.'};
@@ -175,7 +209,11 @@ class FirebaseService {
         historyList = histData.values.toList();
       }
 
-      await syncUserProfile(balance: (data['balance'] as num).toDouble());
+      await syncUserProfile(
+        balance: (data['balance'] as num).toDouble(),
+        overrideDeviceId: data['deviceId']?.toString(),
+        overrideUserName: username.trim(),
+      );
       return {
         'success': true,
         'deviceId': data['deviceId'],
@@ -196,17 +234,29 @@ class FirebaseService {
     // 1. Sync User Account Profile & Balance to Server
     syncUserProfile(balance: walletModel.balance);
 
-    final pendingList = walletModel.history.where((tx) => tx.status == 'PENDING').toList();
-    final allList = walletModel.history;
+    // Only attempt cloud synchronization for transactions that are not yet confirmed on server
+    final toSyncList = walletModel.history
+        .where((tx) => tx.status != 'VERIFIED' && tx.status != 'SYNCED')
+        .toList();
+
+    if (toSyncList.isEmpty) {
+      return {
+        'success': true,
+        'syncedCount': 0,
+        'failedCount': 0,
+        'message': '🟢 All user data, balance & payments are already synced with Firebase Cloud Server!',
+      };
+    }
 
     final firebaseUrl = await getFirebaseUrl();
     final authToken = await getFirebaseAuthToken();
     int verifiedCount = 0;
+    int failedCount = 0;
     final client = HttpClient();
     client.connectionTimeout = const Duration(seconds: 4);
 
-    // Sync all transactions to Firebase Realtime DB
-    for (final tx in (pendingList.isNotEmpty ? pendingList : allList)) {
+    // Sync all unverified transactions to Firebase Realtime DB
+    for (final tx in toSyncList) {
       final signature = generateProofSignature(tx);
       final txPayload = {
         'transactionId': tx.transactionId,
@@ -242,27 +292,62 @@ class FirebaseService {
         var historyRequest = await client.putUrl(historyUri);
         historyRequest.headers.set('content-type', 'application/json');
         historyRequest.write(jsonEncode(txPayload));
-        await historyRequest.close().timeout(const Duration(seconds: 4));
+        var historyResponse = await historyRequest.close().timeout(const Duration(seconds: 4));
 
-        if (response.statusCode == 200 || response.statusCode == 201) {
+        // Endpoint 3: Counterpart Transaction History Ledger (/user_history/{counterpartId}/{txId}.json)
+        final counterpartId = _extractDeviceIdFromRaw(tx.recipientId);
+        if (counterpartId.isNotEmpty && counterpartId != deviceId && counterpartId != 'NFC Payer' && counterpartId != 'Unknown') {
+          try {
+            final counterpartPayload = Map<String, dynamic>.from(txPayload);
+            counterpartPayload['type'] = tx.isCredit ? 'DEBIT' : 'CREDIT';
+            counterpartPayload['senderId'] = tx.isCredit ? '$userName ($deviceId)' : counterpartId;
+            counterpartPayload['recipientId'] = tx.isCredit ? counterpartId : '$userName ($deviceId)';
+
+            String cpEndpoint = '$firebaseUrl/user_history/$counterpartId/${tx.transactionId}.json';
+            if (authToken != null && authToken.isNotEmpty) cpEndpoint += '?auth=$authToken';
+            var cpUri = Uri.parse(cpEndpoint);
+            var cpReq = await client.putUrl(cpUri);
+            cpReq.headers.set('content-type', 'application/json');
+            cpReq.write(jsonEncode(counterpartPayload));
+            await cpReq.close().timeout(const Duration(seconds: 4));
+          } catch (e) {
+            debugPrint('Counterpart history sync exception: $e');
+          }
+        }
+
+        final bool isSuccess = (response.statusCode == 200 || response.statusCode == 201) &&
+            (historyResponse.statusCode == 200 || historyResponse.statusCode == 201);
+
+        if (isSuccess) {
           await walletModel.updateTransactionStatus(tx.transactionId, 'VERIFIED');
           verifiedCount++;
         } else {
-          await walletModel.updateTransactionStatus(tx.transactionId, 'VERIFIED');
-          verifiedCount++;
+          debugPrint('Firebase cloud sync non-success HTTP for ${tx.transactionId}: Master=${response.statusCode}, History=${historyResponse.statusCode}');
+          await walletModel.updateTransactionStatus(tx.transactionId, 'RETRYING');
+          failedCount++;
         }
       } catch (e) {
-        debugPrint('Firebase cloud sync info for ${tx.transactionId}: $e');
-        await walletModel.updateTransactionStatus(tx.transactionId, 'VERIFIED');
-        verifiedCount++;
+        debugPrint('Firebase cloud sync exception for ${tx.transactionId}: $e');
+        await walletModel.updateTransactionStatus(tx.transactionId, 'RETRYING');
+        failedCount++;
       }
     }
 
     client.close();
 
+    if (failedCount > 0) {
+      return {
+        'success': false,
+        'syncedCount': verifiedCount,
+        'failedCount': failedCount,
+        'message': '⚠️ Synced $verifiedCount payments; $failedCount pending/retrying due to network issues.',
+      };
+    }
+
     return {
       'success': true,
       'syncedCount': verifiedCount,
+      'failedCount': 0,
       'message': '🟢 All user data, balance & payments synced with Firebase Cloud Server!',
     };
   }
@@ -273,6 +358,7 @@ class FirebaseService {
     required String recipientDeviceId,
     required double amount,
   }) async {
+    final txId = 'TXN_ONLINE_${DateTime.now().millisecondsSinceEpoch}';
     try {
       final firebaseUrl = await getFirebaseUrl();
       final authToken = await getFirebaseAuthToken();
@@ -293,8 +379,13 @@ class FirebaseService {
         }
       } catch (_) {}
       
-      // 2. Deduct from Sender local wallet
-      bool debitSuccess = await senderWallet.sendMoney(amount, recipientDeviceId, status: 'VERIFIED');
+      // 2. Deduct from Sender local wallet with PENDING state until confirmed by server
+      bool debitSuccess = await senderWallet.sendMoney(
+        amount,
+        recipientDeviceId,
+        status: 'PENDING',
+        transactionId: txId,
+      );
       if (!debitSuccess) return false;
 
       // 3. Update Recipient balance online
@@ -302,19 +393,22 @@ class FirebaseService {
       recData['balance'] = newRecBalance;
       recData['deviceId'] = recipientDeviceId;
       
+      bool recipientUpdated = false;
       try {
         var uri = Uri.parse(recEndpoint);
         var request = await client.putUrl(uri);
         request.headers.set('content-type', 'application/json');
         request.write(jsonEncode(recData));
-        await request.close().timeout(const Duration(seconds: 4));
+        var recResp = await request.close().timeout(const Duration(seconds: 4));
+        recipientUpdated = (recResp.statusCode == 200 || recResp.statusCode == 201);
       } catch (_) {}
 
       // 4. Sync sender's own new balance online
-      await syncUserProfile(balance: senderWallet.balance);
+      final senderUpdated = await syncUserProfile(balance: senderWallet.balance);
 
       // 5. Create transaction proof and push to recipient's history
-      final tx = senderWallet.history.first;
+      final txIndex = senderWallet.history.indexWhere((t) => t.transactionId == txId);
+      final tx = txIndex != -1 ? senderWallet.history[txIndex] : senderWallet.history.first;
       final signature = generateProofSignature(tx);
       
       final senderName = await ProfileService.getUserName();
@@ -341,7 +435,7 @@ class FirebaseService {
       var historyRequest = await client.putUrl(historyUri);
       historyRequest.headers.set('content-type', 'application/json');
       historyRequest.write(jsonEncode(txPayload));
-      await historyRequest.close().timeout(const Duration(seconds: 4));
+      var recHistResp = await historyRequest.close().timeout(const Duration(seconds: 4));
 
       // Push to Sender's history
       final txPayloadSender = Map<String, dynamic>.from(txPayload);
@@ -353,7 +447,7 @@ class FirebaseService {
       var senderHistoryReq = await client.putUrl(senderHistoryUri);
       senderHistoryReq.headers.set('content-type', 'application/json');
       senderHistoryReq.write(jsonEncode(txPayloadSender));
-      await senderHistoryReq.close().timeout(const Duration(seconds: 4));
+      var sendHistResp = await senderHistoryReq.close().timeout(const Duration(seconds: 4));
 
       // Master transactions ledger
       String masterEndpoint = '$firebaseUrl/transactions/${tx.transactionId}.json';
@@ -362,12 +456,26 @@ class FirebaseService {
       var masterReq = await client.putUrl(masterUri);
       masterReq.headers.set('content-type', 'application/json');
       masterReq.write(jsonEncode(txPayload));
-      await masterReq.close().timeout(const Duration(seconds: 4));
+      var masterResp = await masterReq.close().timeout(const Duration(seconds: 4));
 
       client.close();
-      return true;
+
+      final allSuccess = recipientUpdated &&
+          senderUpdated &&
+          (recHistResp.statusCode == 200 || recHistResp.statusCode == 201) &&
+          (sendHistResp.statusCode == 200 || sendHistResp.statusCode == 201) &&
+          (masterResp.statusCode == 200 || masterResp.statusCode == 201);
+
+      if (allSuccess) {
+        await senderWallet.updateTransactionStatus(txId, 'VERIFIED');
+        return true;
+      } else {
+        await senderWallet.updateTransactionStatus(txId, 'RETRYING');
+        return false;
+      }
     } catch (e) {
       debugPrint('Online transfer failed: $e');
+      await senderWallet.updateTransactionStatus(txId, 'RETRYING');
       return false;
     }
   }
@@ -388,6 +496,19 @@ class FirebaseService {
       if (userRes.statusCode == 200 && userRes.body != 'null') {
         final Map<String, dynamic> userData = jsonDecode(userRes.body);
         serverBalance = (userData['balance'] as num).toDouble();
+      } else {
+        // Fallback: check by usernameKey in case account was created/logged in under username key
+        final userName = await ProfileService.getUserName();
+        if (userName != 'Unknown User' && userName.trim().isNotEmpty) {
+          final usernameKey = base64UrlEncode(utf8.encode(userName.trim()));
+          String fallbackEndpoint = '$firebaseUrl/users/$usernameKey.json';
+          if (authToken != null && authToken.isNotEmpty) fallbackEndpoint += '?auth=$authToken';
+          final fallRes = await http.get(Uri.parse(fallbackEndpoint)).timeout(const Duration(seconds: 4));
+          if (fallRes.statusCode == 200 && fallRes.body != 'null') {
+            final Map<String, dynamic> userData = jsonDecode(fallRes.body);
+            serverBalance = (userData['balance'] as num).toDouble();
+          }
+        }
       }
 
       // Get History

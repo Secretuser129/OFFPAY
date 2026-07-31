@@ -50,9 +50,17 @@ class SecuritySettingsScreen extends StatelessWidget {
 
           _buildSettingsCard(
             context: context,
+            icon: Icons.health_and_safety_outlined,
+            title: 'System Diagnostics & Health',
+            subtitle: 'Verify AES-256 crypto, dual-write sync & SHA-256 ledger chain',
+            onTap: () => Navigator.pushNamed(context, '/diagnostics'),
+          ),
+
+          _buildSettingsCard(
+            context: context,
             icon: Icons.notes_outlined,
             title: 'System & Security Logs',
-            subtitle: 'Live diagnostics, BLE telemetry & crypto audit',
+            subtitle: 'Live telemetry, BLE events & crypto audit logs',
             onTap: () => Navigator.pushNamed(context, '/logs'),
           ),
 

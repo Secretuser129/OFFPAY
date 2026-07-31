@@ -5,7 +5,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import '../models/wallet_model.dart';
+import '../services/firebase_service.dart';
 import '../services/nfc_service.dart';
+import '../services/sync_queue_service.dart';
 import 'payment_success_screen.dart';
 
 class NfcTapScreen extends StatefulWidget {
@@ -84,7 +86,8 @@ class _NfcTapScreenState extends State<NfcTapScreen>
       if (!mounted) return;
       if (success) {
         final walletModel = Provider.of<WalletModel>(context, listen: false);
-        await walletModel.receiveMoney(amount, 'NFC Payer', status: 'VERIFIED');
+        await walletModel.receiveMoney(amount, 'NFC Payer', status: 'PENDING');
+        SyncQueueService.enqueueAndTrigger(walletModel);
         HapticFeedback.heavyImpact();
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(

@@ -11,6 +11,7 @@ import '../services/bluetooth_service.dart';
 import '../services/password_service.dart';
 
 import '../services/firebase_service.dart';
+import '../services/sync_queue_service.dart';
 import '../services/update_service.dart';
 import '../widgets/global_apple_dock.dart';
 import 'transaction_detail_screen.dart';
@@ -38,6 +39,7 @@ class _HomeScreenState extends State<HomeScreen> {
       // Auto-sync offline transactions silently on load (no popup for normal users)
       FirebaseService.syncWithFirebase(walletModel).catchError((_) => <String, dynamic>{});
       FirebaseService.startAutoSync(walletModel);
+      SyncQueueService.startQueue(walletModel);
       
       UpdateService.checkForUpdates(context, silent: true);
     });
@@ -61,13 +63,14 @@ class _HomeScreenState extends State<HomeScreen> {
       final String senderId = data['senderId'] as String;
       final String? txId = data['transactionId'] as String?;
       final walletModel = Provider.of<WalletModel>(context, listen: false);
-      await walletModel.receiveMoney(amount, senderId, status: 'VERIFIED', transactionId: txId, notify: false);
-      FirebaseService.syncWithFirebase(walletModel).catchError((_) => <String, dynamic>{});
+      await walletModel.receiveMoney(amount, senderId, status: 'PENDING', transactionId: txId, notify: false);
+      SyncQueueService.enqueueAndTrigger(walletModel);
     });
   }
 
   @override
   void dispose() {
+    SyncQueueService.stopQueue();
     FirebaseService.stopAutoSync();
     _autoReloadTimer?.cancel();
     super.dispose();
@@ -269,6 +272,13 @@ class _HomeScreenState extends State<HomeScreen> {
         elevation: 0,
         actions: [
           IconButton(
+            icon: const Icon(Icons.health_and_safety_outlined),
+            tooltip: 'System Diagnostics & Health',
+            onPressed: () {
+              Navigator.pushNamed(context, '/diagnostics');
+            },
+          ),
+          IconButton(
             icon: const Icon(Icons.notes_outlined),
             tooltip: 'System & Security Logs',
             onPressed: () {
@@ -297,6 +307,54 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
+              ValueListenableBuilder<int>(
+                valueListenable: SyncQueueService.pendingCountNotifier,
+                builder: (context, pendingCount, _) {
+                  if (pendingCount == 0) return const SizedBox.shrink();
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 16),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.amber.withValues(alpha: 0.4)),
+                    ),
+                    child: Row(
+                      children: [
+                        ValueListenableBuilder<bool>(
+                          valueListenable: SyncQueueService.isSyncingNotifier,
+                          builder: (context, isSyncing, _) {
+                            return isSyncing
+                                ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.amber),
+                                  )
+                                : const Icon(Icons.sync_problem, color: Colors.amber, size: 20);
+                          },
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            '$pendingCount offline transaction(s) pending cloud sync.',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: Theme.of(context).brightness == Brightness.dark
+                                  ? Colors.amberAccent
+                                  : Colors.amber.shade900,
+                            ),
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () => SyncQueueService.enqueueAndTrigger(walletModel),
+                          child: const Text('Sync Now', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                        ),
+                      ],
+                    ),
+                  ).animate().fade(duration: 300.ms).slideY(begin: -0.1, end: 0);
+                },
+              ),
               _buildBalanceCard(walletModel).animate().fade(duration: 500.ms).scale(begin: const Offset(0.95, 0.95)),
               const SizedBox(height: 24),
               _buildTransactionHistory(walletModel),
@@ -527,27 +585,36 @@ class _HomeScreenState extends State<HomeScreen> {
     switch (status.toUpperCase()) {
       case 'RECEIVED':
       case 'VERIFIED':
+      case 'SYNCED':
       case 'SUCCESS':
       case 'SENT':
       case 'NFC_SUCCESS':
         bg = Colors.green.withValues(alpha: 0.15);
         text = isDark ? Colors.greenAccent : Colors.green;
-        label = isCredit ? 'Received' : 'Success';
+        label = (status.toUpperCase() == 'VERIFIED' || status.toUpperCase() == 'SYNCED')
+            ? (isCredit ? 'Received (Verified)' : 'Verified')
+            : (isCredit ? 'Received' : 'Success');
         icon = Icons.check_circle;
         break;
       case 'PROCESS':
       case 'QUEUED_FOR_RELAY':
       case 'PENDING':
+      case 'RETRYING':
         bg = Colors.amber.withValues(alpha: 0.15);
         text = isDark ? Colors.amberAccent : Colors.amber.shade900;
-        label = 'In Process';
+        label = status.toUpperCase() == 'RETRYING'
+            ? 'Retrying Sync'
+            : (status.toUpperCase() == 'QUEUED_FOR_RELAY'
+                ? 'Mesh Queued'
+                : (status.toUpperCase() == 'PENDING' ? 'Pending Sync' : 'In Process'));
         icon = Icons.sync;
         break;
       case 'FAILED':
+      case 'SYNC_FAILED':
       default:
         bg = Colors.red.withValues(alpha: 0.15);
         text = isDark ? Colors.redAccent : Colors.red;
-        label = 'Failed';
+        label = status.toUpperCase() == 'SYNC_FAILED' ? 'Sync Failed' : 'Failed';
         icon = Icons.cancel;
         break;
     }

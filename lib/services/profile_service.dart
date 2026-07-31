@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:math';
+import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
+import 'package:encrypt/encrypt.dart' as enc;
 import 'package:shared_preferences/shared_preferences.dart';
 
 const String _keyUserName = 'offpay_user_name';
@@ -37,10 +39,13 @@ class ProfileService {
     return hex;
   }
 
-  /// Secret key for QR code payload encryption/hashing
-  static String _getSecretKey() => 'OFFPAY_SECRET_SALT_2026_AES_KEY';
+  /// Generate deterministic 32-byte AES-256 key for QR payloads
+  static enc.Key _getQrAesKey() {
+    final keyBytes = sha256.convert(utf8.encode('OFFPAY_STRONG_QR_KEY_2026_AES_256_CBC')).bytes;
+    return enc.Key(Uint8List.fromList(keyBytes));
+  }
 
-  /// Encrypt user info into a secure QR payload with optional set payment amount
+  /// Encrypt user info into a secure QR payload using AES-256-CBC and HMAC-SHA256
   static String encryptQrPayload({
     required String deviceId,
     required String userName,
@@ -53,55 +58,74 @@ class ProfileService {
       'ts': (amount != null && amount > 0) ? DateTime.now().millisecondsSinceEpoch : 0,
     };
     final jsonStr = jsonEncode(rawData);
-    final bytes = utf8.encode(jsonStr);
 
-    // Encrypt payload bytes using XOR with SHA-256 derived key stream
-    final keyBytes = sha256.convert(utf8.encode(_getSecretKey())).bytes;
-    final encryptedBytes = List<int>.generate(
-      bytes.length,
-      (i) => bytes[i] ^ keyBytes[i % keyBytes.length],
-    );
+    final iv = enc.IV.fromSecureRandom(16);
+    final encrypter = enc.Encrypter(enc.AES(_getQrAesKey(), mode: enc.AESMode.cbc));
+    final encrypted = encrypter.encrypt(jsonStr, iv: iv);
 
-    final base64Payload = base64Url.encode(encryptedBytes);
-    final signature = sha256.convert(utf8.encode('$base64Payload:${_getSecretKey()}')).toString().substring(0, 8);
+    // Compute HMAC-SHA256 signature for integrity
+    final hmacKey = sha256.convert(utf8.encode('OFFPAY_HMAC_QR_SALT_2026')).bytes;
+    final hmac = Hmac(sha256, hmacKey);
+    final sig = hmac.convert(utf8.encode('${iv.base64}:${encrypted.base64}')).toString().substring(0, 16);
 
-    return 'OFFPAY_SECURE_V2:$base64Payload:$signature';
+    return 'OFFPAY_SECURE_V3:${iv.base64}:${encrypted.base64}:$sig';
   }
 
-  /// Decrypt a secure QR payload back into user info map
+  /// Decrypt a secure QR payload back into user info map using AES-256-CBC and HMAC-SHA256
   static Map<String, String>? decryptQrPayload(String qrData) {
     try {
-      if (!qrData.startsWith('OFFPAY_SECURE_V2:')) {
-        // Fallback for raw device ID scanning
-        return {'id': qrData, 'name': 'Unknown User'};
+      if (qrData.startsWith('OFFPAY_SECURE_V3:')) {
+        final parts = qrData.split(':');
+        if (parts.length < 4) return null;
+        final ivBase64 = parts[1];
+        final encryptedBase64 = parts[2];
+        final signature = parts[3];
+
+        // Verify HMAC-SHA256 signature
+        final hmacKey = sha256.convert(utf8.encode('OFFPAY_HMAC_QR_SALT_2026')).bytes;
+        final hmac = Hmac(sha256, hmacKey);
+        final expectedSig = hmac.convert(utf8.encode('$ivBase64:$encryptedBase64')).toString().substring(0, 16);
+        if (signature != expectedSig) {
+          return null; // Tampered or corrupted QR payload
+        }
+
+        final iv = enc.IV.fromBase64(ivBase64);
+        final encrypter = enc.Encrypter(enc.AES(_getQrAesKey(), mode: enc.AESMode.cbc));
+        final jsonStr = encrypter.decrypt64(encryptedBase64, iv: iv);
+        final map = jsonDecode(jsonStr) as Map<String, dynamic>;
+
+        final nameVal = map['name']?.toString().trim();
+        return {
+          'id': map['id']?.toString() ?? 'Unknown Device',
+          'name': (nameVal != null && nameVal.isNotEmpty) ? nameVal : 'Unknown User',
+          'amount': (map['amt'] as num?)?.toDouble().toString() ?? '0.0',
+        };
+      } else if (qrData.startsWith('OFFPAY_SECURE_V2:')) {
+        // Backward-compatible V2 XOR decryption fallback
+        final parts = qrData.split(':');
+        if (parts.length < 3) return null;
+        final base64Payload = parts[1];
+        final signature = parts[2];
+        final expectedSig = sha256.convert(utf8.encode('$base64Payload:OFFPAY_SECRET_SALT_2026_AES_KEY')).toString().substring(0, 8);
+        if (signature != expectedSig) return null;
+        final encryptedBytes = base64Url.decode(base64Payload);
+        final keyBytes = sha256.convert(utf8.encode('OFFPAY_SECRET_SALT_2026_AES_KEY')).bytes;
+        final bytes = List<int>.generate(
+          encryptedBytes.length,
+          (i) => encryptedBytes[i] ^ keyBytes[i % keyBytes.length],
+        );
+        final jsonStr = utf8.decode(bytes);
+        final map = jsonDecode(jsonStr) as Map<String, dynamic>;
+        final nameVal = map['name']?.toString().trim();
+        return {
+          'id': map['id']?.toString() ?? 'Unknown Device',
+          'name': (nameVal != null && nameVal.isNotEmpty) ? nameVal : 'Unknown User',
+          'amount': (map['amt'] as num?)?.toDouble().toString() ?? '0.0',
+        };
       }
 
-      final parts = qrData.split(':');
-      if (parts.length < 3) return null;
-
-      final base64Payload = parts[1];
-      final signature = parts[2];
-
-      // Verify HMAC-SHA256 signature
-      final expectedSig = sha256.convert(utf8.encode('$base64Payload:${_getSecretKey()}')).toString().substring(0, 8);
-      if (signature != expectedSig) return null;
-
-      final encryptedBytes = base64Url.decode(base64Payload);
-      final keyBytes = sha256.convert(utf8.encode(_getSecretKey())).bytes;
-      final bytes = List<int>.generate(
-        encryptedBytes.length,
-        (i) => encryptedBytes[i] ^ keyBytes[i % keyBytes.length],
-      );
-
-      final jsonStr = utf8.decode(bytes);
-      final map = jsonDecode(jsonStr) as Map<String, dynamic>;
-
-      final nameVal = map['name']?.toString().trim();
-      return {
-        'id': map['id']?.toString() ?? 'Unknown Device',
-        'name': (nameVal != null && nameVal.isNotEmpty) ? nameVal : 'Unknown User',
-        'amount': (map['amt'] as num?)?.toDouble().toString() ?? '0.0',
-      };
+      // Fallback for raw device ID scanning
+      return {'id': qrData, 'name': 'Unknown User'};
     } catch (_) {
       return null;
     }
