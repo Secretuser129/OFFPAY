@@ -3,7 +3,6 @@ import '../services/update_service.dart';
 import '../services/profile_service.dart';
 import '../models/wallet_model.dart';
 import 'package:provider/provider.dart';
-import '../widgets/global_apple_dock.dart';
 
 class SecuritySettingsScreen extends StatelessWidget {
   const SecuritySettingsScreen({super.key});

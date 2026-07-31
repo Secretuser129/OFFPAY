@@ -7,7 +7,6 @@ import '../models/trusted_contact.dart';
 import '../models/wallet_model.dart';
 import '../services/receipt_service.dart';
 import '../services/reward_service.dart';
-import '../widgets/global_apple_dock.dart';
 
 class ContactsScreen extends StatefulWidget {
   const ContactsScreen({Key? key}) : super(key: key);

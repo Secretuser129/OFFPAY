@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/profile_service.dart';
 import '../services/reward_service.dart';
-import '../widgets/global_apple_dock.dart';
 import 'rewards_screen.dart';
 
 class ProfileScreen extends StatefulWidget {

@@ -5,7 +5,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import '../models/wallet_model.dart';
-import '../services/firebase_service.dart';
 import '../services/nfc_service.dart';
 import '../services/sync_queue_service.dart';
 import 'payment_success_screen.dart';

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../widgets/global_apple_dock.dart';
 
 class AboutScreen extends StatefulWidget {
   const AboutScreen({super.key});

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../services/profile_service.dart';
-import '../widgets/global_apple_dock.dart';
 
 class CustomQrScreen extends StatefulWidget {
   const CustomQrScreen({super.key});

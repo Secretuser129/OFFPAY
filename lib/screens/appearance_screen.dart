@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/theme_service.dart';
-import '../widgets/global_apple_dock.dart';
 
 class AppearanceScreen extends StatelessWidget {
   const AppearanceScreen({Key? key}) : super(key: key);

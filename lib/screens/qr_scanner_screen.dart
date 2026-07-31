@@ -5,7 +5,6 @@ import 'package:flutter_blue_plus/flutter_blue_plus.dart' as fb;
 
 import '../services/profile_service.dart';
 import 'payment_input_screen.dart';
-import '../widgets/global_apple_dock.dart';
 
 class QRScannerScreen extends StatefulWidget {
   const QRScannerScreen({super.key});

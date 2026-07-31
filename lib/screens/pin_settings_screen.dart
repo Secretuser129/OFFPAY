@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import '../services/password_service.dart';
 import '../services/firebase_service.dart';
 import '../models/wallet_model.dart';
-import '../widgets/global_apple_dock.dart';
 
 class PinSettingsScreen extends StatefulWidget {
   const PinSettingsScreen({super.key});
