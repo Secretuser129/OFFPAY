@@ -240,7 +240,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ],
               ),
             ),
-      bottomNavigationBar: const GlobalAppleDock(activeRoute: '/profile'),
+      // bottomNavigationBar removed for clean full-screen view
     );
   }
 

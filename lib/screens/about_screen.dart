@@ -286,7 +286,7 @@ class _AboutScreenState extends State<AboutScreen> {
           ],
         ),
       ),
-      bottomNavigationBar: const GlobalAppleDock(activeRoute: '/about'),
+      // bottomNavigationBar removed for clean full-screen view
     );
   }
 

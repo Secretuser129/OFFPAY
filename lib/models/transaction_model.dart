@@ -23,7 +23,7 @@ class TransactionModel extends HiveObject {
   final String transactionId;
 
   @HiveField(6)
-  final String status; // 'RECEIVED', 'PROCESS', 'FAILED'
+  String status; // 'RECEIVED', 'PROCESS', 'FAILED', 'VERIFIED'
 
   TransactionModel({
     required this.id,

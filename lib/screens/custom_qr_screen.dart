@@ -312,7 +312,7 @@ class _CustomQrScreenState extends State<CustomQrScreen> {
           ],
         ),
       ),
-      bottomNavigationBar: const GlobalAppleDock(activeRoute: '/custom_qr'),
+      // bottomNavigationBar removed for clean full-screen view
     );
   }
 }

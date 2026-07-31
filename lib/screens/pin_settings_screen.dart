@@ -283,7 +283,7 @@ class _PinSettingsScreenState extends State<PinSettingsScreen> {
                 ],
               ),
             ),
-      bottomNavigationBar: const GlobalAppleDock(activeRoute: '/pin_settings'),
+      // bottomNavigationBar removed for clean full-screen view
     );
   }
 }

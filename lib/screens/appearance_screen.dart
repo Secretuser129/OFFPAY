@@ -136,7 +136,7 @@ class AppearanceScreen extends StatelessWidget {
           ),
         ],
       ),
-      bottomNavigationBar: const GlobalAppleDock(activeRoute: '/appearance'),
+      // bottomNavigationBar removed for clean full-screen view
     );
   }
 }

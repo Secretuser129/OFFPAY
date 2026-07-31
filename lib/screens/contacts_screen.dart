@@ -211,7 +211,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
                 },
               ),
       ),
-      bottomNavigationBar: const GlobalAppleDock(activeRoute: '/contacts'),
+      // bottomNavigationBar removed for clean full-screen view
     );
   }
 

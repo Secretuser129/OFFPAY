@@ -46,6 +46,22 @@ class SequenceChainingService {
     return digest.toString();
   }
 
+  /// Convenience method for verifying diagnostic chains
+  static String generateChainedHash({
+    required String previousHash,
+    required String currentTxId,
+    required double amount,
+    required int timestamp,
+  }) {
+    return computeChainHash(
+      prevHash: previousHash,
+      nonce: currentTxId,
+      seq: 1,
+      amount: amount,
+      timestamp: timestamp,
+    );
+  }
+
   /// Verify incoming transaction sequence number, replay nonce, and update local ledger chain.
   /// Returns a record: (isValid: bool, reason: String?)
   static Future<({bool isValid, String? reason})> verifyAndRecordIncomingTransaction({

@@ -115,7 +115,7 @@ class _SendOptionsScreenState extends State<SendOptionsScreen> {
           ],
         ),
       ),
-      bottomNavigationBar: const GlobalAppleDock(activeRoute: '/send_options'),
+      // bottomNavigationBar removed for clean full-screen view
     );
   }
 }

@@ -224,7 +224,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> with SingleTickerProv
               ),
             ],
           ),
-          bottomNavigationBar: const GlobalAppleDock(activeRoute: '/discovery'),
+          // bottomNavigationBar removed for clean full-screen view
         );
       },
     );

@@ -356,6 +356,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 },
               ),
               _buildBalanceCard(walletModel).animate().fade(duration: 500.ms).scale(begin: const Offset(0.95, 0.95)),
+              const SizedBox(height: 20),
+              _buildQuickActions(context).animate(delay: 150.ms).fade().slideY(begin: 0.1, end: 0),
               const SizedBox(height: 24),
               _buildTransactionHistory(walletModel),
             ],
@@ -369,6 +371,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildBalanceCard(WalletModel walletModel) {
     final String balanceText = _isBalanceHidden ? '****.**' : '₹${walletModel.balance.toStringAsFixed(2)}';
     final IconData eyeIcon = _isBalanceHidden ? Icons.visibility_off_outlined : Icons.visibility_outlined;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
@@ -376,17 +379,25 @@ class _HomeScreenState extends State<HomeScreen> {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: _isBalanceHidden
-              ? [Colors.grey.shade600, Colors.grey.shade800]
-              : [Theme.of(context).primaryColor, Theme.of(context).primaryColorDark],
+              ? (isDark
+                  ? [const Color(0xFF2C2C3A), const Color(0xFF1E1E2C)]
+                  : [Colors.grey.shade500, Colors.grey.shade700])
+              : (isDark
+                  ? [const Color(0xFF1E1E30), const Color(0xFF0F172A)]
+                  : [Theme.of(context).primaryColor, Theme.of(context).primaryColorDark]),
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: isDark ? 0.18 : 0.25),
+          width: 1.2,
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 5),
+            color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.15),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
@@ -400,15 +411,22 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 const Text(
                   'Current Balance',
-                  style: TextStyle(color: Colors.white70, fontSize: 16),
+                  style: TextStyle(color: Colors.white70, fontSize: 16, fontWeight: FontWeight.w500),
                 ),
                 GestureDetector(
                   onTap: _toggleBalanceVisibility,
-                  child: Icon(eyeIcon, color: Colors.white, size: 24),
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.12),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(eyeIcon, color: Colors.white, size: 20),
+                  ),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 18),
             AnimatedSwitcher(
               duration: const Duration(milliseconds: 300),
               transitionBuilder: (Widget child, Animation<double> animation) {
@@ -423,47 +441,52 @@ class _HomeScreenState extends State<HomeScreen> {
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 44,
-                  fontWeight: FontWeight.bold,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -1.0,
                 ),
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // Plus button in left side corner of balance for Judge Demo Mode
+                // Classy Pill button for Judge Demo Mode
                 InkWell(
                   onTap: _triggerJudgeDemo,
                   borderRadius: BorderRadius.circular(20),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                     decoration: BoxDecoration(
-                      color: Colors.amber.shade600,
+                      color: Colors.amber.shade600.withValues(alpha: 0.9),
                       borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.amber.shade300.withValues(alpha: 0.4)),
                     ),
                     child: const Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.add, color: Colors.white, size: 16),
+                        Icon(Icons.bolt_rounded, color: Colors.white, size: 16),
                         SizedBox(width: 4),
                         Text(
-                          'Judge Demo',
-                          style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                          'Demo +₹500',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ],
                     ),
                   ),
                 ),
-                // Manual reload button (Icon-only with increased size)
+                // Manual reload button
                 Tooltip(
-                  message: 'Refresh Balance',
+                  message: 'Refresh Balance & Sync',
                   child: InkWell(
                     onTap: () async {
                       HapticFeedback.lightImpact();
                       final walletModel = Provider.of<WalletModel>(context, listen: false);
                       await walletModel.refreshBalance();
                       
-                      // Also pull down online transfers from Firebase Server
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('Syncing with Server...'), duration: Duration(seconds: 1)),
                       );
@@ -476,12 +499,27 @@ class _HomeScreenState extends State<HomeScreen> {
                     },
                     borderRadius: BorderRadius.circular(24),
                     child: Container(
-                      padding: const EdgeInsets.all(8),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.22),
-                        shape: BoxShape.circle,
+                        color: Colors.white.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
                       ),
-                      child: const Icon(Icons.refresh, color: Colors.white, size: 22),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.sync_rounded, color: Colors.white, size: 16),
+                          SizedBox(width: 5),
+                          Text(
+                            'Sync',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -489,6 +527,115 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildQuickActions(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.only(left: 4.0, bottom: 12.0),
+          child: Text(
+            'Quick Actions',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            _buildActionIcon(
+              context: context,
+              icon: Icons.send_rounded,
+              label: 'Send',
+              color: Colors.blueAccent,
+              onTap: () => Navigator.pushNamed(context, '/send_options'),
+            ),
+            _buildActionIcon(
+              context: context,
+              icon: Icons.call_received_rounded,
+              label: 'Receive',
+              color: Colors.greenAccent,
+              onTap: () => Navigator.pushNamed(context, '/receive'),
+            ),
+            _buildActionIcon(
+              context: context,
+              icon: Icons.radar_rounded,
+              label: 'BLE Radar',
+              color: Colors.orangeAccent,
+              onTap: () => Navigator.pushNamed(context, '/discovery'),
+            ),
+            _buildActionIcon(
+              context: context,
+              icon: Icons.qr_code_scanner_rounded,
+              label: 'Scan QR',
+              color: Colors.purpleAccent,
+              onTap: () => Navigator.pushNamed(context, '/qr_scanner'),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActionIcon({
+    required BuildContext context,
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        onTap();
+      },
+      child: Column(
+        children: [
+          Container(
+            width: 58,
+            height: 58,
+            decoration: BoxDecoration(
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.08)
+                  : Theme.of(context).primaryColor.withValues(alpha: 0.08),
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: color.withValues(alpha: 0.4),
+                width: 1.5,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: color.withValues(alpha: 0.1),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Icon(
+              icon,
+              color: color,
+              size: 26,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -641,22 +788,23 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildTransactionHistory(WalletModel walletModel) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     final Color secondaryTextColor = theme.textTheme.bodySmall?.color ?? Colors.grey.shade600;
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: theme.cardTheme.color,
-        borderRadius: BorderRadius.circular(20),
+        color: isDark ? const Color(0xFF14141E) : theme.cardTheme.color,
+        borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: theme.primaryColor.withValues(alpha: 0.25),
+          color: isDark ? Colors.white.withValues(alpha: 0.12) : theme.primaryColor.withValues(alpha: 0.2),
           width: 1.2,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.08),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
@@ -665,24 +813,34 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text(
-              'History',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            Row(
-              children: [
-                if (walletModel.history.isNotEmpty)
-                  TextButton(
-                    onPressed: () {
-                      _showAllTransactions(context, walletModel);
-                    },
-                    child: const Text('View All'),
-                  ),
-              ],
-            ),
-          ],
-        ),
+            children: [
+              const Text(
+                'Recent Transactions',
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.4,
+                ),
+              ),
+              Row(
+                children: [
+                  if (walletModel.history.isNotEmpty)
+                    TextButton(
+                      onPressed: () {
+                        _showAllTransactions(context, walletModel);
+                      },
+                      child: const Text(
+                        'View All',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ),
         const SizedBox(height: 12),
         if (walletModel.history.isEmpty)
           Center(

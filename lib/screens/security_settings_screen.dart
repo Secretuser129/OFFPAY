@@ -111,7 +111,7 @@ class SecuritySettingsScreen extends StatelessWidget {
           ),
         ],
       ),
-      bottomNavigationBar: const GlobalAppleDock(activeRoute: '/security_settings'),
+      // bottomNavigationBar removed for clean full-screen view
     );
   }
 

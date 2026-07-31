@@ -314,7 +314,7 @@ class _ReceiveScreenState extends State<ReceiveScreen> with SingleTickerProvider
           ],
         ),
       ),
-      bottomNavigationBar: const GlobalAppleDock(activeRoute: '/receive'),
+      // bottomNavigationBar removed for clean full-screen view
     );
   }
 }

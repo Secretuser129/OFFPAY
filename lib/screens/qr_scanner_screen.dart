@@ -208,7 +208,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
           ),
         ],
       ),
-      bottomNavigationBar: const GlobalAppleDock(activeRoute: '/qr_scanner'),
+      // bottomNavigationBar removed for clean full-screen view
     );
   }
 
