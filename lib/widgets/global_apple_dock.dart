@@ -73,8 +73,8 @@ class GlobalAppleDock extends StatelessWidget {
                     context: context,
                     icon: Icons.grid_view_rounded,
                     label: 'Menu',
-                    isSelected: false, // Menu opens bottom sheet
-                    onTap: () => _showMoreMenuSheet(context),
+                    isSelected: activeRoute == '/other_options',
+                    onTap: () => _navigate(context, '/other_options'),
                   ),
                 ],
               ),

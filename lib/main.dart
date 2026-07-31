@@ -23,6 +23,7 @@ import 'screens/appearance_screen.dart';
 import 'screens/pin_settings_screen.dart';
 import 'screens/about_screen.dart';
 import 'screens/profile_screen.dart';
+import 'screens/other_options_screen.dart';
 import 'screens/contacts_screen.dart';
 import 'screens/diagnostic_screen.dart';
 import 'screens/logs_screen.dart';
@@ -198,6 +199,7 @@ class OffPayApp extends StatelessWidget {
       routes: {
         '/login': (context) => const LoginScreen(),
         '/home': (context) => const HomeScreen(),
+        '/other_options': (context) => const OtherOptionsScreen(),
 
         // static route: SendOptions and others that don't require constructor args
         '/send_options': (context) => const SendOptionsScreen(),
