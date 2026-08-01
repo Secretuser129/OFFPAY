@@ -364,7 +364,7 @@ class AppearanceScreen extends StatelessWidget {
               spacing: 12,
               runSpacing: 12,
               children: ThemeProvider.accentColorPalette.map((color) {
-                final isSelected = themeProvider.accentColor.value == color.value;
+                final isSelected = themeProvider.accentColor.toARGB32() == color.toARGB32();
                 return GestureDetector(
                   onTap: () {
                     HapticFeedback.lightImpact();

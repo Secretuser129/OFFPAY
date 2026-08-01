@@ -140,7 +140,7 @@ class ThemeProvider extends ChangeNotifier {
     notifyListeners();
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setInt(_accentColorKey, color.value);
+      await prefs.setInt(_accentColorKey, color.toARGB32());
     } catch (e) {
       debugPrint('Error saving accent color: $e');
     }
