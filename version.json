@@ -1,6 +1,6 @@
 {
-  "versionCode": 31,
-  "versionName": "3.1",
+  "versionCode": 310,
+  "versionName": "3.1.0",
   "downloadUrl": "https://github.com/Secretuser129/OFFPAY/releases/latest/download/app-release.apk",
-  "changelog": "🚀 What's New in OFFPAY v3.1 (Build 31):\n• 🌟 San Francisco Font (Beta) Toggle & Custom Glassmorphic Intensity Slider.\n• 🎯 Interactive 3-Node Connected Theme Mode Switcher & Sleek Header Indicator Badge.\n• 📲 Real-Time Phone OTP Verification for Registration & Credentials Recovery.\n• ⚡ Dynamic Quick Actions based on Usage Count + Utility Services Grid.\n• 🔋 Low-Power Duty-Cycled BLE Scanning & Automatic Background Timer Pause.\n• 📦 75% GZip Payload Compression for ultra-efficient Server Synchronization.\n• 🛠️ Reorderable Navbar with Live Preview & Complete App Terminology Standardization."
+  "changelog": "🚀 What's New in OFFPAY v3.1.0 (Build 310):\n• 🌟 San Francisco Font (Beta) Toggle & Custom Glassmorphic Intensity Slider.\n• 🎯 Interactive 3-Node Connected Theme Mode Switcher & Sleek Header Indicator Badge.\n• 📲 Real-Time Phone OTP Verification for Registration & Credentials Recovery.\n• ⚡ Dynamic Quick Actions based on Usage Count + Utility Services Grid.\n• 🔋 Low-Power Duty-Cycled BLE Scanning & Automatic Background Timer Pause.\n• 📦 75% GZip Payload Compression for ultra-efficient Server Synchronization.\n• 🛠️ Reorderable Navbar with Live Preview & Complete App Terminology Standardization.\n• 🎁 My Rewards & Scratch Cards moved to Menu with coupon code copy support.\n• 🔒 Security & Policy Center with interactive toggles and BLE nonce cache purge."
 }

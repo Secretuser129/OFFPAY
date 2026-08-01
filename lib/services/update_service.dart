@@ -21,12 +21,31 @@ class UpdateInfo {
 }
 
 class UpdateService {
-  static const int currentVersionCode = 31;
-  static const String currentVersionName = '3.1';
+  static const int currentVersionCode = 310;
+  static const String currentVersionName = '3.1.0';
 
   // Fallback version.json URL
   static const String rawJsonUrl = 'https://raw.githubusercontent.com/Secretuser129/OFFPAY/main/version.json';
   static const String defaultReleaseUrl = 'https://github.com/Secretuser129/OFFPAY/releases/latest';
+
+  // Session-level flags to prevent repeated popup spam
+  static bool _hasCheckedThisSession = false;
+  static int? _dismissedVersionCode;
+
+  /// Convert a semantic version tag (e.g. "3.1.0", "3.1.2") to a comparable integer.
+  /// Formula: (major * 100) + (minor * 10) + patch
+  ///   "3.1.0" → 310
+  ///   "3.1.1" → 311   (patch release triggers update)
+  ///   "3.2.0" → 320   (minor release triggers update)
+  ///   "3.1"   → 310   (treated as 3.1.0)
+  static int _parseVersionTag(String tag) {
+    final match = RegExp(r'(\d+)\.(\d+)(?:\.(\d+))?').firstMatch(tag);
+    if (match == null) return 0;
+    final major = int.tryParse(match.group(1)!) ?? 0;
+    final minor = int.tryParse(match.group(2)!) ?? 0;
+    final patch = int.tryParse(match.group(3) ?? '0') ?? 0;
+    return (major * 100) + (minor * 10) + patch;
+  }
 
   /// Check GitHub Releases & Pre-releases API (Ignores raw commits)
   static Future<UpdateInfo?> checkRemoteVersion() async {
@@ -47,14 +66,7 @@ class UpdateService {
           final tag = (ghData['tag_name'] as String? ?? '').replaceAll('v', '');
           final body = ghData['body'] as String? ?? 'New version available on GitHub Releases.';
 
-          int remoteCode = 0;
-          final semanticMatch = RegExp(r'(\d+)\.(\d+)(?:\.(\d+))?').firstMatch(tag);
-          if (semanticMatch != null) {
-            final major = int.tryParse(semanticMatch.group(1)!) ?? 0;
-            final minor = int.tryParse(semanticMatch.group(2)!) ?? 0;
-            final patch = int.tryParse(semanticMatch.group(3) ?? '0') ?? 0;
-            remoteCode = (major * 100) + (minor * 10) + patch;
-          }
+          final int remoteCode = _parseVersionTag(tag);
 
           String downloadUrl = defaultReleaseUrl;
           if (ghData['assets'] != null && (ghData['assets'] as List).isNotEmpty) {
@@ -104,8 +116,14 @@ class UpdateService {
     );
   }
 
-  /// Simple 1-step update check
+  /// Simple 1-step update check.
+  /// When [silent] is true (auto-check from HomeScreen), this runs at most
+  /// once per app session and never re-shows a popup the user already dismissed.
   static Future<void> checkForUpdates(BuildContext context, {bool silent = false}) async {
+    // Prevent repeated silent checks every time HomeScreen rebuilds
+    if (silent && _hasCheckedThisSession) return;
+    if (silent) _hasCheckedThisSession = true;
+
     if (!silent) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -118,6 +136,10 @@ class UpdateService {
     final info = await checkRemoteVersion();
 
     if (info != null && info.versionCode > currentVersionCode && context.mounted) {
+      // Don't show the popup again if the user already dismissed this version
+      if (silent && _dismissedVersionCode != null && info.versionCode <= _dismissedVersionCode!) {
+        return;
+      }
       _showUpdateDialog(context, info);
     } else if (!silent && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -285,7 +307,12 @@ class UpdateService {
   static void _showUpdateDialog(BuildContext context, UpdateInfo info) {
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
+      barrierDismissible: false,
+      builder: (ctx) => PopScope(
+        onPopInvokedWithResult: (didPop, _) {
+          if (didPop) _dismissedVersionCode = info.versionCode;
+        },
+        child: AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Row(
           children: [
@@ -360,6 +387,7 @@ class UpdateService {
                 children: [
                   TextButton(
                     onPressed: () {
+                      _dismissedVersionCode = info.versionCode;
                       Navigator.pop(ctx);
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
@@ -390,6 +418,7 @@ class UpdateService {
           ),
         ],
       ),
+    ),  // Close PopScope
     );
   }
 

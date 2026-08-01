@@ -13,8 +13,8 @@ android {
         applicationId = "com.example.offpay"
         minSdk = 26
         targetSdk = flutter.targetSdkVersion
-        versionCode = 31
-        versionName = "3.1"
+        versionCode = 310
+        versionName = "3.1.0"
     }
 
     compileOptions {
