@@ -824,24 +824,15 @@ class _HomeScreenState extends State<HomeScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Padding(
-          padding: EdgeInsets.only(left: 4.0, bottom: 12.0),
-          child: Row(
-            children: [
-              Text(
-                'Quick',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: isDark ? Colors.white54 : Colors.black54,
-                ),
-              ),
-              SizedBox(width: 8),
-              Text(
-                '• Smart usage slots',
-                style: TextStyle(fontSize: 11, color: Colors.grey),
-              ),
-            ],
+        Padding(
+          padding: const EdgeInsets.only(left: 4.0, bottom: 12.0),
+          child: Text(
+            'Quick',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: isDark ? Colors.white54 : Colors.black54,
+            ),
           ),
         ),
         Row(
@@ -897,10 +888,10 @@ class _HomeScreenState extends State<HomeScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Padding(
-          padding: EdgeInsets.only(left: 4.0, bottom: 12.0),
+        Padding(
+          padding: const EdgeInsets.only(left: 4.0, bottom: 12.0),
           child: Text(
-            'Utility & Travel Services',
+            'Utility & Travel',
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,

@@ -102,7 +102,18 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
                         Navigator.pushNamed(context, '/pin_settings');
                       },
                     ),
-
+                    _buildDivider(isDark),
+                    SwitchListTile.adaptive(
+                      secondary: CircleAvatar(
+                        backgroundColor: Colors.indigo.withValues(alpha: 0.15),
+                        child: const Icon(Icons.phonelink_lock_rounded, color: Colors.indigo),
+                      ),
+                      title: const Text('Require App Lock on Launch', style: TextStyle(fontWeight: FontWeight.bold)),
+                      subtitle: const Text('Require biometric authentication when opening OFFPAY'),
+                      value: _requireAppLock,
+                      activeTrackColor: themeProvider.accentColor,
+                      onChanged: (val) => _toggleSetting('security_require_app_lock', val, (v) => _requireAppLock = v),
+                    ),
                   ],
                 ),
 

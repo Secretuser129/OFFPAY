@@ -78,14 +78,14 @@ class _PaymentInputScreenState extends State<PaymentInputScreen> {
         _isOnlineMode = true;
       }
     }
-    if (!_hasFetchedPhoto && customRecipientName != null && customRecipientName!.isNotEmpty) {
+    if (!_hasFetchedPhoto && customRecipientName.isNotEmpty) {
       _hasFetchedPhoto = true;
-      final targetId = recipientDevice?.remoteId.str ?? customRecipientName!;
+      final targetId = recipientDevice?.remoteId.str ?? customRecipientName;
       FirebaseService.fetchUserPhotoBase64(targetId).then((base64) {
         if (base64 != null && mounted) {
           setState(() => _recipientPhotoBase64 = base64);
-        } else if (customRecipientName != null && customRecipientName != targetId) {
-          FirebaseService.fetchUserPhotoBase64(customRecipientName!).then((base64Name) {
+        } else if (customRecipientName != targetId) {
+          FirebaseService.fetchUserPhotoBase64(customRecipientName).then((base64Name) {
             if (base64Name != null && mounted) {
               setState(() => _recipientPhotoBase64 = base64Name);
             }

@@ -635,4 +635,47 @@ class FirebaseService {
       return false;
     }
   }
+  /// Store dynamically generated OTP hash in Firebase Cloud Database with expiration
+  static Future<bool> storeOtpVerification(String phone, String otp) async {
+    try {
+      final baseUrl = await getFirebaseUrl();
+      final token = await getFirebaseAuthToken();
+      final cleanPhone = phone.replaceAll(RegExp(r'[^0-9]'), '');
+      String url = '$baseUrl/otp_verifications/$cleanPhone.json';
+      if (token != null && token.isNotEmpty) url += '?auth=$token';
+      final payload = {
+        'otpHash': sha256.convert(utf8.encode(otp.trim())).toString(),
+        'expiresAt': DateTime.now().add(const Duration(minutes: 5)).millisecondsSinceEpoch,
+      };
+      final resp = await http.put(Uri.parse(url), body: jsonEncode(payload));
+      return resp.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Verify dynamically generated OTP against Firebase Cloud Database
+  static Future<bool> verifyOtp(String phone, String inputOtp) async {
+    try {
+      final baseUrl = await getFirebaseUrl();
+      final token = await getFirebaseAuthToken();
+      final cleanPhone = phone.replaceAll(RegExp(r'[^0-9]'), '');
+      String url = '$baseUrl/otp_verifications/$cleanPhone.json';
+      if (token != null && token.isNotEmpty) url += '?auth=$token';
+      final resp = await http.get(Uri.parse(url));
+      if (resp.statusCode == 200 && resp.body != 'null') {
+        final data = jsonDecode(resp.body) as Map<String, dynamic>;
+        final storedHash = data['otpHash'] as String?;
+        final expiresAt = data['expiresAt'] as int?;
+        if (expiresAt != null && DateTime.now().millisecondsSinceEpoch > expiresAt) {
+          return false; // Expired
+        }
+        final inputHash = sha256.convert(utf8.encode(inputOtp.trim())).toString();
+        return storedHash == inputHash;
+      }
+      return false;
+    } catch (_) {
+      return false;
+    }
+  }
 }
