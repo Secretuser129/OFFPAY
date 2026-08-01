@@ -121,12 +121,26 @@ class ThemeProvider extends ChangeNotifier {
     }
   }
 
+  static const List<Color> accentColorPalette = [
+    Color(0xFF6366F1), // Indigo (default)
+    Color(0xFFEF4444), // Red
+    Color(0xFFEC4899), // Pink
+    Color(0xFFF97316), // Orange
+    Color(0xFFF59E0B), // Amber
+    Color(0xFF10B981), // Emerald
+    Color(0xFF14B8A6), // Teal
+    Color(0xFF06B6D4), // Cyan
+    Color(0xFF3B82F6), // Blue
+    Color(0xFF8B5CF6), // Purple
+    Color(0xFF7C3AED), // Violet
+  ];
+
   Future<void> setAccentColor(Color color) async {
     _accentColor = color;
     notifyListeners();
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setInt(_accentColorKey, color.toARGB32());
+      await prefs.setInt(_accentColorKey, color.value);
     } catch (e) {
       debugPrint('Error saving accent color: $e');
     }

@@ -1,9 +1,11 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../services/bluetooth_service.dart';
 import '../services/profile_service.dart';
+import '../services/firebase_service.dart';
 import '../widgets/global_apple_dock.dart';
 
 class DiscoveryScreen extends StatefulWidget {
@@ -266,7 +268,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> with SingleTickerProv
   }
 }
 
-class DiscoveredDeviceTile extends StatelessWidget {
+class DiscoveredDeviceTile extends StatefulWidget {
   final DiscoveredDevice item;
   final VoidCallback onTap;
 
@@ -275,6 +277,27 @@ class DiscoveredDeviceTile extends StatelessWidget {
     required this.onTap,
     super.key,
   });
+
+  @override
+  State<DiscoveredDeviceTile> createState() => _DiscoveredDeviceTileState();
+}
+
+class _DiscoveredDeviceTileState extends State<DiscoveredDeviceTile> {
+  String? _photoBase64;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchAvatar();
+  }
+
+  Future<void> _fetchAvatar() async {
+    final targetId = widget.item.device.remoteId.str;
+    final base64 = await FirebaseService.fetchUserPhotoBase64(targetId);
+    if (base64 != null && mounted) {
+      setState(() => _photoBase64 = base64);
+    }
+  }
 
   Color _getSignalColor(int level) {
     switch (level) {
@@ -292,7 +315,7 @@ class DiscoveredDeviceTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cardColor = theme.cardTheme.color;
-    final isOffpay = item.isOffpayUser;
+    final isOffpay = widget.item.isOffpayUser;
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -321,15 +344,20 @@ class DiscoveredDeviceTile extends StatelessWidget {
                         : theme.primaryColor.withValues(alpha: 0.1),
                   ),
                   padding: const EdgeInsets.all(10),
-                  child: Icon(
-                    isOffpay ? Icons.verified_user : Icons.phone_android,
-                    color: isOffpay ? Colors.indigo : theme.primaryColor,
-                    size: 24,
-                  ),
+                  child: _photoBase64 != null
+                      ? CircleAvatar(
+                          radius: 14,
+                          backgroundImage: MemoryImage(base64Decode(_photoBase64!)),
+                        )
+                      : Icon(
+                          isOffpay ? Icons.verified_user : Icons.phone_android,
+                          color: isOffpay ? Colors.indigo : theme.primaryColor,
+                          size: 24,
+                        ),
                 ),
                 CircleAvatar(
                   radius: 6,
-                  backgroundColor: _getSignalColor(item.signalLevel),
+                  backgroundColor: _getSignalColor(widget.item.signalLevel),
                 ),
               ],
             ),
@@ -366,15 +394,15 @@ class DiscoveredDeviceTile extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
-                          color: _getSignalColor(item.signalLevel).withValues(alpha: 0.15),
+                          color: _getSignalColor(widget.item.signalLevel).withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
-                          '${item.rssi} dBm',
+                          '${widget.item.rssi} dBm',
                           style: TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.bold,
-                            color: _getSignalColor(item.signalLevel),
+                            color: _getSignalColor(widget.item.signalLevel),
                           ),
                         ),
                       ),
@@ -382,7 +410,7 @@ class DiscoveredDeviceTile extends StatelessWidget {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    item.name,
+                    widget.item.name,
                     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                   ),
                   const SizedBox(height: 4),
@@ -392,7 +420,7 @@ class DiscoveredDeviceTile extends StatelessWidget {
                       const SizedBox(width: 4),
                       Expanded(
                         child: Text(
-                          'BLE MAC: ${item.bluetoothAddress}',
+                          'BLE MAC: ${widget.item.bluetoothAddress}',
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
@@ -409,7 +437,7 @@ class DiscoveredDeviceTile extends StatelessWidget {
                       Icon(Icons.near_me, size: 12, color: theme.hintColor),
                       const SizedBox(width: 4),
                       Text(
-                        'Dist: ${item.estimatedDistance}',
+                        'Dist: ${widget.item.estimatedDistance}',
                         style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: theme.hintColor),
                       ),
                     ],
@@ -421,7 +449,7 @@ class DiscoveredDeviceTile extends StatelessWidget {
 
             // Connect Action Button
             ElevatedButton(
-              onPressed: onTap,
+              onPressed: widget.onTap,
               style: ElevatedButton.styleFrom(
                 backgroundColor: theme.primaryColor,
                 foregroundColor: Colors.white,

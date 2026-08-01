@@ -203,6 +203,14 @@ class ProfileService {
     if (isDeviceIdChanged) {
       await prefs.setInt(_keyLastIdChange, DateTime.now().millisecondsSinceEpoch);
     }
+    // Automatically push updated profile & photo base64 to server
+    try {
+      FirebaseService.syncUserProfile(
+        balance: 500.0,
+        overrideDeviceId: deviceId.trim(),
+        overrideUserName: name.trim(),
+      );
+    } catch (_) {}
   }
 
   static const String _keyProfileImagePath = 'offpay_profile_image_path';
@@ -215,6 +223,9 @@ class ProfileService {
   static Future<void> setProfileImagePath(String path) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_keyProfileImagePath, path);
+    try {
+      FirebaseService.syncUserProfile(balance: 500.0);
+    } catch (_) {}
   }
 
   static Future<void> deleteAccount() async {

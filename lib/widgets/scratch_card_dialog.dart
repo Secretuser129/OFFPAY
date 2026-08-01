@@ -178,7 +178,7 @@ class _ScratchCardDialogState extends State<ScratchCardDialog>
               children: [
                 const Text('🎉 ', style: TextStyle(fontSize: 24)),
                 Text(
-                  card.isClaimed ? 'Reward Claimed' : 'Scratch Card Reward!',
+                  card.isClaimed ? 'Reward Claimed' : 'Reward!',
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,

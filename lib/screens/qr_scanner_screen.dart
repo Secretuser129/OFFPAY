@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart' as fb;
+import 'package:google_mlkit_barcode_scanning/google_mlkit_barcode_scanning.dart' as mlkit;
 
 import '../services/profile_service.dart';
 import 'payment_input_screen.dart';
@@ -41,11 +42,13 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
     if (pickedFile == null) return;
 
     try {
-      // Analyze image directly without stopping camera controller (stopping causes MLKit detachment in mobile_scanner 7.4.0)
-      final BarcodeCapture? capture = await cameraController.analyzeImage(pickedFile.path);
+      final inputImage = mlkit.InputImage.fromFilePath(pickedFile.path);
+      final barcodeScanner = mlkit.BarcodeScanner();
+      final List<mlkit.Barcode> barcodes = await barcodeScanner.processImage(inputImage);
+      await barcodeScanner.close();
 
-      if (capture != null && capture.barcodes.isNotEmpty) {
-        for (final barcode in capture.barcodes) {
+      if (barcodes.isNotEmpty) {
+        for (final barcode in barcodes) {
           if (barcode.rawValue != null && barcode.rawValue!.isNotEmpty) {
             _scannedOnce = true;
             _handleQRCode(barcode.rawValue!);
@@ -57,7 +60,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Could not detect a valid OFFPAY QR code in this image. Ensure QR code is clear.'),
+            content: Text('Could not detect a valid QR code in this image.'),
             backgroundColor: Colors.redAccent,
           ),
         );

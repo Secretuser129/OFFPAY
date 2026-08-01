@@ -416,7 +416,7 @@ class _PaymentSuccessScreenState extends State<PaymentSuccessScreen> with Ticker
               if (RewardService.isEligibleForScratchCard(widget.amount)) ...[
                 ElevatedButton.icon(
                   icon: const Icon(Icons.card_giftcard),
-                  label: const Text('🎁 View Scratch Card Reward'),
+                  label: const Text('🎁 View Reward'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.amber.shade700,
                     foregroundColor: Colors.white,

@@ -105,15 +105,7 @@ class SettingsScreen extends StatelessWidget {
                   subtitle: 'OFFPAY Policy, encryption & hardware security',
                   route: '/security_settings',
                 ),
-                _buildDivider(isDark),
-                _buildListItem(
-                  context: context,
-                  icon: Icons.lock_outline_rounded,
-                  iconColor: const Color(0xFF3B82F6),
-                  title: 'PIN & Biometrics',
-                  subtitle: 'Manage Balance PIN & Payment Gateway Pin',
-                  route: '/pin_settings',
-                ),
+
               ],
             ),
 
@@ -213,7 +205,7 @@ class SettingsScreen extends StatelessWidget {
                   context: context,
                   icon: Icons.info_outline_rounded,
                   iconColor: const Color(0xFF9CA3AF),
-                  title: 'About OFFPAY v3.1',
+                  title: 'About OFFPAY v3.2.0 (Build 320)',
                   subtitle: 'Credits, version info & developer mode',
                   route: '/about',
                 ),

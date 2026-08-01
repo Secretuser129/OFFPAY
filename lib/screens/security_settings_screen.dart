@@ -74,7 +74,7 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF0F0F1A) : const Color(0xFFF4F6F9),
       appBar: AppBar(
-        title: const Text('Security & Policy Center', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text('Security', style: TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
@@ -83,58 +83,7 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
           : ListView(
               padding: const EdgeInsets.all(20),
               children: [
-                // Security Status Hero Card
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: isDark
-                          ? [const Color(0xFF0F172A), const Color(0xFF1E293B)]
-                          : [const Color(0xFF10B981), const Color(0xFF059669)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(22),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.15),
-                        blurRadius: 16,
-                        offset: const Offset(0, 6),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.2),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.shield_rounded, color: Colors.white, size: 32),
-                      ),
-                      const SizedBox(width: 16),
-                      const Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'System Fully Protected',
-                              style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-                            ),
-                            SizedBox(height: 4),
-                            Text(
-                              'AES-GCM-256 Offline BLE Vault active & SHA-256 Ledger synchronized.',
-                              style: TextStyle(color: Colors.white70, fontSize: 12),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
 
-                const SizedBox(height: 28),
                 _buildSectionTitle('ACCESS CONTROL & PINS', isDark),
                 const SizedBox(height: 10),
                 _buildGroupedCard(
@@ -153,18 +102,7 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
                         Navigator.pushNamed(context, '/pin_settings');
                       },
                     ),
-                    _buildDivider(isDark),
-                    SwitchListTile.adaptive(
-                      secondary: CircleAvatar(
-                        backgroundColor: Colors.purple.withValues(alpha: 0.15),
-                        child: const Icon(Icons.fingerprint_rounded, color: Colors.purple),
-                      ),
-                      title: const Text('Require App Authentication', style: TextStyle(fontWeight: FontWeight.bold)),
-                      subtitle: const Text('Lock OFFPAY when minimized or closed'),
-                      value: _requireAppLock,
-                      activeTrackColor: themeProvider.accentColor,
-                      onChanged: (val) => _toggleSetting('security_require_app_lock', val, (v) => _requireAppLock = v),
-                    ),
+
                   ],
                 ),
 

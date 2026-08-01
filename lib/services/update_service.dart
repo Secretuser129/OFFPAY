@@ -21,8 +21,8 @@ class UpdateInfo {
 }
 
 class UpdateService {
-  static const int currentVersionCode = 310;
-  static const String currentVersionName = '3.1.0';
+  static const int currentVersionCode = 320;
+  static const String currentVersionName = '3.2.0';
 
   // Fallback version.json URL
   static const String rawJsonUrl = 'https://raw.githubusercontent.com/Secretuser129/OFFPAY/main/version.json';

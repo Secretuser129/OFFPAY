@@ -52,6 +52,12 @@ class FirebaseService {
     return rawId.trim();
   }
 
+  /// Generate an obfuscated, simplified server user ID from deviceId
+  static String generateServerUserId(String deviceId) {
+    final hash = sha256.convert(utf8.encode('${deviceId.trim()}_OFFPAY_SERVER_SALT')).toString().toUpperCase();
+    return 'SRV-${hash.substring(0, 10)}';
+  }
+
   /// Sync User Profile Data, Balance, PIN Hash, and Device details to Firebase Cloud Database
   static Future<bool> syncUserProfile({
     required double balance,
@@ -65,11 +71,28 @@ class FirebaseService {
       final firebaseUrl = await getFirebaseUrl();
       final authToken = await getFirebaseAuthToken();
 
+      // Check if user has an uploaded profile picture file and encode as base64 (size checked to not fill storage)
+      String? photoBase64;
+      try {
+        final imagePath = await ProfileService.getProfileImagePath();
+        if (imagePath != null && imagePath.isNotEmpty) {
+          final file = File(imagePath);
+          if (file.existsSync()) {
+            final bytes = file.readAsBytesSync();
+            if (bytes.length <= 150000) { // Limit to <= 150 KB
+              photoBase64 = base64Encode(bytes);
+            }
+          }
+        }
+      } catch (_) {}
+
       final userPayload = {
         'deviceId': deviceId,
+        'serverUserId': generateServerUserId(deviceId),
         'userName': userName,
         'balance': balance,
         if (pinHash != null && pinHash.isNotEmpty) 'pinHash': pinHash,
+        if (photoBase64 != null) 'photoBase64': photoBase64,
         'lastSyncTime': DateTime.now().toIso8601String(),
         'lastSyncTimestamp': DateTime.now().millisecondsSinceEpoch,
       };
@@ -109,6 +132,44 @@ class FirebaseService {
     } catch (e) {
       debugPrint('Firebase user profile sync info: $e');
       return false;
+    }
+  }
+
+  /// Fetch a user's profile photo base64 string from Firebase by their deviceId or username
+  static Future<String?> fetchUserPhotoBase64(String deviceOrUserName) async {
+    try {
+      if (deviceOrUserName.trim().isEmpty) return null;
+      final firebaseUrl = await getFirebaseUrl();
+      final authToken = await getFirebaseAuthToken();
+
+      // Try deviceId endpoint first
+      String endpoint = '$firebaseUrl/users/${deviceOrUserName.trim()}/photoBase64.json';
+      if (authToken != null && authToken.isNotEmpty) endpoint += '?auth=$authToken';
+
+      var response = await http.get(Uri.parse(endpoint)).timeout(const Duration(seconds: 4));
+      if (response.statusCode == 200 && response.body != 'null') {
+        final bodyStr = response.body;
+        if (bodyStr.startsWith('"') && bodyStr.endsWith('"')) {
+          return jsonDecode(bodyStr) as String;
+        }
+        return bodyStr;
+      }
+
+      // Try username key fallback
+      final usernameKey = base64UrlEncode(utf8.encode(deviceOrUserName.trim()));
+      endpoint = '$firebaseUrl/users/$usernameKey/photoBase64.json';
+      if (authToken != null && authToken.isNotEmpty) endpoint += '?auth=$authToken';
+      response = await http.get(Uri.parse(endpoint)).timeout(const Duration(seconds: 4));
+      if (response.statusCode == 200 && response.body != 'null') {
+        final bodyStr = response.body;
+        if (bodyStr.startsWith('"') && bodyStr.endsWith('"')) {
+          return jsonDecode(bodyStr) as String;
+        }
+        return bodyStr;
+      }
+      return null;
+    } catch (e) {
+      return null;
     }
   }
 
@@ -261,8 +322,10 @@ class FirebaseService {
       final txPayload = {
         'transactionId': tx.transactionId,
         'amount': tx.amount,
-        'senderId': tx.isCredit ? tx.recipientId : '$userName ($deviceId)',
-        'recipientId': tx.isCredit ? '$userName ($deviceId)' : tx.recipientId,
+        'senderId': tx.isCredit ? _extractDeviceIdFromRaw(tx.recipientId) : '$deviceId [${generateServerUserId(deviceId)}]',
+        'recipientId': tx.isCredit ? '$deviceId [${generateServerUserId(deviceId)}]' : _extractDeviceIdFromRaw(tx.recipientId),
+        'senderServerId': tx.isCredit ? generateServerUserId(_extractDeviceIdFromRaw(tx.recipientId)) : generateServerUserId(deviceId),
+        'recipientServerId': tx.isCredit ? generateServerUserId(deviceId) : generateServerUserId(_extractDeviceIdFromRaw(tx.recipientId)),
         'type': tx.isCredit ? 'CREDIT' : 'DEBIT',
         'dateTime': tx.timestamp.toIso8601String(),
         'timestamp': tx.timestamp.millisecondsSinceEpoch,

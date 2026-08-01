@@ -115,7 +115,7 @@ class AppearanceScreen extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Interactive Theme Switcher',
+            'App Theme Switcher',
             style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 4),
@@ -347,7 +347,7 @@ class AppearanceScreen extends StatelessWidget {
               backgroundColor: Colors.pinkAccent.withValues(alpha: 0.15),
               child: const Icon(Icons.color_lens_rounded, color: Colors.pinkAccent),
             ),
-            title: const Text('Accent Color Only for Icons', style: TextStyle(fontWeight: FontWeight.bold)),
+            title: const Text('Accent Color', style: TextStyle(fontWeight: FontWeight.bold)),
             subtitle: const Text('Keep button backgrounds sleek black/white'),
             trailing: Switch.adaptive(
               value: themeProvider.accentColorOnlyForIcons,
@@ -356,6 +356,37 @@ class AppearanceScreen extends StatelessWidget {
                 HapticFeedback.lightImpact();
                 themeProvider.setAccentColorOnlyForIcons(val);
               },
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            child: Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: ThemeProvider.accentColorPalette.map((color) {
+                final isSelected = themeProvider.accentColor.value == color.value;
+                return GestureDetector(
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    themeProvider.setAccentColor(color);
+                  },
+                  child: Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: color,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: isDark ? Colors.white24 : Colors.black12,
+                        width: 1,
+                      ),
+                    ),
+                    child: isSelected
+                        ? const Icon(Icons.check, color: Colors.white, size: 20)
+                        : null,
+                  ),
+                );
+              }).toList(),
             ),
           ),
         ],

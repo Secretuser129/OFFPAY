@@ -689,6 +689,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildQuickActions(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     // Sort remaining items by usage descending
     final sortedRemaining = _actionUsageCount.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
@@ -829,7 +830,11 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               Text(
                 'Quick',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white54 : Colors.black54,
+                ),
               ),
               SizedBox(width: 8),
               Text(
@@ -896,7 +901,11 @@ class _HomeScreenState extends State<HomeScreen> {
           padding: EdgeInsets.only(left: 4.0, bottom: 12.0),
           child: Text(
             'Utility & Travel Services',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: isDark ? Colors.white54 : Colors.black54,
+            ),
           ),
         ),
         GridView.builder(

@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/password_service.dart';
 import '../services/firebase_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/wallet_model.dart';
+import '../services/theme_service.dart';
 
 class PinSettingsScreen extends StatefulWidget {
   const PinSettingsScreen({super.key});
@@ -15,6 +17,7 @@ class PinSettingsScreen extends StatefulWidget {
 class _PinSettingsScreenState extends State<PinSettingsScreen> {
   bool _hasBalancePin = false;
   bool _hasTransferPin = false;
+  bool _requireAppLock = true;
   bool _isLoading = true;
 
   @override
@@ -27,9 +30,12 @@ class _PinSettingsScreenState extends State<PinSettingsScreen> {
     setState(() => _isLoading = true);
     final hasBalance = await PasswordService.hasBalancePin();
     final hasTransfer = await PasswordService.hasTransferPin();
+    final prefs = await SharedPreferences.getInstance();
+    final requireAppLock = prefs.getBool('security_require_app_lock') ?? true;
     setState(() {
       _hasBalancePin = hasBalance;
       _hasTransferPin = hasTransfer;
+      _requireAppLock = requireAppLock;
       _isLoading = false;
     });
   }
@@ -176,6 +182,7 @@ class _PinSettingsScreenState extends State<PinSettingsScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final themeProvider = Provider.of<ThemeProvider>(context);
 
     return Scaffold(
       appBar: AppBar(
@@ -203,6 +210,28 @@ class _PinSettingsScreenState extends State<PinSettingsScreen> {
                     ),
                   ),
                   const SizedBox(height: 24),
+                  
+                  // App Authentication
+                  _buildGlassCard(
+                    isDark: isDark,
+                    borderColor: isDark ? Colors.white.withValues(alpha: 0.15) : Colors.purple.withValues(alpha: 0.2),
+                    child: SwitchListTile.adaptive(
+                      secondary: CircleAvatar(
+                        backgroundColor: isDark ? Colors.purpleAccent.withValues(alpha: 0.2) : Colors.purple.withValues(alpha: 0.1),
+                        child: Icon(Icons.fingerprint_rounded, color: isDark ? Colors.purpleAccent : Colors.purple),
+                      ),
+                      title: const Text('Require App Authentication', style: TextStyle(fontWeight: FontWeight.bold)),
+                      subtitle: const Text('Lock OFFPAY when minimized or closed'),
+                      value: _requireAppLock,
+                      activeTrackColor: themeProvider.accentColor,
+                      onChanged: (val) async {
+                        setState(() => _requireAppLock = val);
+                        final prefs = await SharedPreferences.getInstance();
+                        await prefs.setBool('security_require_app_lock', val);
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 16),
                   
                   // Card 1: Balance View PIN
                   _buildGlassCard(

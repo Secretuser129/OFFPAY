@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../services/firebase_service.dart';
 import '../services/profile_service.dart';
 import '../models/wallet_model.dart';
@@ -163,61 +164,104 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  void _showPhoneOtpVerificationDialog(String phone, VoidCallback onVerified) {
-    final otpController = TextEditingController();
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Row(
-          children: [
-            Icon(Icons.lock_person_rounded, color: Colors.blueAccent),
-            SizedBox(width: 10),
-            Text('Phone OTP Verification'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('A secure 6-digit verification code has been sent via Firebase Phone Auth to $phone.'),
-            const SizedBox(height: 12),
-            const Text('Demo / Test OTP Code: 123456', style: TextStyle(fontSize: 12, color: Colors.green, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 12),
-            TextField(
-              controller: otpController,
-              keyboardType: TextInputType.number,
-              maxLength: 6,
-              decoration: InputDecoration(
-                labelText: 'Enter 6-Digit OTP',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              if (otpController.text.trim().length >= 4) {
-                Navigator.pop(ctx);
-                onVerified();
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Please enter valid 6-digit OTP.')),
+  Future<void> _showPhoneOtpVerificationDialog(String phone, VoidCallback onVerified) async {
+    setState(() => _isLoading = true);
+    String phoneNumber = phone;
+    if (!phoneNumber.startsWith('+')) {
+      phoneNumber = '+91$phoneNumber';
+    }
+
+    try {
+      await FirebaseAuth.instance.verifyPhoneNumber(
+        phoneNumber: phoneNumber,
+        verificationCompleted: (PhoneAuthCredential credential) async {},
+        verificationFailed: (FirebaseAuthException e) {
+          setState(() => _isLoading = false);
+          _showError(e.message ?? 'Verification failed');
+        },
+        codeSent: (String verificationId, int? resendToken) {
+          setState(() => _isLoading = false);
+          
+          final otpController = TextEditingController();
+          bool isVerifying = false;
+
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (ctx) => StatefulBuilder(
+              builder: (context, setDialogState) {
+                return AlertDialog(
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  title: const Row(
+                    children: [
+                      Icon(Icons.lock_person_rounded, color: Colors.blueAccent),
+                      SizedBox(width: 10),
+                      Text('Phone OTP Verification'),
+                    ],
+                  ),
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('A secure 6-digit verification code has been sent via Firebase Phone Auth to $phone.'),
+                      const SizedBox(height: 12),
+                      const Text('Enter the 6-digit code sent to your phone', style: TextStyle(fontSize: 12, color: Colors.blueAccent, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: otpController,
+                        keyboardType: TextInputType.number,
+                        maxLength: 6,
+                        decoration: InputDecoration(
+                          labelText: 'Enter 6-Digit OTP',
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                      ),
+                    ],
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      child: const Text('Cancel'),
+                    ),
+                    ElevatedButton(
+                      onPressed: isVerifying ? null : () async {
+                        if (otpController.text.trim().length >= 4) {
+                          setDialogState(() => isVerifying = true);
+                          try {
+                            PhoneAuthCredential credential = PhoneAuthProvider.credential(
+                              verificationId: verificationId,
+                              smsCode: otpController.text.trim(),
+                            );
+                            await FirebaseAuth.instance.signInWithCredential(credential);
+                            Navigator.pop(ctx);
+                            onVerified();
+                          } on FirebaseAuthException catch (e) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text(e.message ?? 'Invalid OTP')),
+                            );
+                            setDialogState(() => isVerifying = false);
+                          }
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Please enter valid 6-digit OTP.')),
+                          );
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent, foregroundColor: Colors.white),
+                      child: isVerifying ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Text('Verify & Complete'),
+                    ),
+                  ],
                 );
               }
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent, foregroundColor: Colors.white),
-            child: const Text('Verify & Complete'),
-          ),
-        ],
-      ),
-    );
+            ),
+          );
+        },
+        codeAutoRetrievalTimeout: (String verificationId) {},
+      );
+    } catch (e) {
+      setState(() => _isLoading = false);
+      _showError('Failed to send OTP: $e');
+    }
   }
 
   void _showForgotCredentialsModal() {
@@ -226,6 +270,9 @@ class _LoginScreenState extends State<LoginScreen> {
     final otpCtrl = TextEditingController();
     final newPassCtrl = TextEditingController();
     int step = 1;
+    bool isSending = false;
+    bool isVerifying = false;
+    String? storedVerificationId;
 
     showModalBottomSheet(
       context: context,
@@ -274,25 +321,48 @@ class _LoginScreenState extends State<LoginScreen> {
                 SizedBox(
                   width: double.maxFinite,
                   child: ElevatedButton(
-                    onPressed: () {
+                    onPressed: isSending ? null : () async {
                       if (userCtrl.text.trim().isEmpty || !userCtrl.text.toUpperCase().contains('OFFPAY') || phoneCtrl.text.trim().length < 10) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(content: Text('Please enter valid Username and 10-digit Phone Number.')),
                         );
                         return;
                       }
-                      setModalState(() {
-                        step = 2;
-                      });
+                      
+                      setModalState(() => isSending = true);
+                      
+                      String phoneNumber = phoneCtrl.text.trim();
+                      if (!phoneNumber.startsWith('+')) {
+                        phoneNumber = '+91$phoneNumber';
+                      }
+
+                      await FirebaseAuth.instance.verifyPhoneNumber(
+                        phoneNumber: phoneNumber,
+                        verificationCompleted: (PhoneAuthCredential credential) {},
+                        verificationFailed: (FirebaseAuthException e) {
+                          setModalState(() => isSending = false);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text(e.message ?? 'Verification failed')),
+                          );
+                        },
+                        codeSent: (String verificationId, int? resendToken) {
+                          setModalState(() {
+                            isSending = false;
+                            storedVerificationId = verificationId;
+                            step = 2;
+                          });
+                        },
+                        codeAutoRetrievalTimeout: (String verificationId) {},
+                      );
                     },
                     style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 14)),
-                    child: const Text('Send Recovery OTP'),
+                    child: isSending ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Text('Send Recovery OTP'),
                   ),
                 ),
               ] else ...[
                 const Text('Enter the OTP received on your phone and set your new password.', style: TextStyle(fontWeight: FontWeight.w600)),
                 const SizedBox(height: 8),
-                const Text('Demo / Test OTP: 123456', style: TextStyle(fontSize: 12, color: Colors.green, fontWeight: FontWeight.bold)),
+                const Text('Enter the 6-digit code sent to your phone', style: TextStyle(fontSize: 12, color: Colors.blueAccent, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 12),
                 TextField(
                   controller: otpCtrl,
@@ -316,23 +386,44 @@ class _LoginScreenState extends State<LoginScreen> {
                 SizedBox(
                   width: double.maxFinite,
                   child: ElevatedButton(
-                    onPressed: () async {
+                    onPressed: isVerifying ? null : () async {
                       if (otpCtrl.text.trim().length < 4 || newPassCtrl.text.trim().length < 6) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(content: Text('Please enter valid OTP and password >= 6 chars.')),
                         );
                         return;
                       }
-                      Navigator.pop(ctx);
-                      await FirebaseService.createAccount(userCtrl.text.trim(), newPassCtrl.text.trim());
-                      if (mounted) {
+                      
+                      setModalState(() => isVerifying = true);
+                      
+                      try {
+                        PhoneAuthCredential credential = PhoneAuthProvider.credential(
+                          verificationId: storedVerificationId!,
+                          smsCode: otpCtrl.text.trim(),
+                        );
+                        await FirebaseAuth.instance.signInWithCredential(credential);
+                        
+                        Navigator.pop(ctx);
+                        await FirebaseService.createAccount(userCtrl.text.trim(), newPassCtrl.text.trim());
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Credentials reset successfully! Please login.'), backgroundColor: Colors.green),
+                          );
+                        }
+                      } on FirebaseAuthException catch (e) {
+                        setModalState(() => isVerifying = false);
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Credentials reset successfully! Please login.'), backgroundColor: Colors.green),
+                          SnackBar(content: Text(e.message ?? 'Invalid OTP')),
+                        );
+                      } catch (e) {
+                        setModalState(() => isVerifying = false);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Error: $e')),
                         );
                       }
                     },
                     style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 14)),
-                    child: const Text('Verify & Update Password'),
+                    child: isVerifying ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Text('Verify & Update Password'),
                   ),
                 ),
               ],

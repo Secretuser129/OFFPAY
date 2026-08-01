@@ -1,5 +1,6 @@
 // lib/screens/payment_input_screen.dart
 
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart' as fb;
 import 'package:provider/provider.dart';
@@ -33,6 +34,10 @@ class _PaymentInputScreenState extends State<PaymentInputScreen> {
   bool _isConnecting = true;
   bool _isConnected = false;
   String _connectionError = '';
+  
+  bool _isProcessing = false;
+  String? _recipientPhotoBase64;
+  bool _hasFetchedPhoto = false;
 
   @override
   void initState() {
@@ -72,6 +77,21 @@ class _PaymentInputScreenState extends State<PaymentInputScreen> {
       if (args['isOnlineMode'] == true) {
         _isOnlineMode = true;
       }
+    }
+    if (!_hasFetchedPhoto && customRecipientName != null && customRecipientName!.isNotEmpty) {
+      _hasFetchedPhoto = true;
+      final targetId = recipientDevice?.remoteId.str ?? customRecipientName!;
+      FirebaseService.fetchUserPhotoBase64(targetId).then((base64) {
+        if (base64 != null && mounted) {
+          setState(() => _recipientPhotoBase64 = base64);
+        } else if (customRecipientName != null && customRecipientName != targetId) {
+          FirebaseService.fetchUserPhotoBase64(customRecipientName!).then((base64Name) {
+            if (base64Name != null && mounted) {
+              setState(() => _recipientPhotoBase64 = base64Name);
+            }
+          });
+        }
+      });
     }
     // Handle the edge case where the device is null
     if (recipientDevice == null) {
@@ -130,6 +150,8 @@ class _PaymentInputScreenState extends State<PaymentInputScreen> {
       if (!authorized) return;
     }
 
+    setState(() => _isProcessing = true);
+
     final double amount = double.parse(_amountController.text);
     final bluetoothService = Provider.of<OffpayBluetoothService>(context, listen: false);
     final walletModel = Provider.of<WalletModel>(context, listen: false);
@@ -176,6 +198,7 @@ class _PaymentInputScreenState extends State<PaymentInputScreen> {
     }
 
     if (success) {
+      if (mounted) setState(() => _isProcessing = false);
       final recipientName = customRecipientName.isNotEmpty 
           ? customRecipientName 
           : 'Unknown User';
@@ -190,6 +213,7 @@ class _PaymentInputScreenState extends State<PaymentInputScreen> {
         ),
       );
     } else {
+      if (mounted) setState(() => _isProcessing = false);
       // 4. Transaction completely failed (even mesh routing failed)
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('❌ Payment failed. Could not route transaction securely.'), backgroundColor: Colors.red),
@@ -218,11 +242,13 @@ class _PaymentInputScreenState extends State<PaymentInputScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Payment Details'), elevation: 0),
-      body: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Form(
-          key: _formKey,
-          child: ListView(
+      body: Stack(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Form(
+              key: _formKey,
+              child: ListView(
             children: <Widget>[
               // --- Server Connection Status Banner (ONLY in QR Server Mode) ---
               if (_isOnlineMode)
@@ -349,7 +375,12 @@ class _PaymentInputScreenState extends State<PaymentInputScreen> {
                           color: theme.primaryColor,
                         ),
                         padding: const EdgeInsets.all(12),
-                        child: const Icon(Icons.person, color: Colors.white, size: 32),
+                        child: _recipientPhotoBase64 != null
+                            ? CircleAvatar(
+                                radius: 24,
+                                backgroundImage: MemoryImage(base64Decode(_recipientPhotoBase64!)),
+                              )
+                            : const Icon(Icons.person, color: Colors.white, size: 32),
                       ),
                       const SizedBox(height: 12),
                       Text(
@@ -508,6 +539,22 @@ class _PaymentInputScreenState extends State<PaymentInputScreen> {
             ].animate(interval: 50.ms).fade().slideY(begin: 0.1, end: 0),
           ),
         ),
+          ),
+          if (_isProcessing)
+            Container(
+              color: Colors.black.withValues(alpha: 0.4),
+              child: const Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircularProgressIndicator(color: Colors.white),
+                    SizedBox(height: 16),
+                    Text('Processing payment securely...', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                  ],
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

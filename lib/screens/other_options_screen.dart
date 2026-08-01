@@ -16,7 +16,7 @@ class OtherOptionsScreen extends StatelessWidget {
       backgroundColor: isDark ? const Color(0xFF101018) : const Color(0xFFF4F4F8),
       appBar: AppBar(
         title: const Text(
-          'All Options & Hub',
+          'Menu',
           style: TextStyle(
             fontWeight: FontWeight.w700,
             fontSize: 18,
@@ -30,29 +30,6 @@ class OtherOptionsScreen extends StatelessWidget {
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
-        actions: [
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert_rounded),
-            tooltip: 'More Options',
-            onSelected: (val) {
-              if (val == 'customize_navbar') {
-                _showCustomizeNavbarDialog(context);
-              }
-            },
-            itemBuilder: (ctx) => [
-              const PopupMenuItem(
-                value: 'customize_navbar',
-                child: Row(
-                  children: [
-                    Icon(Icons.dashboard_customize_rounded, size: 20),
-                    SizedBox(width: 12),
-                    Text('Customize Navbar'),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ],
       ),
       bottomNavigationBar: const GlobalAppleDock(activeRoute: '/other_options'),
       body: SingleChildScrollView(
@@ -60,12 +37,12 @@ class OtherOptionsScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'QUICK TRANSACTIONS',
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
-                color: Colors.white54,
+                color: isDark ? Colors.white54 : Colors.black54,
                 letterSpacing: 1.2,
               ),
             ),
@@ -98,7 +75,7 @@ class OtherOptionsScreen extends StatelessWidget {
                 ),
                 _buildQuickCard(
                   context: context,
-                  title: 'QR Generator',
+                  title: 'My QR',
                   subtitle: 'Offline Payment QR',
                   icon: Icons.qr_code_2_rounded,
                   color: const Color(0xFF8B5CF6), // Purple
@@ -118,12 +95,12 @@ class OtherOptionsScreen extends StatelessWidget {
             ),
 
             const SizedBox(height: 28),
-            const Text(
+            Text(
               'REWARDS, SETTINGS & ACCOUNT',
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
-                color: Colors.white54,
+                color: isDark ? Colors.white54 : Colors.black54,
                 letterSpacing: 1.2,
               ),
             ),
@@ -135,8 +112,8 @@ class OtherOptionsScreen extends StatelessWidget {
                   context: context,
                   icon: Icons.card_giftcard_rounded,
                   iconColor: const Color(0xFFF59E0B), // Amber gold
-                  title: 'My Rewards & Scratch Cards',
-                  subtitle: 'Scratch cards, cashback coupons & collectible roles',
+                  title: 'My Rewards',
+                  subtitle: 'Cashback coupons & collectible roles',
                   route: '/rewards',
                 ),
                 _buildDivider(isDark),
@@ -156,6 +133,15 @@ class OtherOptionsScreen extends StatelessWidget {
                   title: 'Settings, Security & Diagnostics',
                   subtitle: 'Manage theme, PIN, audit logs & system update',
                   route: '/settings',
+                ),
+                _buildDivider(isDark),
+                _buildListItem(
+                  context: context,
+                  icon: Icons.dashboard_customize_rounded,
+                  iconColor: const Color(0xFFEF4444),
+                  title: 'Customize Navbar',
+                  subtitle: 'Change docked items and layout',
+                  onTap: () => _showCustomizeNavbarDialog(context),
                 ),
               ],
             ),
@@ -227,9 +213,9 @@ class OtherOptionsScreen extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   subtitle,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 11,
-                    color: Colors.white54,
+                    color: isDark ? Colors.white54 : Colors.black54,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -255,7 +241,7 @@ class OtherOptionsScreen extends StatelessWidget {
               : Colors.white,
           borderRadius: BorderRadius.circular(22),
           border: Border.all(
-            color: Colors.white.withValues(alpha: 0.14),
+            color: isDark ? Colors.white.withValues(alpha: 0.14) : Colors.black.withValues(alpha: 0.08),
             width: 1.0,
           ),
         ),
@@ -270,12 +256,18 @@ class OtherOptionsScreen extends StatelessWidget {
     required Color iconColor,
     required String title,
     required String subtitle,
-    required String route,
+    String? route,
+    VoidCallback? onTap,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return ListTile(
       onTap: () {
         HapticFeedback.lightImpact();
-        Navigator.pushNamed(context, route);
+        if (onTap != null) {
+          onTap();
+        } else if (route != null) {
+          Navigator.pushNamed(context, route);
+        }
       },
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       leading: Container(
@@ -297,15 +289,15 @@ class OtherOptionsScreen extends StatelessWidget {
       ),
       subtitle: Text(
         subtitle,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 11,
-          color: Colors.white54,
+          color: isDark ? Colors.white54 : Colors.black54,
         ),
       ),
-      trailing: const Icon(
+      trailing: Icon(
         Icons.arrow_forward_ios_rounded,
         size: 16,
-        color: Colors.white38,
+        color: isDark ? Colors.white38 : Colors.black38,
       ),
     );
   }
@@ -315,7 +307,7 @@ class OtherOptionsScreen extends StatelessWidget {
       height: 1,
       thickness: 1,
       indent: 68,
-      color: Colors.white.withValues(alpha: 0.08),
+      color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.08),
     );
   }
 
@@ -377,9 +369,10 @@ class OtherOptionsScreen extends StatelessWidget {
             ),
             content: SizedBox(
               width: double.maxFinite,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
                     'Reorder tiles using arrows. Notice the Live Preview below updates instantly!',
@@ -425,6 +418,7 @@ class OtherOptionsScreen extends StatelessWidget {
                   const SizedBox(height: 8),
                   const GlobalAppleDock(activeRoute: '/other_options'),
                 ],
+              ),
               ),
             ),
             actions: [
