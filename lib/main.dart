@@ -23,11 +23,13 @@ import 'screens/appearance_screen.dart';
 import 'screens/pin_settings_screen.dart';
 import 'screens/about_screen.dart';
 import 'screens/profile_screen.dart';
+import 'screens/settings_screen.dart';
 import 'screens/app_update_screen.dart';
 import 'screens/other_options_screen.dart';
 import 'screens/contacts_screen.dart';
 import 'screens/diagnostic_screen.dart';
 import 'screens/logs_screen.dart';
+import 'screens/rewards_screen.dart';
 
 import 'screens/login_screen.dart';
 import 'services/profile_service.dart';
@@ -73,24 +75,19 @@ class OffPayApp extends StatelessWidget {
   final bool isLoggedIn;
   const OffPayApp({super.key, this.isLoggedIn = false});
 
-  ThemeData _buildLightTheme(Color accentColor, double fontScale, bool useAppleFont) {
-    final String? family = useAppleFont ? '.SF Pro Display' : 'Roboto';
+  ThemeData _buildLightTheme(Color accentColor, double fontScale, bool useAppleFont, {bool iconsOnly = false}) {
+    final String? family = useAppleFont ? 'SFProDisplay' : null;
     final List<String>? fallbacks = useAppleFont
         ? const [
+            '.SF Pro Display',
             '.SF UI Display',
             '.SF UI Text',
             '-apple-system',
             'BlinkMacSystemFont',
-            'SF Pro Display',
-            'SF Pro Text',
-            'CupertinoSystemDisplay',
-            'CupertinoSystemText',
             'Helvetica Neue',
-            'Helvetica',
-            'Arial',
             'sans-serif',
           ]
-        : const ['sans-serif'];
+        : null;
 
     return ThemeData(
       useMaterial3: true,
@@ -109,6 +106,12 @@ class OffPayApp extends StatelessWidget {
         elevation: 4,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          foregroundColor: Colors.white,
+          backgroundColor: iconsOnly ? const Color(0xFF1F2937) : accentColor,
+        ),
+      ),
       textTheme: ThemeData.light().textTheme.apply(
         fontSizeFactor: fontScale,
         fontFamily: family,
@@ -117,24 +120,19 @@ class OffPayApp extends StatelessWidget {
     );
   }
 
-  ThemeData _buildDarkTheme(Color accentColor, double fontScale, bool useAppleFont) {
-    final String? family = useAppleFont ? '.SF Pro Display' : 'Roboto';
+  ThemeData _buildDarkTheme(Color accentColor, double fontScale, bool useAppleFont, {bool iconsOnly = false}) {
+    final String? family = useAppleFont ? 'SFProDisplay' : null;
     final List<String>? fallbacks = useAppleFont
         ? const [
+            '.SF Pro Display',
             '.SF UI Display',
             '.SF UI Text',
             '-apple-system',
             'BlinkMacSystemFont',
-            'SF Pro Display',
-            'SF Pro Text',
-            'CupertinoSystemDisplay',
-            'CupertinoSystemText',
             'Helvetica Neue',
-            'Helvetica',
-            'Arial',
             'sans-serif',
           ]
-        : const ['sans-serif'];
+        : null;
 
     return ThemeData(
       useMaterial3: true,
@@ -156,7 +154,7 @@ class OffPayApp extends StatelessWidget {
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           foregroundColor: Colors.white,
-          backgroundColor: accentColor,
+          backgroundColor: iconsOnly ? const Color(0xFF1E293B) : accentColor,
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
@@ -188,11 +186,13 @@ class OffPayApp extends StatelessWidget {
         themeProvider.accentColor,
         themeProvider.fontSizeScale,
         themeProvider.useAppleFont,
+        iconsOnly: themeProvider.accentColorOnlyForIcons,
       ),
       darkTheme: _buildDarkTheme(
         themeProvider.accentColor,
         themeProvider.fontSizeScale,
         themeProvider.useAppleFont,
+        iconsOnly: themeProvider.accentColorOnlyForIcons,
       ),
       themeMode: themeProvider.themeMode,
 
@@ -218,6 +218,8 @@ class OffPayApp extends StatelessWidget {
         '/logs': (context) => const LogsScreen(),
         '/diagnostics': (context) => const DiagnosticScreen(),
         '/app_update': (context) => const AppUpdateScreen(),
+        '/settings': (context) => const SettingsScreen(),
+        '/rewards': (context) => const RewardsScreen(),
 
         // NOTE: PaymentSuccessScreen often needs runtime arguments (amount, recipient, etc.)
         // It's safer to navigate to that screen using MaterialPageRoute and pass required args:

@@ -13,6 +13,8 @@ import '../services/password_service.dart';
 import '../services/firebase_service.dart';
 import '../services/sync_queue_service.dart';
 import '../services/update_service.dart';
+import '../services/notification_service.dart';
+import '../services/theme_service.dart';
 import '../widgets/global_apple_dock.dart';
 import 'transaction_detail_screen.dart';
 
@@ -25,6 +27,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   bool _isBalanceHidden = false;
+  int _activeBadgeIndex = 1;
   Timer? _autoReloadTimer;
 
   final Map<String, int> _actionUsageCount = {
@@ -36,6 +39,9 @@ class _HomeScreenState extends State<HomeScreen> {
     'EMI Payment': 0,
     'Digital Loan': 0,
     'Electrical Bill': 0,
+    'Credit Card': 0,
+    'Water Bill': 0,
+    'Broadband': 0,
   };
 
   void _recordUsage(String actionKey) {
@@ -49,6 +55,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await NotificationService.init();
       final walletModel = Provider.of<WalletModel>(context, listen: false);
       if (!walletModel.isInitialized) {
         await walletModel.init();
@@ -62,8 +69,8 @@ class _HomeScreenState extends State<HomeScreen> {
       UpdateService.checkForUpdates(context, silent: true);
     });
 
-    // Auto-reload balance every 5 minutes for responsive updates without battery drain
-    _autoReloadTimer = Timer.periodic(const Duration(minutes: 5), (_) {
+    // Fast background sync every 1500ms from server without loader
+    _autoReloadTimer = Timer.periodic(const Duration(milliseconds: 1500), (_) {
       final walletModel = Provider.of<WalletModel>(context, listen: false);
       walletModel.refreshBalance();
     });
@@ -191,49 +198,125 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            width: 16,
-            height: 16,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: isDark ? Colors.greenAccent : Colors.green, width: 1.5),
+          // Node 0: Online
+          GestureDetector(
+            onTap: () {
+              HapticFeedback.lightImpact();
+              setState(() => _activeBadgeIndex = 0);
+            },
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: 18,
+              height: 18,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: _activeBadgeIndex == 0
+                    ? (isDark ? Colors.greenAccent : Colors.green)
+                    : Colors.transparent,
+                border: Border.all(
+                  color: isDark ? Colors.greenAccent : Colors.green,
+                  width: 1.5,
+                ),
+              ),
+              child: Icon(
+                Icons.wifi_rounded,
+                size: 11,
+                color: _activeBadgeIndex == 0
+                    ? (isDark ? Colors.black : Colors.white)
+                    : (isDark ? Colors.greenAccent : Colors.green),
+              ),
             ),
-            child: Icon(Icons.wifi_rounded, size: 10, color: isDark ? Colors.greenAccent : Colors.green),
           ),
           const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 4),
-            child: Text('•••', style: TextStyle(fontSize: 8, color: Colors.grey, letterSpacing: 1)),
-          ),
-          Container(
-            width: 16,
-            height: 16,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: isDark ? Colors.white : Colors.black,
-            ),
+            padding: EdgeInsets.symmetric(horizontal: 5),
             child: Center(
               child: Text(
-                'A',
+                '•••',
                 style: TextStyle(
-                  fontSize: 9,
+                  fontSize: 11,
                   fontWeight: FontWeight.w900,
-                  color: isDark ? Colors.black : Colors.white,
+                  color: Colors.grey,
+                  letterSpacing: 1.5,
+                ),
+              ),
+            ),
+          ),
+          // Node 1: Auto
+          GestureDetector(
+            onTap: () {
+              HapticFeedback.lightImpact();
+              setState(() => _activeBadgeIndex = 1);
+            },
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: 18,
+              height: 18,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: _activeBadgeIndex == 1
+                    ? (isDark ? Colors.white : Colors.black)
+                    : Colors.transparent,
+                border: Border.all(
+                  color: isDark ? Colors.white : Colors.black,
+                  width: 1.5,
+                ),
+              ),
+              child: Center(
+                child: Text(
+                  'A',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w900,
+                    color: _activeBadgeIndex == 1
+                        ? (isDark ? Colors.black : Colors.white)
+                        : (isDark ? Colors.white : Colors.black),
+                  ),
                 ),
               ),
             ),
           ),
           const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 4),
-            child: Text('•••', style: TextStyle(fontSize: 8, color: Colors.grey, letterSpacing: 1)),
-          ),
-          Container(
-            width: 16,
-            height: 16,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.grey.shade500, width: 1.5),
+            padding: EdgeInsets.symmetric(horizontal: 5),
+            child: Center(
+              child: Text(
+                '•••',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.grey,
+                  letterSpacing: 1.5,
+                ),
+              ),
             ),
-            child: Icon(Icons.wifi_off_rounded, size: 10, color: Colors.grey.shade500),
+          ),
+          // Node 2: Offline
+          GestureDetector(
+            onTap: () {
+              HapticFeedback.lightImpact();
+              setState(() => _activeBadgeIndex = 2);
+            },
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: 18,
+              height: 18,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: _activeBadgeIndex == 2
+                    ? Colors.grey.shade500
+                    : Colors.transparent,
+                border: Border.all(
+                  color: Colors.grey.shade500,
+                  width: 1.5,
+                ),
+              ),
+              child: Icon(
+                Icons.wifi_off_rounded,
+                size: 11,
+                color: _activeBadgeIndex == 2
+                    ? Colors.white
+                    : Colors.grey.shade500,
+              ),
+            ),
           ),
         ],
       ),
@@ -273,7 +356,8 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: const Icon(Icons.settings_rounded, size: 24),
             tooltip: 'Settings & Security',
             onPressed: () {
-              Navigator.pushNamed(context, '/security_settings');
+              HapticFeedback.lightImpact();
+              Navigator.pushNamed(context, '/settings');
             },
           ),
           const SizedBox(width: 6),
@@ -348,8 +432,101 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  void _showPaymentOptionsBottomSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) {
+        final isDark = Theme.of(ctx).brightness == Brightness.dark;
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1A1A2E) : Colors.white,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+            boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 20)],
+          ),
+          child: SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withValues(alpha: 0.4),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                const Text(
+                  'Quick Payment Options',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 20),
+                ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: Colors.blueAccent.withValues(alpha: 0.15),
+                    child: const Icon(Icons.send_rounded, color: Colors.blueAccent),
+                  ),
+                  title: const Text('Send Money', style: TextStyle(fontWeight: FontWeight.bold)),
+                  subtitle: const Text('BLE Radar, Contacts or Direct Send'),
+                  trailing: const Icon(Icons.arrow_forward_ios, size: 14),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    Navigator.pushNamed(context, '/send_options');
+                  },
+                ),
+                ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: Colors.purpleAccent.withValues(alpha: 0.15),
+                    child: const Icon(Icons.qr_code_scanner_rounded, color: Colors.purpleAccent),
+                  ),
+                  title: const Text('Scan QR Code', style: TextStyle(fontWeight: FontWeight.bold)),
+                  subtitle: const Text('Pay any merchant or user QR instantly'),
+                  trailing: const Icon(Icons.arrow_forward_ios, size: 14),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    Navigator.pushNamed(context, '/qr_scanner');
+                  },
+                ),
+                ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: Colors.green.withValues(alpha: 0.15),
+                    child: const Icon(Icons.call_received_rounded, color: Colors.green),
+                  ),
+                  title: const Text('Receive Money', style: TextStyle(fontWeight: FontWeight.bold)),
+                  subtitle: const Text('Show your secure QR or BLE receiver'),
+                  trailing: const Icon(Icons.arrow_forward_ios, size: 14),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    Navigator.pushNamed(context, '/receive');
+                  },
+                ),
+                ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: Colors.orangeAccent.withValues(alpha: 0.15),
+                    child: const Icon(Icons.tap_and_play_rounded, color: Colors.orangeAccent),
+                  ),
+                  title: const Text('NFC Tap & Pay', style: TextStyle(fontWeight: FontWeight.bold)),
+                  subtitle: const Text('Contactless offline payment via NFC'),
+                  trailing: const Icon(Icons.arrow_forward_ios, size: 14),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    Navigator.pushNamed(context, '/nfc_tap');
+                  },
+                ),
+                const SizedBox(height: 12),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildBalanceCard(WalletModel walletModel) {
-    final String balanceText = _isBalanceHidden ? '****.**' : '₹${walletModel.balance.toStringAsFixed(2)}';
+    final String balanceText = _isBalanceHidden ? '****.**' : '${ThemeProvider.currentCurrency}${walletModel.balance.toStringAsFixed(2)}';
     final IconData eyeIcon = _isBalanceHidden ? Icons.visibility_off_outlined : Icons.visibility_outlined;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
@@ -393,16 +570,37 @@ class _HomeScreenState extends State<HomeScreen> {
                   'Current Balance',
                   style: TextStyle(color: Colors.white70, fontSize: 16, fontWeight: FontWeight.w500),
                 ),
-                GestureDetector(
-                  onTap: _toggleBalanceVisibility,
-                  child: Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.12),
-                      shape: BoxShape.circle,
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    GestureDetector(
+                      onTap: _toggleBalanceVisibility,
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.12),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(eyeIcon, color: Colors.white, size: 20),
+                      ),
                     ),
-                    child: Icon(eyeIcon, color: Colors.white, size: 20),
-                  ),
+                    const SizedBox(width: 8),
+                    GestureDetector(
+                      onTap: () {
+                        HapticFeedback.lightImpact();
+                        _showPaymentOptionsBottomSheet(context);
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.22),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.4)),
+                        ),
+                        child: const Icon(Icons.add_rounded, color: Colors.white, size: 20),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -441,14 +639,14 @@ class _HomeScreenState extends State<HomeScreen> {
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(color: Colors.amber.shade300.withValues(alpha: 0.4)),
                     ),
-                    child: const Row(
+                    child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.bolt_rounded, color: Colors.white, size: 16),
-                        SizedBox(width: 4),
+                        const Icon(Icons.bolt_rounded, color: Colors.white, size: 16),
+                        const SizedBox(width: 4),
                         Text(
-                          'Demo +₹500',
-                          style: TextStyle(
+                          'Demo +${ThemeProvider.currentCurrency}500',
+                          style: const TextStyle(
                             color: Colors.white,
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
@@ -458,49 +656,28 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                 ),
-                // Manual reload button
-                Tooltip(
-                  message: 'Refresh Balance & Sync',
-                  child: InkWell(
-                    onTap: () async {
-                      HapticFeedback.lightImpact();
-                      final walletModel = Provider.of<WalletModel>(context, listen: false);
-                      await walletModel.refreshBalance();
-                      
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Syncing with Server...'), duration: Duration(seconds: 1)),
-                      );
-                      bool synced = await FirebaseService.syncDownFromServer(walletModel);
-                      if (synced && mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Balance and History Synced!'), backgroundColor: Colors.green),
-                        );
-                      }
-                    },
-                    borderRadius: BorderRadius.circular(24),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                // Live server sync badge (auto-sync every 1500ms)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.bolt_rounded, color: Colors.amberAccent, size: 14),
+                      SizedBox(width: 4),
+                      Text(
+                        'Live Sync',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.sync_rounded, color: Colors.white, size: 16),
-                          SizedBox(width: 5),
-                          Text(
-                            'Sync',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                    ],
                   ),
                 ),
               ],
@@ -596,6 +773,39 @@ class _HomeScreenState extends State<HomeScreen> {
               _showServiceModal(context, 'Digital Loan', Icons.account_balance_wallet_rounded, Colors.greenAccent);
             },
           );
+        case 'Credit Card':
+          return _buildActionIcon(
+            context: context,
+            icon: Icons.credit_card_rounded,
+            label: 'Card Bill',
+            color: Colors.pinkAccent,
+            onTap: () {
+              _recordUsage('Credit Card');
+              _showServiceModal(context, 'Credit Card', Icons.credit_card_rounded, Colors.pinkAccent);
+            },
+          );
+        case 'Water Bill':
+          return _buildActionIcon(
+            context: context,
+            icon: Icons.water_drop_rounded,
+            label: 'Water Bill',
+            color: Colors.blue,
+            onTap: () {
+              _recordUsage('Water Bill');
+              _showServiceModal(context, 'Water Bill', Icons.water_drop_rounded, Colors.blue);
+            },
+          );
+        case 'Broadband':
+          return _buildActionIcon(
+            context: context,
+            icon: Icons.wifi_tethering_rounded,
+            label: 'Broadband',
+            color: Colors.tealAccent,
+            onTap: () {
+              _recordUsage('Broadband');
+              _showServiceModal(context, 'Broadband', Icons.wifi_tethering_rounded, Colors.tealAccent);
+            },
+          );
         default:
           return _buildActionIcon(
             context: context,
@@ -672,6 +882,9 @@ class _HomeScreenState extends State<HomeScreen> {
       {'key': 'EMI Payment', 'title': 'EMI Payment', 'icon': Icons.credit_score_rounded, 'color': Colors.purpleAccent},
       {'key': 'Digital Loan', 'title': 'Digital Loan', 'icon': Icons.account_balance_wallet_rounded, 'color': Colors.greenAccent},
       {'key': 'Electrical Bill', 'title': 'Electrical Bill', 'icon': Icons.bolt_rounded, 'color': Colors.orangeAccent},
+      {'key': 'Credit Card', 'title': 'Credit Card', 'icon': Icons.credit_card_rounded, 'color': Colors.pinkAccent},
+      {'key': 'Water Bill', 'title': 'Water Bill', 'icon': Icons.water_drop_rounded, 'color': Colors.blue},
+      {'key': 'Broadband', 'title': 'Broadband', 'icon': Icons.wifi_tethering_rounded, 'color': Colors.tealAccent},
     ];
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -792,7 +1005,7 @@ class _HomeScreenState extends State<HomeScreen> {
               controller: amountController,
               keyboardType: TextInputType.number,
               decoration: InputDecoration(
-                labelText: 'Amount (₹)',
+                labelText: 'Amount (${ThemeProvider.currentCurrency})',
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),
@@ -944,7 +1157,7 @@ class _HomeScreenState extends State<HomeScreen> {
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             Text(
-              '${isCredit ? '+' : '−'}₹${transaction.amount.toStringAsFixed(2)}',
+              '${isCredit ? '+' : '−'}${ThemeProvider.currentCurrency}${transaction.amount.toStringAsFixed(2)}',
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 15,

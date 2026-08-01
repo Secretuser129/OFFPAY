@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import 'package:encrypt/encrypt.dart' as enc;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'firebase_service.dart';
 
 const String _keyUserName = 'offpay_user_name';
 const String _keyDeviceId = 'offpay_device_id';
@@ -217,6 +218,10 @@ class ProfileService {
   }
 
   static Future<void> deleteAccount() async {
+    final deviceId = await getDeviceId();
+    try {
+      await FirebaseService.deleteUserAccountFromServer(deviceId);
+    } catch (_) {}
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
   }

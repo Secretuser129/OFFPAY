@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../services/bluetooth_service.dart';
 import '../services/receipt_service.dart';
 import '../services/reward_service.dart';
+import '../services/theme_service.dart';
 import '../widgets/scratch_card_dialog.dart';
 class PaymentSuccessScreen extends StatefulWidget {
   final double amount;
@@ -372,7 +373,7 @@ class _PaymentSuccessScreenState extends State<PaymentSuccessScreen> with Ticker
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildAnimatedDetailRow('Amount', '₹${widget.amount.toStringAsFixed(2)}', Colors.green, theme),
+                  _buildAnimatedDetailRow('Amount', '${ThemeProvider.currentCurrency}${widget.amount.toStringAsFixed(2)}', Colors.green, theme),
                   const Divider(height: 20),
                   _buildAnimatedDetailRow('Recipient', widget.recipientName, Colors.blue, theme),
                   const Divider(height: 20),

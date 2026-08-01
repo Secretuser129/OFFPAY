@@ -7,6 +7,7 @@ import '../services/bluetooth_service.dart';
 import '../services/profile_service.dart';
 import '../services/firebase_service.dart';
 import '../models/wallet_model.dart';
+import '../services/theme_service.dart';
 import 'receiver_pairing_screen.dart';
 import '../widgets/global_apple_dock.dart';
 
@@ -104,7 +105,7 @@ class _ReceiveScreenState extends State<ReceiveScreen> with SingleTickerProvider
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                '₹${amount.toStringAsFixed(2)}',
+                '${ThemeProvider.currentCurrency}${amount.toStringAsFixed(2)}',
                 style: const TextStyle(fontSize: 38, fontWeight: FontWeight.bold, color: Colors.green),
               ),
               const SizedBox(height: 8),

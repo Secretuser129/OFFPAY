@@ -119,7 +119,7 @@ class OtherOptionsScreen extends StatelessWidget {
 
             const SizedBox(height: 28),
             const Text(
-              'SETTINGS & SECURITY',
+              'REWARDS, SETTINGS & ACCOUNT',
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
@@ -131,6 +131,15 @@ class OtherOptionsScreen extends StatelessWidget {
             _buildGroupedSection(
               isDark: isDark,
               children: [
+                _buildListItem(
+                  context: context,
+                  icon: Icons.card_giftcard_rounded,
+                  iconColor: const Color(0xFFF59E0B), // Amber gold
+                  title: 'My Rewards & Scratch Cards',
+                  subtitle: 'Scratch cards, cashback coupons & collectible roles',
+                  route: '/rewards',
+                ),
+                _buildDivider(isDark),
                 _buildListItem(
                   context: context,
                   icon: Icons.person_rounded,
@@ -142,63 +151,11 @@ class OtherOptionsScreen extends StatelessWidget {
                 _buildDivider(isDark),
                 _buildListItem(
                   context: context,
-                  icon: Icons.palette_rounded,
-                  iconColor: const Color(0xFFEC4899),
-                  title: 'Appearance & Themes',
-                  subtitle: 'AMOLED Dark Mode & Typography',
-                  route: '/appearance',
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 28),
-            const Text(
-              'SYSTEM & DIAGNOSTICS',
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: Colors.white54,
-                letterSpacing: 1.2,
-              ),
-            ),
-            const SizedBox(height: 12),
-            _buildGroupedSection(
-              isDark: isDark,
-              children: [
-                _buildListItem(
-                  context: context,
-                  icon: Icons.health_and_safety_rounded,
-                  iconColor: const Color(0xFFF97316),
-                  title: 'System Diagnostics',
-                  subtitle: 'Hash chain & ledger health audit',
-                  route: '/diagnostics',
-                ),
-                _buildDivider(isDark),
-                _buildListItem(
-                  context: context,
-                  icon: Icons.notes_rounded,
-                  iconColor: const Color(0xFF14B8A6),
-                  title: 'Security Logs',
-                  subtitle: 'Real-time cryptographic audit trail',
-                  route: '/logs',
-                ),
-                _buildDivider(isDark),
-                _buildListItem(
-                  context: context,
-                  icon: Icons.system_update_rounded,
-                  iconColor: const Color(0xFF6366F1),
-                  title: 'System Update & Changelog',
-                  subtitle: 'Check new releases & schedule updates',
-                  route: '/app_update',
-                ),
-                _buildDivider(isDark),
-                _buildListItem(
-                  context: context,
-                  icon: Icons.info_outline_rounded,
-                  iconColor: const Color(0xFF9CA3AF),
-                  title: 'About OFFPAY v3.1',
-                  subtitle: 'Credits & developer mode toggle',
-                  route: '/about',
+                  icon: Icons.settings_rounded,
+                  iconColor: const Color(0xFF8B5CF6),
+                  title: 'Settings, Security & Diagnostics',
+                  subtitle: 'Manage theme, PIN, audit logs & system update',
+                  route: '/settings',
                 ),
               ],
             ),

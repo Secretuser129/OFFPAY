@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../services/profile_service.dart';
 import '../services/reward_service.dart';
-import 'rewards_screen.dart';
+import 'package:path_provider/path_provider.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -55,12 +55,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _pickImageFromGallery() async {
     final picker = ImagePicker();
-    final picked = await picker.pickImage(source: ImageSource.gallery);
+    final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
     if (picked != null) {
-      await ProfileService.setProfileImagePath(picked.path);
-      setState(() {
-        _profileImagePath = picked.path;
-      });
+      try {
+        final appDir = await getApplicationDocumentsDirectory();
+        final fileName = 'offpay_profile_${DateTime.now().millisecondsSinceEpoch}.jpg';
+        final permanentFile = await File(picked.path).copy('${appDir.path}/$fileName');
+        await ProfileService.setProfileImagePath(permanentFile.path);
+        setState(() {
+          _profileImagePath = permanentFile.path;
+        });
+      } catch (e) {
+        await ProfileService.setProfileImagePath(picked.path);
+        setState(() {
+          _profileImagePath = picked.path;
+        });
+      }
     }
   }
 
@@ -121,7 +131,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ],
         ),
         content: const Text(
-          'Are you sure you want to delete your OFFPAY Account and erase all encrypted device identity data? This action cannot be undone.',
+          'Are you sure you want to permanently delete your OFFPAY Account? Your identity and account data will be deleted on local device storage as well as the server database. This action cannot be undone.',
         ),
         actions: [
           TextButton(
@@ -132,8 +142,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
             onPressed: () async {
               Navigator.pop(ctx);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Deleting account from local and server database...'), duration: Duration(seconds: 2)),
+              );
               await ProfileService.deleteAccount();
               if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Account permanently deleted.'), backgroundColor: Colors.red),
+                );
                 Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
               }
             },
@@ -207,16 +223,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           CircleAvatar(
                             radius: 46,
                             backgroundColor: theme.primaryColor,
-                            backgroundImage: (_profileImagePath != null &&
-                                    _profileImagePath!.isNotEmpty &&
-                                    File(_profileImagePath!).existsSync())
-                                ? FileImage(File(_profileImagePath!))
-                                : null,
-                            child: (_profileImagePath != null &&
-                                    _profileImagePath!.isNotEmpty &&
-                                    File(_profileImagePath!).existsSync())
-                                ? null
-                                : Icon(_avatars[_selectedAvatar], size: 48, color: Colors.white),
+                            child: ClipOval(
+                              child: (_profileImagePath != null &&
+                                      _profileImagePath!.isNotEmpty &&
+                                      File(_profileImagePath!).existsSync())
+                                  ? Image.file(
+                                      File(_profileImagePath!),
+                                      width: 92,
+                                      height: 92,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (ctx, err, stack) =>
+                                          Icon(_avatars[_selectedAvatar], size: 48, color: Colors.white),
+                                    )
+                                  : Icon(_avatars[_selectedAvatar], size: 48, color: Colors.white),
+                            ),
                           ),
                           CircleAvatar(
                             radius: 16,
@@ -295,29 +315,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       helperText: 'Unique ID linked to your account for offline BLE payments',
                     ),
                   ),
-                  const SizedBox(height: 28),
-
-                  // 4. Rewards & Scratch Cards Button
-                  ElevatedButton.icon(
-                    icon: const Icon(Icons.card_giftcard),
-                    label: const Text(
-                      '🎁 My Rewards & Scratch Cards',
-                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.amber.shade700,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const RewardsScreen()),
-                      );
-                    },
-                  ),
-
                   const SizedBox(height: 28),
 
                   // 5. Collectible Roles & Abilities Section

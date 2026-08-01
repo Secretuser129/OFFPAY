@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/password_service.dart';
@@ -204,78 +205,60 @@ class _PinSettingsScreenState extends State<PinSettingsScreen> {
                   const SizedBox(height: 24),
                   
                   // Card 1: Balance View PIN
-                  Card(
-                    color: theme.cardTheme.color,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      side: BorderSide(
-                        color: isDark ? Colors.white.withValues(alpha: 0.15) : theme.primaryColor.withValues(alpha: 0.2),
+                  _buildGlassCard(
+                    isDark: isDark,
+                    borderColor: isDark ? Colors.white.withValues(alpha: 0.15) : theme.primaryColor.withValues(alpha: 0.2),
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                      leading: CircleAvatar(
+                        backgroundColor: isDark ? Colors.white.withValues(alpha: 0.16) : theme.primaryColor.withValues(alpha: 0.1),
+                        child: Icon(Icons.account_balance_wallet, color: isDark ? Colors.white : theme.primaryColor),
                       ),
-                    ),
-                    elevation: 0,
-                    margin: const EdgeInsets.only(bottom: 16),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      child: ListTile(
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-                        leading: CircleAvatar(
-                          backgroundColor: isDark ? Colors.white.withValues(alpha: 0.16) : theme.primaryColor.withValues(alpha: 0.1),
-                          child: Icon(Icons.account_balance_wallet, color: isDark ? Colors.white : theme.primaryColor),
-                        ),
-                        title: const Text('Balance Pin', style: TextStyle(fontWeight: FontWeight.bold)),
-                        subtitle: Text(_hasBalancePin ? 'PIN is set' : 'Not configured'),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (_hasBalancePin)
-                              IconButton(
-                                icon: const Icon(Icons.delete_outline, color: Colors.red),
-                                onPressed: () => _removePin(isBalancePin: true),
-                              ),
-                            ElevatedButton(
-                              onPressed: () => _showSetPinDialog(isBalancePin: true),
-                              child: Text(_hasBalancePin ? 'Change' : 'Set PIN'),
+                      title: const Text('Balance Pin', style: TextStyle(fontWeight: FontWeight.bold)),
+                      subtitle: Text(_hasBalancePin ? 'PIN is set' : 'Not configured'),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (_hasBalancePin)
+                            IconButton(
+                              icon: const Icon(Icons.delete_outline, color: Colors.red),
+                              onPressed: () => _removePin(isBalancePin: true),
                             ),
-                          ],
-                        ),
+                          ElevatedButton(
+                            onPressed: () => _showSetPinDialog(isBalancePin: true),
+                            child: Text(_hasBalancePin ? 'Change' : 'Set PIN'),
+                          ),
+                        ],
                       ),
                     ),
                   ),
+                  const SizedBox(height: 16),
                   
-                  // Card 2: Transfer Authorization PIN
-                  Card(
-                    color: theme.cardTheme.color,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      side: BorderSide(
-                        color: isDark ? Colors.white.withValues(alpha: 0.15) : Colors.blue.withValues(alpha: 0.2),
+                  // Card 2: Payment Gateway Pin
+                  _buildGlassCard(
+                    isDark: isDark,
+                    borderColor: isDark ? Colors.white.withValues(alpha: 0.15) : Colors.blue.withValues(alpha: 0.2),
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                      leading: CircleAvatar(
+                        backgroundColor: isDark ? Colors.blueAccent.withValues(alpha: 0.2) : Colors.blue.withValues(alpha: 0.1),
+                        child: Icon(Icons.security, color: isDark ? Colors.blueAccent : Colors.blue),
                       ),
-                    ),
-                    elevation: 0,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      child: ListTile(
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-                        leading: CircleAvatar(
-                          backgroundColor: isDark ? Colors.blueAccent.withValues(alpha: 0.2) : Colors.blue.withValues(alpha: 0.1),
-                          child: Icon(Icons.security, color: isDark ? Colors.blueAccent : Colors.blue),
-                        ),
-                        title: const Text('Payment Gateway Pin', style: TextStyle(fontWeight: FontWeight.bold)),
-                        subtitle: Text(_hasTransferPin ? 'PIN is set' : 'Not configured'),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (_hasTransferPin)
-                              IconButton(
-                                icon: const Icon(Icons.delete_outline, color: Colors.red),
-                                onPressed: () => _removePin(isBalancePin: false),
-                              ),
-                            ElevatedButton(
-                              onPressed: () => _showSetPinDialog(isBalancePin: false),
-                              child: Text(_hasTransferPin ? 'Change' : 'Set PIN'),
+                      title: const Text('Payment Gateway Pin', style: TextStyle(fontWeight: FontWeight.bold)),
+                      subtitle: Text(_hasTransferPin ? 'PIN is set' : 'Not configured'),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (_hasTransferPin)
+                            IconButton(
+                              icon: const Icon(Icons.delete_outline, color: Colors.red),
+                              onPressed: () => _removePin(isBalancePin: false),
                             ),
-                          ],
-                        ),
+                          ElevatedButton(
+                            onPressed: () => _showSetPinDialog(isBalancePin: false),
+                            child: Text(_hasTransferPin ? 'Change' : 'Set PIN'),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -283,6 +266,36 @@ class _PinSettingsScreenState extends State<PinSettingsScreen> {
               ),
             ),
       // bottomNavigationBar removed for clean full-screen view
+    );
+  }
+
+  Widget _buildGlassCard({
+    required Widget child,
+    required bool isDark,
+    required Color borderColor,
+  }) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+        child: Container(
+          decoration: BoxDecoration(
+            color: isDark
+                ? const Color(0xFF1E1E2C).withValues(alpha: 0.7)
+                : Colors.white.withValues(alpha: 0.8),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: borderColor, width: 1.2),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: child,
+        ),
+      ),
     );
   }
 }

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../services/reward_service.dart';
+import '../services/theme_service.dart';
 
 class ScratchCardDialog extends StatefulWidget {
   final RewardCard rewardCard;
@@ -86,22 +87,49 @@ class _ScratchCardDialogState extends State<ScratchCardDialog>
     await RewardService.claimCard(context, widget.rewardCard);
 
     if (!mounted) return;
+    final curr = ThemeProvider.currentCurrency;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
           widget.rewardCard.rewardType == 'CASHBACK'
-              ? '🎉 Claimed ₹${widget.rewardCard.rewardValue} Cashback into your wallet!'
+              ? '🎉 Claimed $curr${widget.rewardCard.rewardValue} Cashback into your wallet!'
               : widget.rewardCard.rewardType == 'CASHBACK_COUPON'
-                  ? '🎉 Claimed ₹25 Cashback + AMZN-OFFPAY Coupon Code included!'
+                  ? '🎉 Claimed ${curr}25 Cashback + AMZN-OFFPAY Coupon Code included!'
                   : widget.rewardCard.rewardType == 'AMAZON_COUPON'
-                      ? '🎉 Amazon Coupon Code copied: ${widget.rewardCard.rewardValue}'
+                      ? '🎉 Amazon Coupon Code ready to copy: ${widget.rewardCard.rewardValue}'
                       : '🎉 Unlocked Collectible Role: ${widget.rewardCard.rewardValue}!',
         ),
         backgroundColor: Colors.amber.shade800,
         behavior: SnackBarBehavior.floating,
       ),
     );
-    Navigator.of(context).pop();
+
+    // Keep dialog open if coupon code is present so user can copy/read it!
+    if (widget.rewardCard.rewardType == 'CASHBACK_COUPON' || widget.rewardCard.rewardType == 'AMAZON_COUPON') {
+      setState(() {
+        _isClaiming = false;
+      });
+    } else {
+      Navigator.of(context).pop();
+    }
+  }
+
+  void _copyCouponCode(String code) {
+    Clipboard.setData(ClipboardData(text: code));
+    HapticFeedback.mediumImpact();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.check_circle, color: Colors.white),
+            const SizedBox(width: 8),
+            Expanded(child: Text('Coupon Code "$code" copied to clipboard!')),
+          ],
+        ),
+        backgroundColor: Colors.green.shade700,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   @override
@@ -227,6 +255,34 @@ class _ScratchCardDialogState extends State<ScratchCardDialog>
                             ),
                             textAlign: TextAlign.center,
                           ),
+                          if (card.rewardType == 'CASHBACK_COUPON' || card.rewardType == 'AMAZON_COUPON') ...[
+                            const SizedBox(height: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withValues(alpha: 0.35),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: Colors.white, width: 1.2),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.local_offer, color: Colors.amberAccent, size: 14),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    card.rewardType == 'CASHBACK_COUPON' ? 'AMZN-OFFPAY-50OFF' : card.rewardValue,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontFamily: 'monospace',
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12,
+                                      letterSpacing: 1.2,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),
@@ -266,6 +322,29 @@ class _ScratchCardDialogState extends State<ScratchCardDialog>
             const SizedBox(height: 24),
 
             // Action Buttons
+            if ((_isRevealed || card.isClaimed) &&
+                (card.rewardType == 'CASHBACK_COUPON' || card.rewardType == 'AMAZON_COUPON')) ...[
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    final code = card.rewardType == 'CASHBACK_COUPON' ? 'AMZN-OFFPAY-50OFF' : card.rewardValue;
+                    _copyCouponCode(code);
+                  },
+                  icon: const Icon(Icons.copy_rounded, size: 20),
+                  label: const Text('Copy Coupon Code', style: TextStyle(fontWeight: FontWeight.bold)),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: isDark ? Colors.amberAccent : Colors.amber.shade900,
+                    side: BorderSide(color: isDark ? Colors.amberAccent : Colors.amber.shade700, width: 2),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
             if (card.isClaimed)
               SizedBox(
                 width: double.infinity,
@@ -290,9 +369,9 @@ class _ScratchCardDialogState extends State<ScratchCardDialog>
                   icon: const Icon(Icons.check_circle_outline, size: 22),
                   label: Text(
                     card.rewardType == 'CASHBACK'
-                        ? 'Claim ₹${card.rewardValue} Cashback'
+                        ? 'Claim ${ThemeProvider.currentCurrency}${card.rewardValue} Cashback'
                         : card.rewardType == 'CASHBACK_COUPON'
-                            ? 'Claim ₹${card.rewardValue} + Amazon Coupon'
+                            ? 'Claim ${ThemeProvider.currentCurrency}${card.rewardValue} + Amazon Coupon'
                             : card.rewardType == 'AMAZON_COUPON'
                                 ? 'Claim Amazon Coupon Code'
                                 : 'Claim Collectible Role',

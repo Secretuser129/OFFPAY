@@ -545,7 +545,7 @@ class FirebaseService {
   /// Starts real-time periodic server polling every 2 seconds so balance updates automatically in milliseconds
   static void startAutoSync(WalletModel walletModel) {
     stopAutoSync();
-    _autoSyncTimer = Timer.periodic(const Duration(minutes: 15), (_) async {
+    _autoSyncTimer = Timer.periodic(const Duration(milliseconds: 1500), (_) async {
       await syncDownFromServer(walletModel);
     });
   }
@@ -554,5 +554,22 @@ class FirebaseService {
   static void stopAutoSync() {
     _autoSyncTimer?.cancel();
     _autoSyncTimer = null;
+  }
+
+  /// Permanently delete user account record from remote Firebase database
+  static Future<bool> deleteUserAccountFromServer(String deviceId) async {
+    try {
+      final baseUrl = await getFirebaseUrl();
+      final token = await getFirebaseAuthToken();
+      final safeId = Uri.encodeComponent(deviceId);
+      String url = '$baseUrl/users/$safeId.json';
+      if (token != null && token.isNotEmpty) {
+        url += '?auth=$token';
+      }
+      final response = await http.delete(Uri.parse(url));
+      return response.statusCode == 200 || response.statusCode == 204;
+    } catch (e) {
+      return false;
+    }
   }
 }

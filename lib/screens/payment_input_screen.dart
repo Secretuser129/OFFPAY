@@ -9,6 +9,7 @@ import '../services/smart_payment_manager.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../services/firebase_service.dart';
 import '../services/password_service.dart';
+import '../services/theme_service.dart';
 import 'payment_success_screen.dart';
 
 class PaymentInputScreen extends StatefulWidget {
@@ -394,14 +395,14 @@ class _PaymentInputScreenState extends State<PaymentInputScreen> {
                   fontSize: 18,
                 ),
                 decoration: InputDecoration(
-                  labelText: 'Amount (₹)',
+                  labelText: 'Amount (${ThemeProvider.currentCurrency})',
                   labelStyle: TextStyle(color: theme.hintColor),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
                     borderSide: BorderSide(color: theme.primaryColor, width: 2),
                   ),
-                  prefixIcon: Icon(Icons.currency_rupee, color: theme.primaryColor),
+                  prefixIcon: Icon(Icons.account_balance_wallet_rounded, color: theme.primaryColor),
                   filled: true,
                   fillColor: isDark ? Colors.grey.shade900 : Colors.grey.shade100,
                 ),
@@ -414,7 +415,7 @@ class _PaymentInputScreenState extends State<PaymentInputScreen> {
                     return 'Please enter a valid amount.';
                   }
                   if (amount > walletModel.balance) {
-                    return 'Insufficient balance. Available: ₹${walletModel.balance.toStringAsFixed(2)}';
+                    return 'Insufficient balance. Available: ${ThemeProvider.currentCurrency}${walletModel.balance.toStringAsFixed(2)}';
                   }
                   return null;
                 },
@@ -434,7 +435,7 @@ class _PaymentInputScreenState extends State<PaymentInputScreen> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          'Amount locked by recipient QR code (₹${_amountController.text}). Cannot be changed.',
+                          'Amount locked by recipient QR code (${ThemeProvider.currentCurrency}${_amountController.text}). Cannot be changed.',
                           style: const TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
@@ -465,7 +466,7 @@ class _PaymentInputScreenState extends State<PaymentInputScreen> {
                       style: TextStyle(color: theme.textTheme.bodyMedium?.color, fontWeight: FontWeight.w500),
                     ),
                     Text(
-                      '₹${walletModel.balance.toStringAsFixed(2)}',
+                      '${ThemeProvider.currentCurrency}${walletModel.balance.toStringAsFixed(2)}',
                       style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: theme.primaryColor),
                     ),
                   ],

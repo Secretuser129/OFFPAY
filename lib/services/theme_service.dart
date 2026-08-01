@@ -9,8 +9,10 @@ const String _glassifyKey = 'offpay_glassify_enabled';
 const String _glassifyIntensityKey = 'offpay_glassify_intensity';
 const String _accentIconsOnlyKey = 'offpay_accent_icons_only';
 const String _navbarOrderKey = 'offpay_navbar_order';
+const String _currencySymbolKey = 'offpay_currency_symbol';
 
 class ThemeProvider extends ChangeNotifier {
+  static String currentCurrency = '₹';
   ThemeMode _themeMode = ThemeMode.dark;
   double _fontSizeScale = 1.0;
   Color _accentColor = Colors.indigo;
@@ -19,6 +21,7 @@ class ThemeProvider extends ChangeNotifier {
   double _glassifyIntensity = 0.8;
   bool _accentColorOnlyForIcons = false;
   List<String> _navbarOrder = ['/home', '/discovery', '/contacts', '/other_options'];
+  String _currencySymbol = '₹';
 
   ThemeMode get themeMode => _themeMode;
   double get fontSizeScale => _fontSizeScale;
@@ -28,6 +31,7 @@ class ThemeProvider extends ChangeNotifier {
   double get glassifyIntensity => _glassifyIntensity;
   bool get accentColorOnlyForIcons => _accentColorOnlyForIcons;
   List<String> get navbarOrder => _navbarOrder;
+  String get currencySymbol => _currencySymbol;
 
   bool isDarkMode(BuildContext context) {
     if (_themeMode == ThemeMode.system) {
@@ -72,6 +76,11 @@ class ThemeProvider extends ChangeNotifier {
       final savedOrder = prefs.getStringList(_navbarOrderKey);
       if (savedOrder != null && savedOrder.length == 4) {
         _navbarOrder = savedOrder;
+      }
+      final savedSym = prefs.getString(_currencySymbolKey);
+      if (savedSym != null && savedSym.isNotEmpty) {
+        _currencySymbol = savedSym;
+        currentCurrency = savedSym;
       }
 
       notifyListeners();
@@ -177,6 +186,18 @@ class ThemeProvider extends ChangeNotifier {
       } catch (e) {
         debugPrint('Error saving navbar order: $e');
       }
+    }
+  }
+
+  Future<void> setCurrencySymbol(String symbol) async {
+    _currencySymbol = symbol;
+    currentCurrency = symbol;
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_currencySymbolKey, symbol);
+    } catch (e) {
+      debugPrint('Error saving currency symbol: $e');
     }
   }
 }
