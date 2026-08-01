@@ -53,7 +53,7 @@ class WalletModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ── Auto-reload / Sync (Optimized for 60 FPS smooth UI) ─────────────────
+  // ── Auto-reload / Sync  ─────────────────
   Future<void> refreshBalance() async {
     if (!_isInitialized) return;
     final newBalance = (_walletBox.get(_balanceKey, defaultValue: _balance) as num).toDouble();

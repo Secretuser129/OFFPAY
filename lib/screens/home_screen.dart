@@ -1342,7 +1342,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 const Padding(
                   padding: EdgeInsets.all(16.0),
                   child: Text(
-                    'Transaction History (Stored 30 Days)',
+                    'Transaction History',
                     style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                 ),
