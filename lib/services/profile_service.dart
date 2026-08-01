@@ -203,4 +203,21 @@ class ProfileService {
       await prefs.setInt(_keyLastIdChange, DateTime.now().millisecondsSinceEpoch);
     }
   }
+
+  static const String _keyProfileImagePath = 'offpay_profile_image_path';
+
+  static Future<String?> getProfileImagePath() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_keyProfileImagePath);
+  }
+
+  static Future<void> setProfileImagePath(String path) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyProfileImagePath, path);
+  }
+
+  static Future<void> deleteAccount() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.clear();
+  }
 }

@@ -27,6 +27,24 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isBalanceHidden = false;
   Timer? _autoReloadTimer;
 
+  final Map<String, int> _actionUsageCount = {
+    'Receive': 5,
+    'BLE Radar': 4,
+    'Recharges': 2,
+    'Hotel / Resort': 1,
+    'Flight Ticket': 1,
+    'EMI Payment': 0,
+    'Digital Loan': 0,
+    'Electrical Bill': 0,
+  };
+
+  void _recordUsage(String actionKey) {
+    HapticFeedback.lightImpact();
+    setState(() {
+      _actionUsageCount[actionKey] = (_actionUsageCount[actionKey] ?? 0) + 1;
+    });
+  }
+
   @override
   void initState() {
     super.initState();
@@ -44,26 +62,20 @@ class _HomeScreenState extends State<HomeScreen> {
       UpdateService.checkForUpdates(context, silent: true);
     });
 
-    // Auto-reload balance every 3 seconds for responsive updates without stuttering
-    _autoReloadTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+    // Auto-reload balance every 5 minutes for responsive updates without battery drain
+    _autoReloadTimer = Timer.periodic(const Duration(minutes: 5), (_) {
       final walletModel = Provider.of<WalletModel>(context, listen: false);
       walletModel.refreshBalance();
     });
 
-    // Listen for side-by-side BLE device proximity pop-up trigger
+    // Listen for incoming BLE payments across the entire app
     final btService = Provider.of<OffpayBluetoothService>(context, listen: false);
-    btService.onProximityDeviceDetected.listen((device) {
-      _showSideBySideProximityPopup(device);
-    });
-
-    // Listen for incoming BLE payments while on HomeScreen
     btService.onIncomingPayment.listen((data) async {
-      if (!mounted || ModalRoute.of(context)?.isCurrent != true) return;
       final double amount = (data['amount'] as num).toDouble();
       final String senderId = data['senderId'] as String;
       final String? txId = data['transactionId'] as String?;
       final walletModel = Provider.of<WalletModel>(context, listen: false);
-      await walletModel.receiveMoney(amount, senderId, status: 'PENDING', transactionId: txId, notify: false);
+      await walletModel.receiveMoney(amount, senderId, status: 'PENDING', transactionId: txId, notify: true);
       SyncQueueService.enqueueAndTrigger(walletModel);
     });
   }
@@ -74,85 +86,6 @@ class _HomeScreenState extends State<HomeScreen> {
     FirebaseService.stopAutoSync();
     _autoReloadTimer?.cancel();
     super.dispose();
-  }
-
-  void _showSideBySideProximityPopup(DiscoveredDevice device) {
-    if (!mounted) return;
-    // Only show popup when user is on HomeScreen
-    if (ModalRoute.of(context)?.isCurrent != true) return;
-
-    showDialog(
-      context: context,
-      barrierDismissible: true,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Row(
-          children: [
-            Icon(Icons.bluetooth_connected, color: Colors.green, size: 28),
-            SizedBox(width: 8),
-            Text('OFFPAY Device Nearby!'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Side-by-side Bluetooth connection detected:'),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.green.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    device.name,
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'ID: ${device.id}',
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Signal: ${device.rssi} dBm (${device.estimatedDistance})',
-                    style: const TextStyle(fontSize: 12, color: Colors.green, fontWeight: FontWeight.bold),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Dismiss'),
-          ),
-          ElevatedButton.icon(
-            icon: const Icon(Icons.send, size: 18),
-            label: const Text('Connect & Pay'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.indigo,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-            onPressed: () {
-              Navigator.pop(ctx);
-              Navigator.pushNamed(
-                context,
-                '/payment_input',
-                arguments: device.device,
-              );
-            },
-          ),
-        ],
-      ),
-    );
   }
 
   Future<void> _toggleBalanceVisibility() async {
@@ -243,6 +176,70 @@ class _HomeScreenState extends State<HomeScreen> {
     await walletModel.receiveMoney(500.00, 'OFFPAY-DEMO');
   }
 
+  Widget _buildHeaderStatusBadge(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      margin: const EdgeInsets.only(right: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isDark ? Colors.white.withValues(alpha: 0.15) : Colors.black.withValues(alpha: 0.1),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 16,
+            height: 16,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: isDark ? Colors.greenAccent : Colors.green, width: 1.5),
+            ),
+            child: Icon(Icons.wifi_rounded, size: 10, color: isDark ? Colors.greenAccent : Colors.green),
+          ),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 4),
+            child: Text('•••', style: TextStyle(fontSize: 8, color: Colors.grey, letterSpacing: 1)),
+          ),
+          Container(
+            width: 16,
+            height: 16,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: isDark ? Colors.white : Colors.black,
+            ),
+            child: Center(
+              child: Text(
+                'A',
+                style: TextStyle(
+                  fontSize: 9,
+                  fontWeight: FontWeight.w900,
+                  color: isDark ? Colors.black : Colors.white,
+                ),
+              ),
+            ),
+          ),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 4),
+            child: Text('•••', style: TextStyle(fontSize: 8, color: Colors.grey, letterSpacing: 1)),
+          ),
+          Container(
+            width: 16,
+            height: 16,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.grey.shade500, width: 1.5),
+            ),
+            child: Icon(Icons.wifi_off_rounded, size: 10, color: Colors.grey.shade500),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final walletModel = Provider.of<WalletModel>(context);
@@ -271,34 +268,15 @@ class _HomeScreenState extends State<HomeScreen> {
         centerTitle: false,
         elevation: 0,
         actions: [
+          _buildHeaderStatusBadge(context),
           IconButton(
-            icon: const Icon(Icons.health_and_safety_outlined),
-            tooltip: 'System Diagnostics & Health',
-            onPressed: () {
-              Navigator.pushNamed(context, '/diagnostics');
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.notes_outlined),
-            tooltip: 'System & Security Logs',
-            onPressed: () {
-              Navigator.pushNamed(context, '/logs');
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.person_outline),
-            tooltip: 'Profile',
-            onPressed: () {
-              Navigator.pushNamed(context, '/profile');
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.settings),
-            tooltip: 'Security Settings',
+            icon: const Icon(Icons.settings_rounded, size: 24),
+            tooltip: 'Settings & Security',
             onPressed: () {
               Navigator.pushNamed(context, '/security_settings');
             },
           ),
+          const SizedBox(width: 6),
         ],
       ),
       body: SingleChildScrollView(
@@ -358,6 +336,8 @@ class _HomeScreenState extends State<HomeScreen> {
               _buildBalanceCard(walletModel).animate().fade(duration: 500.ms).scale(begin: const Offset(0.95, 0.95)),
               const SizedBox(height: 20),
               _buildQuickActions(context).animate(delay: 150.ms).fade().slideY(begin: 0.1, end: 0),
+              const SizedBox(height: 24),
+              _buildUtilityServicesGrid(context).animate(delay: 200.ms).fade().slideY(begin: 0.1, end: 0),
               const SizedBox(height: 24),
               _buildTransactionHistory(walletModel),
             ],
@@ -532,53 +512,313 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildQuickActions(BuildContext context) {
+    // Sort remaining items by usage descending
+    final sortedRemaining = _actionUsageCount.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    final top2 = sortedRemaining.take(2).map((e) => e.key).toList();
+
+    Widget buildDynamicSlot(String actionKey) {
+      switch (actionKey) {
+        case 'Receive':
+          return _buildActionIcon(
+            context: context,
+            icon: Icons.call_received_rounded,
+            label: 'Receive',
+            color: Colors.greenAccent,
+            onTap: () {
+              _recordUsage('Receive');
+              Navigator.pushNamed(context, '/receive');
+            },
+          );
+        case 'BLE Radar':
+          return _buildActionIcon(
+            context: context,
+            icon: Icons.radar_rounded,
+            label: 'BLE Radar',
+            color: Colors.orangeAccent,
+            onTap: () {
+              _recordUsage('BLE Radar');
+              Navigator.pushNamed(context, '/discovery');
+            },
+          );
+        case 'Recharges':
+          return _buildActionIcon(
+            context: context,
+            icon: Icons.phone_android_rounded,
+            label: 'Recharges',
+            color: Colors.cyan,
+            onTap: () {
+              _recordUsage('Recharges');
+              _showServiceModal(context, 'Recharges', Icons.phone_android_rounded, Colors.cyan);
+            },
+          );
+        case 'Hotel / Resort':
+          return _buildActionIcon(
+            context: context,
+            icon: Icons.hotel_rounded,
+            label: 'Hotel/Resort',
+            color: Colors.amber,
+            onTap: () {
+              _recordUsage('Hotel / Resort');
+              _showServiceModal(context, 'Hotel / Resort', Icons.hotel_rounded, Colors.amber);
+            },
+          );
+        case 'Flight Ticket':
+          return _buildActionIcon(
+            context: context,
+            icon: Icons.flight_takeoff_rounded,
+            label: 'Flights',
+            color: Colors.blueAccent,
+            onTap: () {
+              _recordUsage('Flight Ticket');
+              _showServiceModal(context, 'Flight Ticket', Icons.flight_takeoff_rounded, Colors.blueAccent);
+            },
+          );
+        case 'EMI Payment':
+          return _buildActionIcon(
+            context: context,
+            icon: Icons.credit_score_rounded,
+            label: 'EMI',
+            color: Colors.purpleAccent,
+            onTap: () {
+              _recordUsage('EMI Payment');
+              _showServiceModal(context, 'EMI Payment', Icons.credit_score_rounded, Colors.purpleAccent);
+            },
+          );
+        case 'Digital Loan':
+          return _buildActionIcon(
+            context: context,
+            icon: Icons.account_balance_wallet_rounded,
+            label: 'Loans',
+            color: Colors.greenAccent,
+            onTap: () {
+              _recordUsage('Digital Loan');
+              _showServiceModal(context, 'Digital Loan', Icons.account_balance_wallet_rounded, Colors.greenAccent);
+            },
+          );
+        default:
+          return _buildActionIcon(
+            context: context,
+            icon: Icons.bolt_rounded,
+            label: 'Electricity',
+            color: Colors.orangeAccent,
+            onTap: () {
+              _recordUsage('Electrical Bill');
+              _showServiceModal(context, 'Electrical Bill', Icons.bolt_rounded, Colors.orangeAccent);
+            },
+          );
+      }
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.only(left: 4.0, bottom: 12.0),
+          child: Row(
+            children: [
+              Text(
+                'Quick',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              SizedBox(width: 8),
+              Text(
+                '• Smart usage slots',
+                style: TextStyle(fontSize: 11, color: Colors.grey),
+              ),
+            ],
+          ),
+        ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            // Fixed Slot 1: Send
+            _buildActionIcon(
+              context: context,
+              icon: Icons.send_rounded,
+              label: 'Send',
+              color: Colors.blueAccent,
+              onTap: () {
+                HapticFeedback.lightImpact();
+                Navigator.pushNamed(context, '/send_options');
+              },
+            ),
+            // Fixed Slot 2: Scan QR
+            _buildActionIcon(
+              context: context,
+              icon: Icons.qr_code_scanner_rounded,
+              label: 'Scan QR',
+              color: Colors.purpleAccent,
+              onTap: () {
+                HapticFeedback.lightImpact();
+                Navigator.pushNamed(context, '/qr_scanner');
+              },
+            ),
+            // Dynamic Slot 3
+            if (top2.isNotEmpty) buildDynamicSlot(top2[0]),
+            // Dynamic Slot 4
+            if (top2.length > 1) buildDynamicSlot(top2[1]),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildUtilityServicesGrid(BuildContext context) {
+    final services = [
+      {'key': 'Recharges', 'title': 'Recharges', 'icon': Icons.phone_android_rounded, 'color': Colors.cyan},
+      {'key': 'Hotel / Resort', 'title': 'Hotel / Resort', 'icon': Icons.hotel_rounded, 'color': Colors.amber},
+      {'key': 'Flight Ticket', 'title': 'Flight Ticket', 'icon': Icons.flight_takeoff_rounded, 'color': Colors.blueAccent},
+      {'key': 'EMI Payment', 'title': 'EMI Payment', 'icon': Icons.credit_score_rounded, 'color': Colors.purpleAccent},
+      {'key': 'Digital Loan', 'title': 'Digital Loan', 'icon': Icons.account_balance_wallet_rounded, 'color': Colors.greenAccent},
+      {'key': 'Electrical Bill', 'title': 'Electrical Bill', 'icon': Icons.bolt_rounded, 'color': Colors.orangeAccent},
+    ];
+
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Padding(
           padding: EdgeInsets.only(left: 4.0, bottom: 12.0),
           child: Text(
-            'Quick Actions',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
+            'Utility & Travel Services',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
         ),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 3,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: 1.05,
+          ),
+          itemCount: services.length,
+          itemBuilder: (ctx, idx) {
+            final svc = services[idx];
+            final key = svc['key'] as String;
+            final title = svc['title'] as String;
+            final icon = svc['icon'] as IconData;
+            final color = svc['color'] as Color;
+
+            return GestureDetector(
+              onTap: () {
+                _recordUsage(key);
+                _showServiceModal(context, title, icon, color);
+              },
+              child: Container(
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.white.withValues(alpha: 0.06) : Colors.black.withValues(alpha: 0.04),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: isDark ? Colors.white.withValues(alpha: 0.12) : Colors.black.withValues(alpha: 0.08),
+                  ),
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: color.withValues(alpha: 0.15),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(icon, color: color, size: 22),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      title,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  void _showServiceModal(BuildContext context, String title, IconData icon, Color color) {
+    final accountController = TextEditingController();
+    final amountController = TextEditingController();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+          left: 24,
+          right: 24,
+          top: 24,
+        ),
+        decoration: BoxDecoration(
+          color: Theme.of(ctx).scaffoldBackgroundColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildActionIcon(
-              context: context,
-              icon: Icons.send_rounded,
-              label: 'Send',
-              color: Colors.blueAccent,
-              onTap: () => Navigator.pushNamed(context, '/send_options'),
+            Row(
+              children: [
+                CircleAvatar(
+                  backgroundColor: color.withValues(alpha: 0.15),
+                  child: Icon(icon, color: color),
+                ),
+                const SizedBox(width: 12),
+                Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              ],
             ),
-            _buildActionIcon(
-              context: context,
-              icon: Icons.call_received_rounded,
-              label: 'Receive',
-              color: Colors.greenAccent,
-              onTap: () => Navigator.pushNamed(context, '/receive'),
+            const SizedBox(height: 16),
+            TextField(
+              controller: accountController,
+              decoration: InputDecoration(
+                labelText: title.contains('Recharge') ? 'Phone Number / Subscriber ID' : 'Account Number / ID',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
             ),
-            _buildActionIcon(
-              context: context,
-              icon: Icons.radar_rounded,
-              label: 'BLE Radar',
-              color: Colors.orangeAccent,
-              onTap: () => Navigator.pushNamed(context, '/discovery'),
+            const SizedBox(height: 12),
+            TextField(
+              controller: amountController,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                labelText: 'Amount (₹)',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
             ),
-            _buildActionIcon(
-              context: context,
-              icon: Icons.qr_code_scanner_rounded,
-              label: 'Scan QR',
-              color: Colors.purpleAccent,
-              onTap: () => Navigator.pushNamed(context, '/qr_scanner'),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.maxFinite,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: color,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+                onPressed: () {
+                  HapticFeedback.mediumImpact();
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Processing $title payment securely...')),
+                  );
+                },
+                child: const Text('Authorize with Payment Gateway Pin', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
             ),
           ],
         ),
-      ],
+      ),
     );
   }
 
@@ -848,7 +1088,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   Icon(Icons.history, size: 48, color: Colors.grey.shade300),
                   const SizedBox(height: 16),
                   Text(
-                    'No transactions in past 30 days',
+                    'No recent transactions',
                     style: TextStyle(color: secondaryTextColor, fontSize: 16),
                   ),
                 ],

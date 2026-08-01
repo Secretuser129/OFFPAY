@@ -371,7 +371,7 @@ class OffpayBluetoothService with ChangeNotifier {
     try {
       await fb.FlutterBluePlus.startScan(
         timeout: timeout,
-        androidScanMode: fb.AndroidScanMode.lowLatency,
+        androidScanMode: fb.AndroidScanMode.lowPower,
       );
     } catch (e) {
       debugPrint('startScan error: $e');

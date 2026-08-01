@@ -8,6 +8,7 @@ import '../services/profile_service.dart';
 import '../services/firebase_service.dart';
 import '../models/wallet_model.dart';
 import 'receiver_pairing_screen.dart';
+import '../widgets/global_apple_dock.dart';
 
 class ReceiveScreen extends StatefulWidget {
   const ReceiveScreen({super.key});
@@ -153,6 +154,7 @@ class _ReceiveScreenState extends State<ReceiveScreen> with SingleTickerProvider
           ),
         ],
       ),
+      bottomNavigationBar: const GlobalAppleDock(activeRoute: '/receive'),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
         child: Column(

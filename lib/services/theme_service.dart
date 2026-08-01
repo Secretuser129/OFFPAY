@@ -5,17 +5,29 @@ const String _themeModeKey = 'offpay_theme_mode';
 const String _fontSizeKey = 'offpay_font_size';
 const String _accentColorKey = 'offpay_accent_color';
 const String _useAppleFontKey = 'offpay_use_apple_font';
+const String _glassifyKey = 'offpay_glassify_enabled';
+const String _glassifyIntensityKey = 'offpay_glassify_intensity';
+const String _accentIconsOnlyKey = 'offpay_accent_icons_only';
+const String _navbarOrderKey = 'offpay_navbar_order';
 
 class ThemeProvider extends ChangeNotifier {
   ThemeMode _themeMode = ThemeMode.dark;
   double _fontSizeScale = 1.0;
   Color _accentColor = Colors.indigo;
   bool _useAppleFont = true;
+  bool _glassifyEnabled = true;
+  double _glassifyIntensity = 0.8;
+  bool _accentColorOnlyForIcons = false;
+  List<String> _navbarOrder = ['/home', '/discovery', '/contacts', '/other_options'];
 
   ThemeMode get themeMode => _themeMode;
   double get fontSizeScale => _fontSizeScale;
   Color get accentColor => _accentColor;
   bool get useAppleFont => _useAppleFont;
+  bool get glassifyEnabled => _glassifyEnabled;
+  double get glassifyIntensity => _glassifyIntensity;
+  bool get accentColorOnlyForIcons => _accentColorOnlyForIcons;
+  List<String> get navbarOrder => _navbarOrder;
 
   bool isDarkMode(BuildContext context) {
     if (_themeMode == ThemeMode.system) {
@@ -52,6 +64,14 @@ class ThemeProvider extends ChangeNotifier {
       final colorValue = prefs.getInt(_accentColorKey);
       if (colorValue != null) {
         _accentColor = Color(colorValue);
+      }
+
+      _glassifyEnabled = prefs.getBool(_glassifyKey) ?? true;
+      _glassifyIntensity = prefs.getDouble(_glassifyIntensityKey) ?? 0.8;
+      _accentColorOnlyForIcons = prefs.getBool(_accentIconsOnlyKey) ?? false;
+      final savedOrder = prefs.getStringList(_navbarOrderKey);
+      if (savedOrder != null && savedOrder.length == 4) {
+        _navbarOrder = savedOrder;
       }
 
       notifyListeners();
@@ -111,6 +131,52 @@ class ThemeProvider extends ChangeNotifier {
       await prefs.setBool(_useAppleFontKey, useApple);
     } catch (e) {
       debugPrint('Error saving apple font preference: $e');
+    }
+  }
+
+  Future<void> setGlassifyEnabled(bool enabled) async {
+    _glassifyEnabled = enabled;
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_glassifyKey, enabled);
+    } catch (e) {
+      debugPrint('Error saving glassifyEnabled: $e');
+    }
+  }
+
+  Future<void> setGlassifyIntensity(double intensity) async {
+    _glassifyIntensity = intensity;
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setDouble(_glassifyIntensityKey, intensity);
+    } catch (e) {
+      debugPrint('Error saving glassifyIntensity: $e');
+    }
+  }
+
+  Future<void> setAccentColorOnlyForIcons(bool onlyForIcons) async {
+    _accentColorOnlyForIcons = onlyForIcons;
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_accentIconsOnlyKey, onlyForIcons);
+    } catch (e) {
+      debugPrint('Error saving accentColorOnlyForIcons: $e');
+    }
+  }
+
+  Future<void> setNavbarOrder(List<String> order) async {
+    if (order.length == 4) {
+      _navbarOrder = order;
+      notifyListeners();
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setStringList(_navbarOrderKey, order);
+      } catch (e) {
+        debugPrint('Error saving navbar order: $e');
+      }
     }
   }
 }

@@ -1,6 +1,8 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+import '../services/theme_service.dart';
 
 class GlobalAppleDock extends StatelessWidget {
   final String activeRoute;
@@ -16,6 +18,8 @@ class GlobalAppleDock extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final order = themeProvider.navbarOrder;
 
     return SafeArea(
       bottom: true,
@@ -47,42 +51,51 @@ class GlobalAppleDock extends StatelessWidget {
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _buildDockItem(
-                    context: context,
-                    icon: Icons.home_rounded,
-                    label: 'Home',
-                    isSelected: activeRoute == '/home',
-                    onTap: () => _navigate(context, '/home'),
-                  ),
-                  _buildDockItem(
-                    context: context,
-                    icon: Icons.radar_rounded,
-                    label: 'Radar',
-                    isSelected: activeRoute == '/discovery',
-                    onTap: () => _navigate(context, '/discovery'),
-                  ),
-                  _buildDockItem(
-                    context: context,
-                    icon: Icons.devices_rounded,
-                    label: 'Trusted',
-                    isSelected: activeRoute == '/contacts',
-                    onTap: () => _navigate(context, '/contacts'),
-                  ),
-                  _buildDockItem(
-                    context: context,
-                    icon: Icons.grid_view_rounded,
-                    label: 'Menu',
-                    isSelected: activeRoute == '/other_options',
-                    onTap: () => _navigate(context, '/other_options'),
-                  ),
-                ],
+                children: order.map((r) => _buildItemForRoute(context, r)).toList(),
               ),
             ),
           ),
         ),
       ),
     );
+  }
+
+  Widget _buildItemForRoute(BuildContext context, String route) {
+    switch (route) {
+      case '/home':
+        return _buildDockItem(
+          context: context,
+          icon: Icons.home_rounded,
+          label: 'Home',
+          isSelected: activeRoute == '/home',
+          onTap: () => _navigate(context, '/home'),
+        );
+      case '/discovery':
+        return _buildDockItem(
+          context: context,
+          icon: Icons.radar_rounded,
+          label: 'Connect',
+          isSelected: activeRoute == '/discovery',
+          onTap: () => _navigate(context, '/discovery'),
+        );
+      case '/contacts':
+        return _buildDockItem(
+          context: context,
+          icon: Icons.devices_rounded,
+          label: 'Trusted',
+          isSelected: activeRoute == '/contacts',
+          onTap: () => _navigate(context, '/contacts'),
+        );
+      case '/other_options':
+      default:
+        return _buildDockItem(
+          context: context,
+          icon: Icons.grid_view_rounded,
+          label: 'Menu',
+          isSelected: activeRoute == '/other_options',
+          onTap: () => _navigate(context, '/other_options'),
+        );
+    }
   }
 
   void _navigate(BuildContext context, String route) {

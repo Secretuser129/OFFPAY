@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+import '../services/theme_service.dart';
+import '../widgets/global_apple_dock.dart';
 
 class OtherOptionsScreen extends StatelessWidget {
   const OtherOptionsScreen({super.key});
@@ -27,8 +30,31 @@ class OtherOptionsScreen extends StatelessWidget {
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
+        actions: [
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert_rounded),
+            tooltip: 'More Options',
+            onSelected: (val) {
+              if (val == 'customize_navbar') {
+                _showCustomizeNavbarDialog(context);
+              }
+            },
+            itemBuilder: (ctx) => [
+              const PopupMenuItem(
+                value: 'customize_navbar',
+                child: Row(
+                  children: [
+                    Icon(Icons.dashboard_customize_rounded, size: 20),
+                    SizedBox(width: 12),
+                    Text('Customize Navbar'),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
-      // NO bottomNavigationBar! Shows only top Back Button to return to Home.
+      bottomNavigationBar: const GlobalAppleDock(activeRoute: '/other_options'),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         child: Column(
@@ -107,15 +133,6 @@ class OtherOptionsScreen extends StatelessWidget {
               children: [
                 _buildListItem(
                   context: context,
-                  icon: Icons.security_rounded,
-                  iconColor: const Color(0xFFEF4444),
-                  title: 'Security & PIN',
-                  subtitle: 'PIN Gate & AES-GCM-256 Architecture',
-                  route: '/security_settings',
-                ),
-                _buildDivider(isDark),
-                _buildListItem(
-                  context: context,
                   icon: Icons.person_rounded,
                   iconColor: const Color(0xFF06B6D4),
                   title: 'Profile & Account',
@@ -168,9 +185,18 @@ class OtherOptionsScreen extends StatelessWidget {
                 _buildDivider(isDark),
                 _buildListItem(
                   context: context,
+                  icon: Icons.system_update_rounded,
+                  iconColor: const Color(0xFF6366F1),
+                  title: 'System Update & Changelog',
+                  subtitle: 'Check new releases & schedule updates',
+                  route: '/app_update',
+                ),
+                _buildDivider(isDark),
+                _buildListItem(
+                  context: context,
                   icon: Icons.info_outline_rounded,
                   iconColor: const Color(0xFF9CA3AF),
-                  title: 'About OffPay v3.0',
+                  title: 'About OFFPAY v3.1',
                   subtitle: 'Credits & developer mode toggle',
                   route: '/about',
                 ),
@@ -333,6 +359,126 @@ class OtherOptionsScreen extends StatelessWidget {
       thickness: 1,
       indent: 68,
       color: Colors.white.withValues(alpha: 0.08),
+    );
+  }
+
+  void _showCustomizeNavbarDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          final themeProvider = Provider.of<ThemeProvider>(ctx);
+          final order = List<String>.from(themeProvider.navbarOrder);
+          final isDark = Theme.of(ctx).brightness == Brightness.dark;
+
+          String nameForRoute(String r) {
+            switch (r) {
+              case '/home':
+                return 'Home';
+              case '/discovery':
+                return 'Connect';
+              case '/contacts':
+                return 'Trusted';
+              case '/other_options':
+              default:
+                return 'Menu';
+            }
+          }
+
+          IconData iconForRoute(String r) {
+            switch (r) {
+              case '/home':
+                return Icons.home_rounded;
+              case '/discovery':
+                return Icons.radar_rounded;
+              case '/contacts':
+                return Icons.devices_rounded;
+              case '/other_options':
+              default:
+                return Icons.grid_view_rounded;
+            }
+          }
+
+          void moveItem(int oldIndex, int newIndex) {
+            if (newIndex < 0 || newIndex >= order.length) return;
+            HapticFeedback.lightImpact();
+            final item = order.removeAt(oldIndex);
+            order.insert(newIndex, item);
+            themeProvider.setNavbarOrder(order);
+            setDialogState(() {});
+          }
+
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+            backgroundColor: isDark ? const Color(0xFF1E1E2C) : Colors.white,
+            title: const Row(
+              children: [
+                Icon(Icons.dashboard_customize_rounded, color: Colors.indigoAccent),
+                SizedBox(width: 10),
+                Text('Customize Navbar', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+              ],
+            ),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Reorder tiles using arrows. Notice the Live Preview below updates instantly!',
+                    style: TextStyle(fontSize: 13, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 16),
+                  ListView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: order.length,
+                    itemBuilder: (ctx, i) {
+                      final route = order[i];
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        decoration: BoxDecoration(
+                          color: isDark ? Colors.white.withValues(alpha: 0.06) : Colors.grey.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
+                        ),
+                        child: ListTile(
+                          dense: true,
+                          leading: Icon(iconForRoute(route), color: Colors.indigoAccent),
+                          title: Text(nameForRoute(route), style: const TextStyle(fontWeight: FontWeight.w600)),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.arrow_upward_rounded, size: 20),
+                                onPressed: i > 0 ? () => moveItem(i, i - 1) : null,
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.arrow_downward_rounded, size: 20),
+                                onPressed: i < order.length - 1 ? () => moveItem(i, i + 1) : null,
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  const Text('LIVE PREVIEW:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
+                  const SizedBox(height: 8),
+                  const GlobalAppleDock(activeRoute: '/other_options'),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Done', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 }

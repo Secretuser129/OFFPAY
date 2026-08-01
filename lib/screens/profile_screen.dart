@@ -1,4 +1,6 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../services/profile_service.dart';
 import '../services/reward_service.dart';
 import 'rewards_screen.dart';
@@ -14,6 +16,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final _nameController = TextEditingController();
   final _deviceIdController = TextEditingController();
   int _selectedAvatar = 0;
+  String? _profileImagePath;
   bool _isLoading = true;
   String _originalDeviceId = '';
 
@@ -36,6 +39,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final name = await ProfileService.getUserName();
     final deviceId = await ProfileService.getDeviceId();
     final avatar = await ProfileService.getAvatarIndex();
+    final imagePath = await ProfileService.getProfileImagePath();
 
     if (mounted) {
       setState(() {
@@ -43,9 +47,101 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _deviceIdController.text = deviceId;
         _originalDeviceId = deviceId;
         _selectedAvatar = avatar;
+        _profileImagePath = imagePath;
         _isLoading = false;
       });
     }
+  }
+
+  Future<void> _pickImageFromGallery() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(source: ImageSource.gallery);
+    if (picked != null) {
+      await ProfileService.setProfileImagePath(picked.path);
+      setState(() {
+        _profileImagePath = picked.path;
+      });
+    }
+  }
+
+  void _showAvatarOptions() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library_rounded, color: Colors.blueAccent),
+              title: const Text('Choose Photo from Gallery'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _pickImageFromGallery();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.face_rounded, color: Colors.amber),
+              title: const Text('Select Default Icon'),
+              onTap: () {
+                Navigator.pop(ctx);
+                setState(() {
+                  _profileImagePath = null;
+                });
+                ProfileService.setProfileImagePath('');
+              },
+            ),
+            if (_profileImagePath != null && _profileImagePath!.isNotEmpty)
+              ListTile(
+                leading: const Icon(Icons.delete_outline_rounded, color: Colors.red),
+                title: const Text('Remove Photo', style: TextStyle(color: Colors.red)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  setState(() {
+                    _profileImagePath = null;
+                  });
+                  ProfileService.setProfileImagePath('');
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _confirmDeleteAccount() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.red, size: 26),
+            SizedBox(width: 10),
+            Text('Delete Account?'),
+          ],
+        ),
+        content: const Text(
+          'Are you sure you want to delete your OFFPAY Account and erase all encrypted device identity data? This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await ProfileService.deleteAccount();
+              if (mounted) {
+                Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+              }
+            },
+            child: const Text('Delete Permanently'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _saveProfile() async {
@@ -103,20 +199,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 children: [
                   // 1. Avatar Selector Header
                   Center(
-                    child: Stack(
-                      alignment: Alignment.bottomRight,
-                      children: [
-                        CircleAvatar(
-                          radius: 46,
-                          backgroundColor: theme.primaryColor,
-                          child: Icon(_avatars[_selectedAvatar], size: 48, color: Colors.white),
-                        ),
-                        CircleAvatar(
-                          radius: 16,
-                          backgroundColor: Colors.amber.shade700,
-                          child: const Icon(Icons.edit, size: 16, color: Colors.white),
-                        ),
-                      ],
+                    child: GestureDetector(
+                      onTap: _showAvatarOptions,
+                      child: Stack(
+                        alignment: Alignment.bottomRight,
+                        children: [
+                          CircleAvatar(
+                            radius: 46,
+                            backgroundColor: theme.primaryColor,
+                            backgroundImage: (_profileImagePath != null &&
+                                    _profileImagePath!.isNotEmpty &&
+                                    File(_profileImagePath!).existsSync())
+                                ? FileImage(File(_profileImagePath!))
+                                : null,
+                            child: (_profileImagePath != null &&
+                                    _profileImagePath!.isNotEmpty &&
+                                    File(_profileImagePath!).existsSync())
+                                ? null
+                                : Icon(_avatars[_selectedAvatar], size: 48, color: Colors.white),
+                          ),
+                          CircleAvatar(
+                            radius: 16,
+                            backgroundColor: Colors.amber.shade700,
+                            child: const Icon(Icons.edit, size: 16, color: Colors.white),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -233,6 +341,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
                     onPressed: _saveProfile,
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // 7. Delete Account Red Button
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.delete_forever_rounded),
+                    label: const Text('Delete Account', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red.shade600,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    onPressed: _confirmDeleteAccount,
                   ),
 
                   const SizedBox(height: 16),

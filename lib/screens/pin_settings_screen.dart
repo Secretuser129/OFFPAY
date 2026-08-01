@@ -45,7 +45,7 @@ class _PinSettingsScreenState extends State<PinSettingsScreen> {
         builder: (context, setDialogState) {
           return AlertDialog(
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            title: Text(isBalancePin ? 'Set Balance PIN' : 'Set Transfer PIN'),
+            title: Text(isBalancePin ? 'Set Balance Pin' : 'Set Payment Gateway Pin'),
             content: Form(
               key: formKey,
               child: Column(
@@ -222,7 +222,7 @@ class _PinSettingsScreenState extends State<PinSettingsScreen> {
                           backgroundColor: isDark ? Colors.white.withValues(alpha: 0.16) : theme.primaryColor.withValues(alpha: 0.1),
                           child: Icon(Icons.account_balance_wallet, color: isDark ? Colors.white : theme.primaryColor),
                         ),
-                        title: const Text('Balance View PIN', style: TextStyle(fontWeight: FontWeight.bold)),
+                        title: const Text('Balance Pin', style: TextStyle(fontWeight: FontWeight.bold)),
                         subtitle: Text(_hasBalancePin ? 'PIN is set' : 'Not configured'),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -248,7 +248,7 @@ class _PinSettingsScreenState extends State<PinSettingsScreen> {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                       side: BorderSide(
-                        color: isDark ? Colors.white.withValues(alpha: 0.15) : Colors.green.withValues(alpha: 0.2),
+                        color: isDark ? Colors.white.withValues(alpha: 0.15) : Colors.blue.withValues(alpha: 0.2),
                       ),
                     ),
                     elevation: 0,
@@ -257,10 +257,10 @@ class _PinSettingsScreenState extends State<PinSettingsScreen> {
                       child: ListTile(
                         contentPadding: const EdgeInsets.symmetric(horizontal: 16),
                         leading: CircleAvatar(
-                          backgroundColor: isDark ? Colors.greenAccent.withValues(alpha: 0.2) : Colors.green.withValues(alpha: 0.1),
-                          child: Icon(Icons.security, color: isDark ? Colors.greenAccent : Colors.green),
+                          backgroundColor: isDark ? Colors.blueAccent.withValues(alpha: 0.2) : Colors.blue.withValues(alpha: 0.1),
+                          child: Icon(Icons.security, color: isDark ? Colors.blueAccent : Colors.blue),
                         ),
-                        title: const Text('Transfer Authorization PIN', style: TextStyle(fontWeight: FontWeight.bold)),
+                        title: const Text('Payment Gateway Pin', style: TextStyle(fontWeight: FontWeight.bold)),
                         subtitle: Text(_hasTransferPin ? 'PIN is set' : 'Not configured'),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,

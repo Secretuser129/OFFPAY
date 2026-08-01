@@ -7,6 +7,7 @@ import '../models/trusted_contact.dart';
 import '../models/wallet_model.dart';
 import '../services/receipt_service.dart';
 import '../services/reward_service.dart';
+import '../widgets/global_apple_dock.dart';
 
 class ContactsScreen extends StatefulWidget {
   const ContactsScreen({Key? key}) : super(key: key);
@@ -112,6 +113,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
           ),
         ],
       ),
+      bottomNavigationBar: const GlobalAppleDock(activeRoute: '/contacts'),
       body: AnimatedSwitcher(
         duration: const Duration(milliseconds: 300),
         child: _allContacts.isEmpty

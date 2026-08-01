@@ -23,6 +23,7 @@ import 'screens/appearance_screen.dart';
 import 'screens/pin_settings_screen.dart';
 import 'screens/about_screen.dart';
 import 'screens/profile_screen.dart';
+import 'screens/app_update_screen.dart';
 import 'screens/other_options_screen.dart';
 import 'screens/contacts_screen.dart';
 import 'screens/diagnostic_screen.dart';
@@ -182,7 +183,7 @@ class OffPayApp extends StatelessWidget {
     final themeProvider = Provider.of<ThemeProvider>(context);
 
     return MaterialApp(
-      title: 'OFF-PAY',
+      title: 'OFFPAY',
       theme: _buildLightTheme(
         themeProvider.accentColor,
         themeProvider.fontSizeScale,
@@ -216,6 +217,7 @@ class OffPayApp extends StatelessWidget {
         '/contacts': (context) => const ContactsScreen(),
         '/logs': (context) => const LogsScreen(),
         '/diagnostics': (context) => const DiagnosticScreen(),
+        '/app_update': (context) => const AppUpdateScreen(),
 
         // NOTE: PaymentSuccessScreen often needs runtime arguments (amount, recipient, etc.)
         // It's safer to navigate to that screen using MaterialPageRoute and pass required args:

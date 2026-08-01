@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../services/theme_service.dart';
 
@@ -11,131 +12,341 @@ class AppearanceScreen extends StatelessWidget {
     final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
+      backgroundColor: isDark ? const Color(0xFF101018) : const Color(0xFFF4F4F8),
       appBar: AppBar(
-        title: const Text('App Appearance'),
+        title: const Text(
+          'Appearance & Glassify',
+          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
+        ),
+        centerTitle: true,
+        elevation: 0,
+        backgroundColor: Colors.transparent,
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16.0),
-        children: [
-          // Section A: Theme Mode
-          const Text(
-            'Theme Mode',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Choose your preferred visual theme',
-            style: TextStyle(
-              fontSize: 14,
-              color: theme.hintColor,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Consumer<ThemeProvider>(
-            builder: (context, themeProvider, child) {
-              return Card(
-                elevation: 0,
-                color: theme.cardColor,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  side: BorderSide(
-                    color: theme.dividerColor.withAlpha(50),
-                  ),
+      body: Consumer<ThemeProvider>(
+        builder: (context, themeProvider, child) {
+          return ListView(
+            padding: const EdgeInsets.all(20.0),
+            children: [
+              const Text(
+                'THEME MODE',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.grey,
+                  letterSpacing: 1.2,
                 ),
-                child: ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: isDark
-                        ? Colors.purple.withAlpha(38) // 0.15 alpha
-                        : Colors.amber.withAlpha(38), // 0.15 alpha
-                    child: Icon(
-                      isDark ? Icons.dark_mode : Icons.light_mode,
-                      color: isDark ? Colors.purple.shade300 : Colors.amber.shade800,
-                    ),
-                  ),
-                  title: Text(
-                    isDark ? 'Normal Dark Mode' : 'Light Mode',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  subtitle: Text(
-                    isDark
-                        ? 'Sleek Material dark background (#121212)'
-                        : 'Clean, bright interface',
-                  ),
-                  trailing: Switch.adaptive(
-                    value: isDark,
-                    activeThumbColor: Colors.indigo,
-                    onChanged: (value) {
-                      themeProvider.toggleTheme(value);
-                    },
-                  ),
-                ),
-              );
-            },
-          ),
+              ),
+              const SizedBox(height: 12),
+              _buildUntitledThemeSwitcher(context, themeProvider, isDark),
 
-          const SizedBox(height: 24),
-          // Section B: Typography & Font Style
-          const Text(
-            'Typography & Font Style',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Switch between Apple typography and system default font',
-            style: TextStyle(
-              fontSize: 14,
-              color: theme.hintColor,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Consumer<ThemeProvider>(
-            builder: (context, themeProvider, child) {
-              return Card(
-                elevation: 0,
-                color: theme.cardColor,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  side: BorderSide(
-                    color: theme.dividerColor.withAlpha(50),
-                  ),
+              const SizedBox(height: 28),
+              const Text(
+                'GLASSMORPHISM & INTENSITY',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.grey,
+                  letterSpacing: 1.2,
                 ),
-                child: ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: Colors.blue.withAlpha(38),
-                    child: Icon(
-                      Icons.font_download_outlined,
-                      color: Colors.blue.shade400,
-                    ),
-                  ),
-                  title: const Text(
-                    'Apple San Francisco Font',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  subtitle: Text(
-                    themeProvider.useAppleFont
-                        ? 'Active across the entire app (.SF Pro Display)'
-                        : 'System default font (Normal Android/system sans-serif)',
-                  ),
-                  trailing: Switch.adaptive(
-                    value: themeProvider.useAppleFont,
-                    activeThumbColor: Colors.indigo,
-                    onChanged: (value) {
-                      themeProvider.setUseAppleFont(value);
-                    },
-                  ),
+              ),
+              const SizedBox(height: 12),
+              _buildGlassifyCard(context, themeProvider, isDark),
+
+              const SizedBox(height: 28),
+              const Text(
+                'TYPOGRAPHY & ACCENT',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.grey,
+                  letterSpacing: 1.2,
                 ),
-              );
-            },
+              ),
+              const SizedBox(height: 12),
+              _buildTypographyAndAccentCard(context, themeProvider, isDark),
+
+              const SizedBox(height: 36),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  /// Builds the Untitled.png style 3-node connected-circle switcher:
+  /// [ Light (sun) ] ••• [ Auto (A) ] ••• [ Dark (moon) ]
+  Widget _buildUntitledThemeSwitcher(
+    BuildContext context,
+    ThemeProvider themeProvider,
+    bool isDark,
+  ) {
+    final currentMode = themeProvider.themeMode;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E1E2C) : Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: isDark ? Colors.white.withValues(alpha: 0.12) : Colors.black.withValues(alpha: 0.08),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
-      // bottomNavigationBar removed for clean full-screen view
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Interactive Theme Switcher',
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Inspired by OFFPAY badge aesthetic. Tap any node to activate.',
+            style: TextStyle(fontSize: 12, color: isDark ? Colors.white60 : Colors.black54),
+          ),
+          const SizedBox(height: 20),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              // Light Node
+              _buildThemeNode(
+                label: 'Light',
+                icon: Icons.wb_sunny_rounded,
+                isSelected: currentMode == ThemeMode.light,
+                color: Colors.amber,
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  themeProvider.setThemeMode(ThemeMode.light);
+                },
+              ),
+              // Connector dots
+              const Text('••••••', style: TextStyle(color: Colors.grey, fontSize: 10, letterSpacing: 2)),
+              // Auto Node
+              _buildThemeNode(
+                label: 'Auto',
+                icon: Icons.hdr_auto_rounded,
+                isSelected: currentMode == ThemeMode.system,
+                color: Colors.indigoAccent,
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  themeProvider.setThemeMode(ThemeMode.system);
+                },
+              ),
+              // Connector dots
+              const Text('••••••', style: TextStyle(color: Colors.grey, fontSize: 10, letterSpacing: 2)),
+              // Dark Node
+              _buildThemeNode(
+                label: 'Dark',
+                icon: Icons.nightlight_round,
+                isSelected: currentMode == ThemeMode.dark,
+                color: Colors.purpleAccent,
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  themeProvider.setThemeMode(ThemeMode.dark);
+                },
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildThemeNode({
+    required String label,
+    required IconData icon,
+    required bool isSelected,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        children: [
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 250),
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: isSelected ? color.withValues(alpha: 0.2) : Colors.transparent,
+              border: Border.all(
+                color: isSelected ? color : Colors.grey.withValues(alpha: 0.3),
+                width: isSelected ? 2.5 : 1.2,
+              ),
+              boxShadow: isSelected
+                  ? [
+                      BoxShadow(
+                        color: color.withValues(alpha: 0.35),
+                        blurRadius: 12,
+                        spreadRadius: 1,
+                      )
+                    ]
+                  : [],
+            ),
+            child: Icon(
+              icon,
+              color: isSelected ? color : Colors.grey,
+              size: 24,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
+              color: isSelected ? color : Colors.grey,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGlassifyCard(
+    BuildContext context,
+    ThemeProvider themeProvider,
+    bool isDark,
+  ) {
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E1E2C) : Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: isDark ? Colors.white.withValues(alpha: 0.12) : Colors.black.withValues(alpha: 0.08),
+        ),
+      ),
+      child: Column(
+        children: [
+          ListTile(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+            leading: CircleAvatar(
+              backgroundColor: Colors.cyan.withValues(alpha: 0.15),
+              child: const Icon(Icons.blur_on_rounded, color: Colors.cyan),
+            ),
+            title: const Text('Glassify Interface', style: TextStyle(fontWeight: FontWeight.bold)),
+            subtitle: const Text('Enable frosted glassmorphic styling on navbar & cards'),
+            trailing: Switch.adaptive(
+              value: themeProvider.glassifyEnabled,
+              activeTrackColor: Colors.cyan,
+              onChanged: (val) {
+                HapticFeedback.lightImpact();
+                themeProvider.setGlassifyEnabled(val);
+              },
+            ),
+          ),
+          if (themeProvider.glassifyEnabled) ...[
+            Divider(height: 1, color: isDark ? Colors.white10 : Colors.black12),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Glass Intensity',
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                      ),
+                      Text(
+                        '${(themeProvider.glassifyIntensity * 100).toInt()}%',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.cyan,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  SliderTheme(
+                    data: SliderTheme.of(context).copyWith(
+                      activeTrackColor: Colors.cyan,
+                      inactiveTrackColor: Colors.grey.withValues(alpha: 0.25),
+                      thumbColor: Colors.cyan,
+                    ),
+                    child: Slider(
+                      value: themeProvider.glassifyIntensity,
+                      min: 0.2,
+                      max: 1.0,
+                      onChanged: (val) {
+                        themeProvider.setGlassifyIntensity(val);
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTypographyAndAccentCard(
+    BuildContext context,
+    ThemeProvider themeProvider,
+    bool isDark,
+  ) {
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E1E2C) : Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: isDark ? Colors.white.withValues(alpha: 0.12) : Colors.black.withValues(alpha: 0.08),
+        ),
+      ),
+      child: Column(
+        children: [
+          ListTile(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+            leading: CircleAvatar(
+              backgroundColor: Colors.blue.withValues(alpha: 0.15),
+              child: const Icon(Icons.font_download_rounded, color: Colors.blue),
+            ),
+            title: const Text('Apple San Francisco Font', style: TextStyle(fontWeight: FontWeight.bold)),
+            subtitle: Text(
+              themeProvider.useAppleFont
+                  ? 'Active (.SF Pro Display Apple typography)'
+                  : 'System default font applied',
+            ),
+            trailing: Switch.adaptive(
+              value: themeProvider.useAppleFont,
+              activeTrackColor: Colors.blue,
+              onChanged: (val) {
+                HapticFeedback.lightImpact();
+                themeProvider.setUseAppleFont(val);
+              },
+            ),
+          ),
+          Divider(height: 1, color: isDark ? Colors.white10 : Colors.black12),
+          ListTile(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+            leading: CircleAvatar(
+              backgroundColor: Colors.pinkAccent.withValues(alpha: 0.15),
+              child: const Icon(Icons.color_lens_rounded, color: Colors.pinkAccent),
+            ),
+            title: const Text('Accent Color Only for Icons', style: TextStyle(fontWeight: FontWeight.bold)),
+            subtitle: const Text('Keep button backgrounds sleek black/white'),
+            trailing: Switch.adaptive(
+              value: themeProvider.accentColorOnlyForIcons,
+              activeTrackColor: Colors.pinkAccent,
+              onChanged: (val) {
+                HapticFeedback.lightImpact();
+                themeProvider.setAccentColorOnlyForIcons(val);
+              },
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

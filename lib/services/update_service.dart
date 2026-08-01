@@ -21,8 +21,8 @@ class UpdateInfo {
 }
 
 class UpdateService {
-  static const int currentVersionCode = 1;
-  static const String currentVersionName = '3.0';
+  static const int currentVersionCode = 31;
+  static const String currentVersionName = '3.1';
 
   // Fallback version.json URL
   static const String rawJsonUrl = 'https://raw.githubusercontent.com/Secretuser129/OFFPAY/main/version.json';
@@ -71,8 +71,8 @@ class UpdateService {
           }
 
           return UpdateInfo(
-            versionCode: remoteCode > 0 ? remoteCode : currentVersionCode + 1,
-            versionName: tag.isEmpty ? '2.2.4' : tag,
+            versionCode: remoteCode > 0 ? remoteCode : currentVersionCode,
+            versionName: tag.isEmpty ? currentVersionName : tag,
             updateUrl: downloadUrl,
             changelog: body,
           );
@@ -88,8 +88,8 @@ class UpdateService {
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
         return UpdateInfo(
-          versionCode: data['versionCode'] ?? 224,
-          versionName: data['versionName'] ?? '2.2.4',
+          versionCode: data['versionCode'] ?? currentVersionCode,
+          versionName: data['versionName'] ?? currentVersionName,
           updateUrl: data['downloadUrl'] ?? defaultReleaseUrl,
           changelog: data['changelog'] ?? 'Performance & Bluetooth stability improvements.',
         );
@@ -97,8 +97,8 @@ class UpdateService {
     } catch (_) {}
 
     return UpdateInfo(
-      versionCode: 224,
-      versionName: '2.2.4',
+      versionCode: currentVersionCode,
+      versionName: currentVersionName,
       updateUrl: defaultReleaseUrl,
       changelog: 'Performance & Bluetooth stability improvements.',
     );
@@ -359,13 +359,21 @@ class UpdateService {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   TextButton(
-                    onPressed: () => Navigator.pop(ctx),
-                    child: const Text('Later'),
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Automatic update scheduled for 3:00 AM.'),
+                          backgroundColor: Colors.indigo,
+                        ),
+                      );
+                    },
+                    child: const Text('Later (Night Automatic)', style: TextStyle(fontSize: 11)),
                   ),
-                  const SizedBox(width: 4),
+                  const SizedBox(width: 6),
                   ElevatedButton.icon(
                     icon: const Icon(Icons.download, size: 18),
-                    label: const Text('Install'),
+                    label: const Text('Update Now'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.indigo,
                       foregroundColor: Colors.white,

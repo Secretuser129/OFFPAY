@@ -522,7 +522,7 @@ class _PaymentInputScreenState extends State<PaymentInputScreen> {
           builder: (context) => StatefulBuilder(
             builder: (context, setState) => AlertDialog(
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-              title: const Text('Transfer Authorization PIN', style: TextStyle(fontWeight: FontWeight.bold)),
+              title: const Text('Payment Gateway Pin', style: TextStyle(fontWeight: FontWeight.bold)),
               content: Form(
                 key: formKey,
                 child: Column(

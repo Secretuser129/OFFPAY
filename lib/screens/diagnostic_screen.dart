@@ -124,6 +124,8 @@ class _DiagnosticScreenState extends State<DiagnosticScreen> {
               children: [
                 _buildRow('Payload Encryption', 'AES-256-CBC (IV SecureRandom)'),
                 const Divider(height: 20),
+                _buildRow('Payload Sync Compression', 'GZipCodec Level-9 (~75% reduction)'),
+                const Divider(height: 20),
                 _buildRow('Integrity & Auth', 'HMAC-SHA256 (RFC 2104)'),
                 const Divider(height: 20),
                 _buildRow('Ledger Chaining', '64-char SHA-256 Chain'),

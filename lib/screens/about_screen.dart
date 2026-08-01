@@ -239,7 +239,7 @@ class _AboutScreenState extends State<AboutScreen> {
                       Icon(Icons.copyright, size: 16),
                       SizedBox(width: 4),
                       Text(
-                        '2026 OFFPAY Protocol',
+                        '2026 OFFPAY Policy',
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.bold,

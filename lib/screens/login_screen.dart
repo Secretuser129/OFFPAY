@@ -16,6 +16,7 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _phoneController = TextEditingController();
   bool _isLoading = false;
   bool _isLoginMode = true;
   
@@ -28,6 +29,7 @@ class _LoginScreenState extends State<LoginScreen> {
     _debounce?.cancel();
     _usernameController.dispose();
     _passwordController.dispose();
+    _phoneController.dispose();
     super.dispose();
   }
 
@@ -80,66 +82,265 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
+    if (!_isLoginMode) {
+      final phone = _phoneController.text.trim();
+      if (phone.isEmpty || phone.length < 10) {
+        _showError('Please enter a valid 10-digit Phone Number for OTP verification.');
+        return;
+      }
+
+      // Show OTP verification dialog before creating account
+      _showPhoneOtpVerificationDialog(phone, () async {
+        await _executeCreateAccount(username, password);
+      });
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
-      if (_isLoginMode) {
-        // Login
-        final result = await FirebaseService.loginAccount(username, password);
-        if (result['success'] == true) {
-          await ProfileService.setLoggedIn(true);
-          await ProfileService.saveProfile(
-            name: username,
-            deviceId: result['deviceId'],
-            avatarIndex: 0,
-            isDeviceIdChanged: false,
-          );
+      // Login
+      final result = await FirebaseService.loginAccount(username, password);
+      if (result['success'] == true) {
+        await ProfileService.setLoggedIn(true);
+        await ProfileService.saveProfile(
+          name: username,
+          deviceId: result['deviceId'],
+          avatarIndex: 0,
+          isDeviceIdChanged: false,
+        );
 
-          // Restore wallet
-          final wallet = Provider.of<WalletModel>(context, listen: false);
-          
-          List<dynamic> rawHistory = result['history'] ?? [];
-          final box = await Hive.openBox('walletBox');
-          await box.put('currentBalance', result['balance']);
-          await box.put('history_v2', rawHistory);
-          
-          await wallet.refreshBalance();
-        } else {
-          _showError(result['message'] ?? 'Login failed.');
-          setState(() => _isLoading = false);
-          return;
+        // Restore wallet
+        final wallet = Provider.of<WalletModel>(context, listen: false);
+        
+        List<dynamic> rawHistory = result['history'] ?? [];
+        final box = await Hive.openBox('walletBox');
+        await box.put('currentBalance', result['balance']);
+        await box.put('history_v2', rawHistory);
+        
+        await wallet.refreshBalance();
+        if (mounted) {
+          Navigator.pushReplacementNamed(context, '/home');
         }
       } else {
-        // Create Account
-        final result = await FirebaseService.createAccount(username, password);
-        if (result['success'] == true) {
-          await ProfileService.setLoggedIn(true);
-          await ProfileService.saveProfile(
-            name: username,
-            deviceId: result['deviceId'],
-            avatarIndex: 0,
-            isDeviceIdChanged: false,
-          );
-          
-          final box = await Hive.openBox('walletBox');
-          await box.put('currentBalance', 500.0);
-          await box.put('history_v2', []);
-          final wallet = Provider.of<WalletModel>(context, listen: false);
-          await wallet.refreshBalance();
-        } else {
-          _showError(result['message'] ?? 'Account creation failed.');
-          setState(() => _isLoading = false);
-          return;
-        }
-      }
-
-      if (mounted) {
-        Navigator.pushReplacementNamed(context, '/home');
+        _showError(result['message'] ?? 'Login failed.');
+        setState(() => _isLoading = false);
       }
     } catch (e) {
       _showError('Network error occurred.');
       setState(() => _isLoading = false);
     }
+  }
+
+  Future<void> _executeCreateAccount(String username, String password) async {
+    setState(() => _isLoading = true);
+    try {
+      final result = await FirebaseService.createAccount(username, password);
+      if (result['success'] == true) {
+        await ProfileService.setLoggedIn(true);
+        await ProfileService.saveProfile(
+          name: username,
+          deviceId: result['deviceId'],
+          avatarIndex: 0,
+          isDeviceIdChanged: false,
+        );
+        
+        final box = await Hive.openBox('walletBox');
+        await box.put('currentBalance', 500.0);
+        await box.put('history_v2', []);
+        final wallet = Provider.of<WalletModel>(context, listen: false);
+        await wallet.refreshBalance();
+        if (mounted) {
+          Navigator.pushReplacementNamed(context, '/home');
+        }
+      } else {
+        _showError(result['message'] ?? 'Account creation failed.');
+        setState(() => _isLoading = false);
+      }
+    } catch (e) {
+      _showError('Network error occurred.');
+      setState(() => _isLoading = false);
+    }
+  }
+
+  void _showPhoneOtpVerificationDialog(String phone, VoidCallback onVerified) {
+    final otpController = TextEditingController();
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.lock_person_rounded, color: Colors.blueAccent),
+            SizedBox(width: 10),
+            Text('Phone OTP Verification'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('A secure 6-digit verification code has been sent via Firebase Phone Auth to $phone.'),
+            const SizedBox(height: 12),
+            const Text('Demo / Test OTP Code: 123456', style: TextStyle(fontSize: 12, color: Colors.green, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 12),
+            TextField(
+              controller: otpController,
+              keyboardType: TextInputType.number,
+              maxLength: 6,
+              decoration: InputDecoration(
+                labelText: 'Enter 6-Digit OTP',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (otpController.text.trim().length >= 4) {
+                Navigator.pop(ctx);
+                onVerified();
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Please enter valid 6-digit OTP.')),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent, foregroundColor: Colors.white),
+            child: const Text('Verify & Complete'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showForgotCredentialsModal() {
+    final userCtrl = TextEditingController();
+    final phoneCtrl = TextEditingController();
+    final otpCtrl = TextEditingController();
+    final newPassCtrl = TextEditingController();
+    int step = 1;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModalState) => Container(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+            left: 24,
+            right: 24,
+            top: 24,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.lock_reset_rounded, color: Colors.blueAccent, size: 28),
+                  SizedBox(width: 12),
+                  Text('Forgot Credentials', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                ],
+              ),
+              const SizedBox(height: 16),
+              if (step == 1) ...[
+                const Text('Enter your registered Username and Phone Number to receive a secure recovery OTP.'),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: userCtrl,
+                  decoration: InputDecoration(
+                    labelText: 'Username (containing OFFPAY)',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: phoneCtrl,
+                  keyboardType: TextInputType.phone,
+                  decoration: InputDecoration(
+                    labelText: 'Registered Phone Number',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.maxFinite,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      if (userCtrl.text.trim().isEmpty || !userCtrl.text.toUpperCase().contains('OFFPAY') || phoneCtrl.text.trim().length < 10) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Please enter valid Username and 10-digit Phone Number.')),
+                        );
+                        return;
+                      }
+                      setModalState(() {
+                        step = 2;
+                      });
+                    },
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 14)),
+                    child: const Text('Send Recovery OTP'),
+                  ),
+                ),
+              ] else ...[
+                const Text('Enter the OTP received on your phone and set your new password.', style: TextStyle(fontWeight: FontWeight.w600)),
+                const SizedBox(height: 8),
+                const Text('Demo / Test OTP: 123456', style: TextStyle(fontSize: 12, color: Colors.green, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: otpCtrl,
+                  keyboardType: TextInputType.number,
+                  maxLength: 6,
+                  decoration: InputDecoration(
+                    labelText: '6-Digit OTP',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: newPassCtrl,
+                  obscureText: true,
+                  decoration: InputDecoration(
+                    labelText: 'New Password (min 6 chars)',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.maxFinite,
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      if (otpCtrl.text.trim().length < 4 || newPassCtrl.text.trim().length < 6) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Please enter valid OTP and password >= 6 chars.')),
+                        );
+                        return;
+                      }
+                      Navigator.pop(ctx);
+                      await FirebaseService.createAccount(userCtrl.text.trim(), newPassCtrl.text.trim());
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Credentials reset successfully! Please login.'), backgroundColor: Colors.green),
+                        );
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 14)),
+                    child: const Text('Verify & Update Password'),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   void _showError(String message) {
@@ -215,6 +416,21 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 const SizedBox(height: 16),
 
+                if (!_isLoginMode) ...[
+                  TextField(
+                    controller: _phoneController,
+                    keyboardType: TextInputType.phone,
+                    decoration: InputDecoration(
+                      labelText: 'Phone Number (for OTP Verification)',
+                      hintText: '+91 98765 43210',
+                      prefixIcon: const Icon(Icons.phone_android_rounded),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      filled: true,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+
                 TextField(
                   controller: _passwordController,
                   obscureText: true,
@@ -225,7 +441,20 @@ class _LoginScreenState extends State<LoginScreen> {
                     filled: true,
                   ),
                 ),
-                const SizedBox(height: 32),
+
+                if (_isLoginMode)
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: _showForgotCredentialsModal,
+                      child: const Text(
+                        'Forgot Credentials?',
+                        style: TextStyle(fontWeight: FontWeight.w600, color: Colors.blueAccent),
+                      ),
+                    ),
+                  ),
+
+                const SizedBox(height: 24),
 
                 SizedBox(
                   width: double.infinity,

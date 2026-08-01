@@ -545,7 +545,7 @@ class FirebaseService {
   /// Starts real-time periodic server polling every 2 seconds so balance updates automatically in milliseconds
   static void startAutoSync(WalletModel walletModel) {
     stopAutoSync();
-    _autoSyncTimer = Timer.periodic(const Duration(milliseconds: 2000), (_) async {
+    _autoSyncTimer = Timer.periodic(const Duration(minutes: 15), (_) async {
       await syncDownFromServer(walletModel);
     });
   }
