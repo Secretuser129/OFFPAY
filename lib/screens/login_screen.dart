@@ -271,7 +271,6 @@ class _LoginScreenState extends State<LoginScreen> {
     int step = 1;
     bool isSending = false;
     bool isVerifying = false;
-    String? storedVerificationId;
 
     showModalBottomSheet(
       context: context,
@@ -351,7 +350,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
                       setModalState(() {
                         isSending = false;
-                        storedVerificationId = recoveryOtp;
                         step = 2;
                       });
                     },

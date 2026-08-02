@@ -102,7 +102,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final prefs = await SharedPreferences.getInstance();
     final requireAppLock = prefs.getBool('security_require_app_lock') ?? true;
     if (!requireAppLock) return;
-    final hasPin = await PasswordService.hasPin();
+    final hasPin = await PasswordService.hasBalancePin();
     if (!hasPin) return;
 
     if (!mounted) return;
@@ -110,8 +110,8 @@ class _HomeScreenState extends State<HomeScreen> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => WillPopScope(
-        onWillPop: () async => false,
+      builder: (ctx) => PopScope(
+        canPop: false,
         child: StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
@@ -141,7 +141,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     onChanged: (val) async {
                       if (val.length >= 4) {
-                        final valid = await PasswordService.verifyPin(val.trim());
+                        final valid = await PasswordService.verifyBalancePin(val.trim());
                         if (valid) {
                           Navigator.pop(ctx);
                         }
@@ -153,7 +153,7 @@ class _HomeScreenState extends State<HomeScreen> {
               actions: [
                 TextButton(
                   onPressed: () async {
-                    final valid = await PasswordService.verifyPin(pinController.text.trim());
+                    final valid = await PasswordService.verifyBalancePin(pinController.text.trim());
                     if (valid) {
                       Navigator.pop(ctx);
                     } else {
@@ -440,99 +440,6 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
       bottomNavigationBar: const GlobalAppleDock(activeRoute: '/home'),
-    );
-  }
-
-  void _showPaymentOptionsBottomSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (ctx) {
-        final isDark = Theme.of(ctx).brightness == Brightness.dark;
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF1A1A2E) : Colors.white,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-            boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 20)],
-          ),
-          child: SafeArea(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.withValues(alpha: 0.4),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                ),
-                const SizedBox(height: 18),
-                const Text(
-                  'Quick Payment Options',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 20),
-                ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: Colors.blueAccent.withValues(alpha: 0.15),
-                    child: const Icon(Icons.send_rounded, color: Colors.blueAccent),
-                  ),
-                  title: const Text('Send Money', style: TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: const Text('Connect, Contacts or Direct Send'),
-                  trailing: const Icon(Icons.arrow_forward_ios, size: 14),
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    Navigator.pushNamed(context, '/send_options');
-                  },
-                ),
-                ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: Colors.purpleAccent.withValues(alpha: 0.15),
-                    child: const Icon(Icons.qr_code_scanner_rounded, color: Colors.purpleAccent),
-                  ),
-                  title: const Text('Scan QR Code', style: TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: const Text('Pay any merchant or user QR instantly'),
-                  trailing: const Icon(Icons.arrow_forward_ios, size: 14),
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    Navigator.pushNamed(context, '/qr_scanner');
-                  },
-                ),
-                ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: Colors.green.withValues(alpha: 0.15),
-                    child: const Icon(Icons.call_received_rounded, color: Colors.green),
-                  ),
-                  title: const Text('Receive Money', style: TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: const Text('Show your secure QR or BLE receiver'),
-                  trailing: const Icon(Icons.arrow_forward_ios, size: 14),
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    Navigator.pushNamed(context, '/receive');
-                  },
-                ),
-                ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: Colors.orangeAccent.withValues(alpha: 0.15),
-                    child: const Icon(Icons.tap_and_play_rounded, color: Colors.orangeAccent),
-                  ),
-                  title: const Text('NFC Tap & Pay', style: TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: const Text('Contactless offline payment via NFC'),
-                  trailing: const Icon(Icons.arrow_forward_ios, size: 14),
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    Navigator.pushNamed(context, '/nfc_tap');
-                  },
-                ),
-                const SizedBox(height: 12),
-              ],
-            ),
-          ),
-        );
-      },
     );
   }
 
