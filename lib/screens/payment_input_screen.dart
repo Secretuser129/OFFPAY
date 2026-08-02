@@ -39,6 +39,7 @@ class _PaymentInputScreenState extends State<PaymentInputScreen> {
   bool _isProcessing = false;
   String? _recipientPhotoBase64;
   bool _hasFetchedPhoto = false;
+  bool _hasInitiatedConnection = false;
 
   @override
   void initState() {
@@ -105,7 +106,8 @@ class _PaymentInputScreenState extends State<PaymentInputScreen> {
           _isConnecting = false;
           _isConnected = true;
         });
-      } else {
+      } else if (!_hasInitiatedConnection) {
+        _hasInitiatedConnection = true;
         // Initiate background connection to the recipient
         _connectToRecipient();
       }

@@ -1,4 +1,22 @@
 // lib/services/bluetooth_service.dart
+//
+// ANDROID MANIFEST / GRADLE CHECKLIST (required alongside this file — none of
+// the Dart-side fixes below matter if these are missing):
+//   android/app/build.gradle(.kts): minSdkVersion 26 (Android 8.0)
+//   AndroidManifest.xml:
+//     <uses-permission android:name="android.permission.BLUETOOTH"
+//         android:maxSdkVersion="30" />
+//     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN"
+//         android:maxSdkVersion="30" />
+//     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"
+//         android:maxSdkVersion="30" />   <!-- required for BLE scan on 8-11 -->
+//     <uses-permission android:name="android.permission.BLUETOOTH_SCAN"
+//         android:usesPermissionFlags="neverForLocation" />  <!-- 12+, omit the
+//         flag if you actually derive physical location from scan results -->
+//     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+//     <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
+//     <uses-feature android:name="android.hardware.bluetooth_le"
+//         android:required="true" />
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
@@ -109,6 +127,12 @@ class OffpayBluetoothService with ChangeNotifier {
   StreamSubscription<fb.BluetoothAdapterState>? _adapterStateSubscription;
 
   fb.BluetoothDevice? _connectedDevice;
+
+  // Guards against overlapping connect() calls to the same device — issuing a
+  // second connect() while one is already in flight is one of the most common
+  // triggers of GATT_ERROR 133 on Android 8/9.
+  final Set<String> _connectingDeviceIds = {};
+  StreamSubscription<fb.BluetoothConnectionState>? _connectionStateSub;
 
   // Realtime Incoming Payment Stream & BLE Receiver Broadcast State
   bool _isListeningForIncoming = false;
@@ -237,21 +261,46 @@ class OffpayBluetoothService with ChangeNotifier {
   Future<bool> requestBluetoothPermissions() async {
     try {
       if (defaultTargetPlatform == TargetPlatform.android) {
+        // IMPORTANT: Permission.location (background location) is deliberately
+        // NOT requested here. On Android 11+, bundling a background-location
+        // request together with foreground permissions in one request() call
+        // causes the OS to silently refuse to grant it — Google requires
+        // background location to be requested on its own, after the
+        // foreground permission is already granted. We don't need it for BLE
+        // scanning anyway, so it's dropped rather than fixed.
+        //
+        // bluetoothScan/bluetoothConnect/bluetoothAdvertise only exist on
+        // Android 12+ (API 31+); permission_handler auto-resolves them to
+        // "granted" on older OS versions, so requesting them unconditionally
+        // is safe all the way back to Android 8.
         Map<Permission, PermissionStatus> statuses = await [
           Permission.bluetoothScan,
           Permission.bluetoothConnect,
           Permission.bluetoothAdvertise,
           Permission.locationWhenInUse,
-          Permission.location,
         ].request();
 
         bool isLocationGranted = statuses[Permission.locationWhenInUse]?.isGranted ?? false;
         bool isBleScanGranted = statuses[Permission.bluetoothScan]?.isGranted ?? false;
+        bool isBleConnectGranted = statuses[Permission.bluetoothConnect]?.isGranted ?? false;
 
-        // On Android 12+, bluetoothScan is required. On Android 11, locationWhenInUse is required.
-        // We will consider it essential if EITHER of the core scanning permissions is granted.
-        bool essentialGranted = (isLocationGranted || isBleScanGranted);
-        
+        // Android 8-11 (API 26-30): scanning AND connecting only need
+        // locationWhenInUse — there's no separate runtime "connect" permission.
+        // Android 12+ (API 31+): scanning needs bluetoothScan, and — critically —
+        // device.connect() will fail on its own with a permission error unless
+        // bluetoothConnect is ALSO granted. Treating scan-only as "good enough"
+        // (the previous behavior) let the code proceed straight into a connect
+        // attempt that was doomed to fail with a confusing native error.
+        bool essentialGranted = isLocationGranted || (isBleScanGranted && isBleConnectGranted);
+
+        if (!essentialGranted) {
+          LogService.log(
+            'Bluetooth permissions incomplete — location: $isLocationGranted, scan: $isBleScanGranted, connect: $isBleConnectGranted',
+            category: 'WARN',
+            source: 'BluetoothService',
+          );
+        }
+
         return essentialGranted;
       }
       return true;
@@ -342,7 +391,6 @@ class OffpayBluetoothService with ChangeNotifier {
     _scanResultsSubscription = fb.FlutterBluePlus.scanResults.listen(
       (results) {
         final now = DateTime.now();
-        bool changed = false;
         for (fb.ScanResult r in results) {
           final deviceId = r.device.remoteId.str;
           final discovered = DiscoveredDevice(
@@ -351,9 +399,6 @@ class OffpayBluetoothService with ChangeNotifier {
             lastSeen: now,
             advertisementData: r.advertisementData,
           );
-          if (!_deviceMap.containsKey(deviceId) || _deviceMap[deviceId]!.name != discovered.name) {
-            changed = true;
-          }
           _deviceMap[deviceId] = discovered;
 
           // Emit proximity pop-up trigger if device is close (side-by-side RSSI >= -65)
@@ -361,7 +406,7 @@ class OffpayBluetoothService with ChangeNotifier {
             _proximityController.add(discovered);
           }
         }
-        if (changed) {
+        if (results.isNotEmpty) {
           notifyListeners();
         }
       },
@@ -369,27 +414,12 @@ class OffpayBluetoothService with ChangeNotifier {
     );
 
     try {
-      // Phase 1: Unfiltered scan — catches ALL BLE devices (Android 8-14)
       await fb.FlutterBluePlus.startScan(
-        timeout: Duration(seconds: (timeout.inSeconds * 0.6).round()),
+        timeout: timeout,
         androidScanMode: fb.AndroidScanMode.lowLatency,
       );
     } catch (e) {
-      debugPrint('Phase 1 unfiltered scan error: $e');
-    }
-
-    // Phase 2: Service UUID filtered scan — Android 14 sometimes requires this to find
-    // devices advertising the OFFPAY service UUID that were missed in unfiltered scan
-    if (_isScanning) {
-      try {
-        await fb.FlutterBluePlus.startScan(
-          withServices: [OFFPAY_SERVICE_UUID],
-          timeout: Duration(seconds: (timeout.inSeconds * 0.4).round()),
-          androidScanMode: fb.AndroidScanMode.lowLatency,
-        );
-      } catch (e) {
-        debugPrint('Phase 2 filtered scan error: $e');
-      }
+      debugPrint('startScan error: $e');
     }
 
     // Scan finished (timeout reached) — reset scanning state
@@ -439,91 +469,166 @@ class OffpayBluetoothService with ChangeNotifier {
     return (100000 + (code % 900000)).toString();
   }
 
-  /// Step 1: Connect to the device (Stable for Android 8/10/11/12/13/14)
+  /// Step 1: Connect to the device (Stable for Android 8/9/10/11/12/13/14/15/16)
+  ///
+  /// Android's BLE stack frequently surfaces GATT_ERROR 133
+  /// (ANDROID_SPECIFIC_ERROR) on Oreo/Pie devices especially, but it can show
+  /// up on any version. The three things that matter most for avoiding it:
+  ///   1. never let two connect() calls to the same device overlap
+  ///   2. give the radio time to settle after scanning/disconnecting before
+  ///      the next connect attempt (and before the first GATT op after connect)
+  ///   3. back off with increasing delay between retries, not a fixed one
+  ///
   /// Returns pairing code on success, null on failure
   Future<String?> connectToDeviceWithPairing(fb.BluetoothDevice device) async {
-    final isRadioOn = await enableBluetoothRadio();
-    if (!isRadioOn) return null;
-
-    await stopScan();
-    // Allow Android BLE radio to transition cleanly out of scan mode
-    await Future.delayed(const Duration(milliseconds: 500));
     final deviceId = device.remoteId.str;
-    final myId = await ProfileService.getDeviceId();
-    final pairingCode = generatePairingCode(myId, deviceId);
 
-    // Check if already connected in Android GATT stack
+    // Reentrancy guard: a second connect() while one is already running is a
+    // common way to strand the native GATT client in a bad state on Android 8/9.
+    if (_connectingDeviceIds.contains(deviceId)) {
+      debugPrint('Connect already in progress for $deviceId, ignoring duplicate call.');
+      return null;
+    }
+    _connectingDeviceIds.add(deviceId);
+
     try {
-      final current = await device.connectionState.first;
-      if (current == fb.BluetoothConnectionState.connected) {
-        _connectedDevice = device;
-        if (_deviceMap.containsKey(deviceId)) {
-          _deviceMap[deviceId]!.connectionState = fb.BluetoothConnectionState.connected;
-          notifyListeners();
-        }
-        debugPrint('GATT already connected: $deviceId');
-        return pairingCode;
-      }
-    } catch (_) {}
+      final isRadioOn = await enableBluetoothRadio();
+      if (!isRadioOn) return null;
 
-    const int maxRetries = 3;
-    for (int attempt = 1; attempt <= maxRetries; attempt++) {
+      await stopScan();
+      // Allow the Android BLE radio to transition cleanly out of scan mode.
+      // 500ms is the bare minimum quoted anywhere for this; Oreo/Pie devices
+      // are noticeably more reliable around ~800ms.
+      await Future.delayed(const Duration(milliseconds: 800));
+
+      final myId = await ProfileService.getDeviceId();
+      final pairingCode = generatePairingCode(myId, deviceId);
+
+      // Check if already connected in Android GATT stack
       try {
-        debugPrint('GATT Connection Attempt $attempt of $maxRetries for $deviceId');
-
-        // On Android 8+, create bond (pairing) before connecting for stable GATT
-        if (defaultTargetPlatform == TargetPlatform.android && attempt == 1) {
-          try {
-            await device.createBond();
-            debugPrint('Bond created / pairing initiated for $deviceId');
-          } catch (e) {
-            debugPrint('Bond creation note (non-fatal): $e');
-          }
-          await Future.delayed(const Duration(milliseconds: 800));
-        }
-
-        // Give 45 seconds timeout so Android pairing code / PIN confirmation popup has plenty of time
-        await device.connect(
-          license: fb.License.nonprofit,
-          autoConnect: attempt > 1, // Use autoConnect on retries for Android 8-10
-          timeout: const Duration(seconds: 45),
-          mtu: null,
-        );
-
         final current = await device.connectionState.first;
         if (current == fb.BluetoothConnectionState.connected) {
           _connectedDevice = device;
+          _watchConnectionState(device);
           if (_deviceMap.containsKey(deviceId)) {
             _deviceMap[deviceId]!.connectionState = fb.BluetoothConnectionState.connected;
             notifyListeners();
           }
-          // Request MTU on Android to stabilize GATT link layer
-          if (defaultTargetPlatform == TargetPlatform.android) {
-            try {
-              await device.requestMtu(512);
-            } catch (e) {
-              debugPrint('MTU request note: $e');
-            }
-          }
-          // Allow GATT connection interval to stabilize before any service discovery
-          await Future.delayed(const Duration(milliseconds: 600));
-
-          debugPrint('GATT Connected successfully on attempt $attempt: $deviceId');
-          LogService.log('GATT Connected (attempt $attempt) to $deviceId — Pairing Code: $pairingCode', category: 'SUCCESS', source: 'BluetoothService');
+          debugPrint('GATT already connected: $deviceId');
           return pairingCode;
         }
-      } catch (e) {
-        debugPrint('GATT Attempt $attempt error: $e');
-        LogService.log('GATT Attempt $attempt error for $deviceId: $e', category: 'WARN', source: 'BluetoothService');
+      } catch (_) {}
+
+      // Force-close any stale native GATT client before trying fresh — if the
+      // app thinks it's disconnected but Android's stack never fully released
+      // the previous connection, the next connect() reproduces 133 immediately.
+      try {
+        await device.disconnect();
+        await Future.delayed(const Duration(milliseconds: 300));
+      } catch (_) {}
+
+      const int maxRetries = 4;
+      for (int attempt = 1; attempt <= maxRetries; attempt++) {
         try {
-          await device.disconnect();
-        } catch (_) {}
+          debugPrint('GATT Connection Attempt $attempt of $maxRetries for $deviceId');
+
+          await device.connect(
+            license: fb.License.nonprofit,
+            autoConnect: false, // Always use direct fast connection
+            timeout: const Duration(seconds: 15),
+            mtu: null,
+          );
+
+          final current = await device.connectionState.first;
+          if (current == fb.BluetoothConnectionState.connected) {
+            _connectedDevice = device;
+            _watchConnectionState(device);
+            if (_deviceMap.containsKey(deviceId)) {
+              _deviceMap[deviceId]!.connectionState = fb.BluetoothConnectionState.connected;
+              notifyListeners();
+            }
+
+            // Let the connection settle before issuing any further GATT ops —
+            // queuing bond/MTU requests immediately after onConnectionStateChange
+            // fires is a well-documented 133 trigger on Android 8/9.
+            await Future.delayed(const Duration(milliseconds: 400));
+
+            if (defaultTargetPlatform == TargetPlatform.android) {
+              try {
+                // Only bond if not already bonded. Re-issuing createBond() on an
+                // already-bonded device can trigger a duplicate pairing dialog
+                // and leave the GATT client in a bad state on some OEM builds.
+                // Bonding is best-effort here — the app has its own
+                // application-level pairing code (see generatePairingCode), so
+                // OS-level bonding must never block or fail the connection.
+                final bondState = await device.bondState.first;
+                if (bondState != fb.BluetoothBondState.bonded) {
+                  await device.createBond().timeout(
+                    const Duration(seconds: 8),
+                    onTimeout: () {},
+                  );
+                }
+              } catch (e) {
+                debugPrint('Bond note (non-fatal): $e');
+              }
+              try {
+                await device.requestMtu(512).timeout(
+                  const Duration(seconds: 5),
+                  onTimeout: () {},
+                );
+              } catch (e) {
+                debugPrint('MTU request note: $e');
+              }
+            }
+            await Future.delayed(const Duration(milliseconds: 300));
+
+            debugPrint('GATT Connected successfully on attempt $attempt: $deviceId');
+            LogService.log('GATT Connected (attempt $attempt) to $deviceId — Pairing Code: $pairingCode', category: 'SUCCESS', source: 'BluetoothService');
+            return pairingCode;
+          }
+        } catch (e) {
+          debugPrint('GATT Attempt $attempt error: $e');
+          LogService.log('GATT Attempt $attempt error for $deviceId: $e', category: 'WARN', source: 'BluetoothService');
+          try {
+            await device.disconnect();
+          } catch (_) {}
+          // Give the native GATT client time to fully close before retrying —
+          // reconnecting too soon after a 133 usually reproduces it instantly.
+          await Future.delayed(const Duration(milliseconds: 400));
+        }
+        if (attempt < maxRetries) {
+          // Exponential backoff: 800ms, 1600ms, 3200ms...
+          final backoff = Duration(milliseconds: 800 * (1 << (attempt - 1)));
+          await Future.delayed(backoff);
+        }
       }
-      if (attempt < maxRetries) {
-        await Future.delayed(const Duration(milliseconds: 1500));
-      }
+      return null;
+    } finally {
+      _connectingDeviceIds.remove(deviceId);
     }
-    return null;
+  }
+
+  /// Watches a connected device's connectionState and reactively clears local
+  /// state the moment it drops. Android 8/9 BLE stacks disconnect more readily
+  /// than modern ones, and a stale `_connectedDevice` reference causes
+  /// confusing bugs elsewhere in the payment flow if it isn't cleared as soon
+  /// as the drop happens.
+  void _watchConnectionState(fb.BluetoothDevice device) {
+    _connectionStateSub?.cancel();
+    final deviceId = device.remoteId.str;
+    _connectionStateSub = device.connectionState.listen((state) {
+      if (_deviceMap.containsKey(deviceId)) {
+        _deviceMap[deviceId]!.connectionState = state;
+      }
+      if (state == fb.BluetoothConnectionState.disconnected) {
+        if (_connectedDevice?.remoteId.str == deviceId) {
+          _connectedDevice = null;
+        }
+        debugPrint('GATT disconnected: $deviceId');
+      }
+      notifyListeners();
+    });
+    device.cancelWhenDisconnected(_connectionStateSub!);
   }
 
   /// Legacy connect method (backward compatible)
@@ -706,6 +811,7 @@ class OffpayBluetoothService with ChangeNotifier {
   void dispose() {
     _scanResultsSubscription?.cancel();
     _adapterStateSubscription?.cancel();
+    _connectionStateSub?.cancel();
     _incomingPaymentController.close();
     _proximityController.close();
     super.dispose();
