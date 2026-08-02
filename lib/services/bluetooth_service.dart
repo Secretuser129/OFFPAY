@@ -340,7 +340,8 @@ class OffpayBluetoothService with ChangeNotifier {
   }
 
   // -------------------------
-  // Location Service Check (Required for BLE scanning on Android 10/11)
+  // Location Service Check (required by flutter_blue_plus on ALL Android
+  // versions by default — not just 8-11 — unless neverForLocation is set)
   // -------------------------
   bool _isLocationEnabled = true;
   bool get isLocationEnabled => _isLocationEnabled;
@@ -375,11 +376,29 @@ class OffpayBluetoothService with ChangeNotifier {
       return;
     }
 
-    // Check location service (required for Android 8-11)
+    // Check location service. This is NOT just an Android 8-11 requirement —
+    // flutter_blue_plus defaults to androidCheckLocationServices: true
+    // internally on EVERY Android version (including 12+), and will throw if
+    // Location Services is off unless you've both added
+    // `android:usesPermissionFlags="neverForLocation"` to the BLUETOOTH_SCAN
+    // entry in AndroidManifest.xml AND passed androidCheckLocationServices:
+    // false to startScan(). Without both of those, a scanning phone on
+    // Android 14 with Location Services toggled off will silently find
+    // nothing at all — not just "can't find one specific device" — because
+    // the scan itself never actually runs; the old code let that exception
+    // get swallowed by the generic catch below with no visible cause.
     await checkLocationEnabled();
     if (!_isLocationEnabled) {
-      debugPrint('Location service is OFF. BLE scanning will return 0 results on Android 8-11.');
-      LogService.log('Location service is OFF! BLE scanning may return 0 results on Android 8-11.', category: 'WARN', source: 'BluetoothService');
+      debugPrint('Location service is OFF — aborting scan before it silently fails.');
+      LogService.log(
+        'Location service is OFF. Scan aborted. Enable Location Services on this '
+        'device, or configure BLUETOOTH_SCAN with neverForLocation + '
+        'androidCheckLocationServices:false if you want scanning to work with it off.',
+        category: 'ERROR',
+        source: 'BluetoothService',
+      );
+      notifyListeners();
+      return; // fail fast instead of calling startScan() and getting 0 results
     }
 
     _isScanning = true;
@@ -574,7 +593,7 @@ class OffpayBluetoothService with ChangeNotifier {
               try {
                 await device.requestMtu(512).timeout(
                   const Duration(seconds: 5),
-                  onTimeout: () {},
+                  onTimeout: () => 512,
                 );
               } catch (e) {
                 debugPrint('MTU request note: $e');
