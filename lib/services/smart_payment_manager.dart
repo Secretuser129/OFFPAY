@@ -59,6 +59,7 @@ class SmartPaymentManager {
         recipientDevice.remoteId.str, 
         status: 'PENDING', 
         transactionId: txId,
+        paymentMethod: 'bluetooth',
       );
       
       // Trigger background sync
@@ -113,6 +114,7 @@ class SmartPaymentManager {
       recipientDeviceId, 
       status: 'QUEUED_FOR_RELAY', 
       transactionId: txId,
+      paymentMethod: 'bluetooth',
     );
 
     // Attempt to sync this intent to Firebase just in case we have internet

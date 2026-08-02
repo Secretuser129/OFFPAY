@@ -85,7 +85,7 @@ class _HomeScreenState extends State<HomeScreen> {
       final String senderId = data['senderId'] as String;
       final String? txId = data['transactionId'] as String?;
       final walletModel = Provider.of<WalletModel>(context, listen: false);
-      await walletModel.receiveMoney(amount, senderId, status: 'PENDING', transactionId: txId, notify: true);
+      await walletModel.receiveMoney(amount, senderId, status: 'PENDING', transactionId: txId, notify: true, paymentMethod: 'bluetooth');
       SyncQueueService.enqueueAndTrigger(walletModel);
     });
   }
@@ -420,7 +420,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                         TextButton(
-                          onPressed: () => SyncQueueService.enqueueAndTrigger(walletModel),
+                          onPressed: () => SyncQueueService.forceSyncAll(walletModel),
                           child: const Text('Sync Now', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                         ),
                       ],

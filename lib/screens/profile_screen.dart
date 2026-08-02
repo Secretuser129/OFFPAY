@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../services/profile_service.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:provider/provider.dart';
+import '../models/wallet_model.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -328,6 +330,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
                     onPressed: _saveProfile,
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // 6. Logout Button
+                  OutlinedButton.icon(
+                    icon: const Icon(Icons.logout, color: Colors.redAccent),
+                    label: const Text('Logout', style: TextStyle(color: Colors.redAccent, fontSize: 16, fontWeight: FontWeight.bold)),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      side: const BorderSide(color: Colors.redAccent, width: 1.5),
+                    ),
+                    onPressed: () async {
+                      await ProfileService.setLoggedIn(false);
+                      if (context.mounted) {
+                        final wallet = Provider.of<WalletModel>(context, listen: false);
+                        await wallet.clearWallet();
+                        Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+                      }
+                    },
                   ),
 
                   const SizedBox(height: 16),

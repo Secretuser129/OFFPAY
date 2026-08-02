@@ -1,8 +1,10 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:math';
-import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import 'package:encrypt/encrypt.dart' as enc;
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'firebase_service.dart';
 
@@ -13,6 +15,8 @@ const String _keyLastIdChange = 'offpay_last_id_change';
 const String _keyIsLoggedIn = 'offpay_is_logged_in';
 
 class ProfileService {
+  static const _bleChannel = MethodChannel('com.example.offpay/bluetooth');
+
   static Future<bool> isLoggedIn() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool(_keyIsLoggedIn) ?? false;
@@ -32,8 +36,19 @@ class ProfileService {
     return 'OFFPAY-$part1-$part2';
   }
 
-  /// Format device ID into a standard 6-octet Bluetooth MAC address string (e.g. 14:8F:34:16:7F:16)
+  /// Get the phone's REAL Bluetooth MAC address from native Android
   static Future<String> getBluetoothMacAddress() async {
+    try {
+      if (defaultTargetPlatform == TargetPlatform.android) {
+        final String? realMac = await _bleChannel.invokeMethod('getBluetoothAddress');
+        if (realMac != null && realMac.isNotEmpty && realMac != '02:00:00:00:00:00') {
+          return realMac.toUpperCase();
+        }
+      }
+    } catch (e) {
+      debugPrint('Error getting real Bluetooth MAC: $e');
+    }
+    // Fallback if hardware denies access
     final id = await getDeviceId();
     final bytes = sha256.convert(utf8.encode(id)).bytes;
     final hex = bytes.sublist(0, 6).map((b) => b.toRadixString(16).padLeft(2, '0').toUpperCase()).join(':');
@@ -156,6 +171,64 @@ class ProfileService {
         'amount': '0.0',
       };
     }
+  }
+
+  /// Generate Bluetooth Direct-Connect QR code payload (Different from My QR / V3 online QR)
+  static String generateBluetoothQrPayload({
+    required String deviceId,
+    required String userName,
+    required String macAddress,
+    required int avatarIndex,
+    String? photoBase64,
+  }) {
+    final rawData = {
+      'id': deviceId,
+      'name': userName,
+      'mac': macAddress,
+      'avatar': avatarIndex,
+      if (photoBase64 != null && photoBase64.length <= 1500) 'photo': photoBase64,
+      'type': 'OFFPAY_BLUETOOTH_QR',
+    };
+    return 'OFFPAY_BT_QR_V1:${jsonEncode(rawData)}';
+  }
+
+  /// Parse Bluetooth Direct-Connect QR code payload
+  static Map<String, dynamic>? parseBluetoothQrPayload(String rawQrData) {
+    try {
+      final qrData = rawQrData.trim();
+      if (qrData.startsWith('OFFPAY_BT_QR_V1:')) {
+        final jsonStr = qrData.substring('OFFPAY_BT_QR_V1:'.length);
+        final map = jsonDecode(jsonStr) as Map<String, dynamic>;
+        return {
+          'id': map['id']?.toString() ?? 'Unknown Device',
+          'name': map['name']?.toString() ?? 'OFFPAY User',
+          'mac': map['mac']?.toString() ?? '',
+          'avatar': (map['avatar'] is int) ? map['avatar'] as int : int.tryParse(map['avatar']?.toString() ?? '0') ?? 0,
+          'photo': map['photo']?.toString(),
+          'type': 'OFFPAY_BLUETOOTH_QR',
+        };
+      }
+    } catch (e) {
+      debugPrint('Error parsing Bluetooth QR payload: $e');
+    }
+    return null;
+  }
+
+  /// Retrieve profile photo as base64 string if configured
+  static Future<String?> getProfilePhotoBase64() async {
+    try {
+      final imagePath = await getProfileImagePath();
+      if (imagePath != null && imagePath.isNotEmpty) {
+        final file = File(imagePath);
+        if (file.existsSync()) {
+          final bytes = file.readAsBytesSync();
+          if (bytes.length <= 150000) {
+            return base64Encode(bytes);
+          }
+        }
+      }
+    } catch (_) {}
+    return null;
   }
 
   // ── Profile Persistence ───────────────────────────────────────────────────

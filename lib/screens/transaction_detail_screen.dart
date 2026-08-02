@@ -124,17 +124,27 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
-                        color: Colors.green.withValues(alpha: 0.15),
+                        color: (transaction.method == 'online' ? Colors.blue : Colors.green).withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      child: const Row(
+                      child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.check_circle, size: 14, color: Colors.green),
-                          SizedBox(width: 6),
+                          Icon(
+                            transaction.method == 'online' ? Icons.cloud_done : Icons.bluetooth_connected,
+                            size: 14,
+                            color: transaction.method == 'online' ? Colors.blue : Colors.green,
+                          ),
+                          const SizedBox(width: 6),
                           Text(
-                            'Completed Offline via BLE',
-                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.green),
+                            transaction.method == 'online'
+                                ? 'Completed Online'
+                                : 'Completed Offline via Bluetooth',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: transaction.method == 'online' ? Colors.blue : Colors.green,
+                            ),
                           ),
                         ],
                       ),
@@ -186,6 +196,12 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
                       context,
                       label: 'Date & Time',
                       value: formattedTime,
+                    ),
+                    const Divider(height: 24),
+                    _buildDetailRow(
+                      context,
+                      label: 'Payment Method',
+                      value: transaction.method == 'online' ? 'Online Cloud Payment' : 'Offline via Bluetooth BLE',
                     ),
                     const Divider(height: 24),
                     _buildDetailRow(

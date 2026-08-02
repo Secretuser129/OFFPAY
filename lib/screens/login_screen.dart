@@ -226,6 +226,25 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               actions: [
                 TextButton(
+                  onPressed: isVerifying ? null : () async {
+                    setDialogState(() => isVerifying = true);
+                    final generatedOtp = (100000 + math.Random().nextInt(900000)).toString();
+                    await FirebaseService.storeOtpVerification(phoneNumber, generatedOtp);
+                    await FirebaseService.sendOtpViaSms(phoneNumber, generatedOtp);
+                    setDialogState(() => isVerifying = false);
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('New 6-digit OTP code sent to $phone'),
+                          backgroundColor: Colors.green,
+                          duration: const Duration(seconds: 5),
+                        ),
+                      );
+                    }
+                  },
+                  child: const Text('Resend OTP', style: TextStyle(color: Colors.indigo, fontWeight: FontWeight.bold)),
+                ),
+                TextButton(
                   onPressed: () => Navigator.pop(ctx),
                   child: const Text('Cancel'),
                 ),
@@ -423,6 +442,32 @@ class _LoginScreenState extends State<LoginScreen> {
                     },
                     style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 14)),
                     child: isVerifying ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Text('Verify & Update Password'),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Center(
+                  child: TextButton.icon(
+                    icon: const Icon(Icons.refresh, size: 18, color: Colors.indigo),
+                    label: const Text('Resend Recovery OTP', style: TextStyle(color: Colors.indigo, fontWeight: FontWeight.bold)),
+                    onPressed: isVerifying ? null : () async {
+                      setModalState(() => isVerifying = true);
+                      String phoneNumber = phoneCtrl.text.trim();
+                      if (!phoneNumber.startsWith('+')) {
+                        phoneNumber = '+91$phoneNumber';
+                      }
+                      final newOtp = (100000 + math.Random().nextInt(900000)).toString();
+                      await FirebaseService.storeOtpVerification(phoneNumber, newOtp);
+                      await FirebaseService.sendOtpViaSms(phoneNumber, newOtp);
+                      setModalState(() => isVerifying = false);
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('New Recovery OTP resent to $phoneNumber'),
+                            backgroundColor: Colors.green,
+                          ),
+                        );
+                      }
+                    },
                   ),
                 ),
               ],

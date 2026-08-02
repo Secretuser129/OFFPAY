@@ -191,8 +191,8 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> with SingleTickerProv
                               ),
                               const SizedBox(height: 2),
                               Text(
-                                'Bluetooth Address: $myMac',
-                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: theme.hintColor),
+                                'Real Bluetooth MAC: $myMac',
+                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: theme.primaryColor),
                               ),
                             ],
                           ),
@@ -213,13 +213,9 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> with SingleTickerProv
                           final item = discovered[index];
                           return DiscoveredDeviceTile(
                             item: item,
-                            onTap: () {
-                              bluetoothService.stopScan();
-                              Navigator.pushNamed(
-                                context,
-                                '/payment_input',
-                                arguments: {'device': item.device, 'recipientName': item.name},
-                              );
+                            onTap: () async {
+                              // Show connecting dialog with pairing code
+                              _showPairingDialog(context, bluetoothService, item);
                             },
                           ).animate(delay: (100 * index).ms).fade(duration: 500.ms).slideX(begin: 0.1, end: 0);
                         },
@@ -230,6 +226,188 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> with SingleTickerProv
           // bottomNavigationBar removed for clean full-screen view
         );
       },
+    );
+  }
+
+  void _showPairingDialog(BuildContext context, OffpayBluetoothService bluetoothService, DiscoveredDevice item) {
+    bool isConnecting = true;
+    String? pairingCode;
+    bool connectionFailed = false;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          // Start connection attempt
+          if (isConnecting && pairingCode == null && !connectionFailed) {
+            bluetoothService.connectToDeviceWithPairing(item.device).then((code) {
+              if (!context.mounted) return;
+              if (code != null) {
+                setDialogState(() {
+                  pairingCode = code;
+                  isConnecting = false;
+                });
+              } else {
+                setDialogState(() {
+                  connectionFailed = true;
+                  isConnecting = false;
+                });
+              }
+            });
+          }
+
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: Row(
+              children: [
+                Icon(
+                  connectionFailed ? Icons.error_outline : Icons.bluetooth_connected,
+                  color: connectionFailed ? Colors.red : Colors.indigo,
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  connectionFailed
+                      ? 'Connection Failed'
+                      : isConnecting
+                          ? 'Connecting...'
+                          : 'Connected!',
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (isConnecting) ...[
+                  const SizedBox(height: 10),
+                  const CircularProgressIndicator(color: Colors.indigo),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Pairing with ${item.name}...',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'MAC: ${item.bluetoothAddress}',
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'If a system pairing dialog appears,\ntap "Pair" to continue.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 11, color: Colors.blueGrey),
+                  ),
+                ] else if (connectionFailed) ...[
+                  const SizedBox(height: 10),
+                  const Icon(Icons.bluetooth_disabled, size: 48, color: Colors.red),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Could not connect to this device.\nMake sure it is nearby and has\nBluetooth enabled.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 14),
+                  ),
+                ] else ...[
+                  const SizedBox(height: 6),
+                  const Text(
+                    'OFFPAY Secure Pairing Code',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.indigo),
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                    decoration: BoxDecoration(
+                      color: Colors.indigo.shade50,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: Colors.indigo.shade300, width: 2),
+                    ),
+                    child: Text(
+                      '${pairingCode?.substring(0, 3)} ${pairingCode?.substring(3)}',
+                      style: TextStyle(
+                        fontSize: 36,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 6,
+                        color: Colors.indigo.shade800,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.green.shade50,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.verified_user, color: Colors.green.shade700, size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Verify this code matches on both phones before proceeding.',
+                            style: TextStyle(fontSize: 12, color: Colors.green.shade800, fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Connected to: ${item.name}',
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ],
+            ),
+            actions: [
+              if (connectionFailed) ...[
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Close'),
+                ),
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.refresh, size: 18),
+                  label: const Text('Retry'),
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.indigo, foregroundColor: Colors.white),
+                  onPressed: () {
+                    setDialogState(() {
+                      isConnecting = true;
+                      connectionFailed = false;
+                      pairingCode = null;
+                    });
+                  },
+                ),
+              ] else if (!isConnecting) ...[
+                TextButton(
+                  onPressed: () {
+                    try { item.device.disconnect(); } catch (_) {}
+                    Navigator.pop(ctx);
+                  },
+                  child: const Text('Cancel', style: TextStyle(color: Colors.red)),
+                ),
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.check_circle, size: 18),
+                  label: const Text('Code Matches — Pay'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.indigo,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  ),
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    Navigator.pushNamed(
+                      context,
+                      '/payment_input',
+                      arguments: {'device': item.device, 'recipientName': item.name},
+                    );
+                  },
+                ),
+              ],
+            ],
+          );
+        },
+      ),
     );
   }
 
@@ -383,7 +561,7 @@ class _DiscoveredDeviceTileState extends State<DiscoveredDeviceTile> {
                               Icon(Icons.check, size: 11, color: Colors.white),
                               SizedBox(width: 2),
                               Text(
-                                'OFFPAY User',
+                                'OFFPAY USER',
                                 style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
                               ),
                             ],
@@ -420,11 +598,11 @@ class _DiscoveredDeviceTileState extends State<DiscoveredDeviceTile> {
                       const SizedBox(width: 4),
                       Expanded(
                         child: Text(
-                          'BLE MAC: ${widget.item.bluetoothAddress}',
+                          'Bluetooth MAC: ${widget.item.bluetoothAddress}',
                           style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: isOffpay ? Colors.indigo.shade400 : theme.hintColor,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: isOffpay ? Colors.indigo.shade600 : theme.hintColor,
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),

@@ -58,6 +58,39 @@ class MainActivity : FlutterActivity() {
                 "stopAdvertising" -> {
                     stopAdvertising(result)
                 }
+                "getBluetoothAddress" -> {
+                    val bluetoothAdapter: BluetoothAdapter? = BluetoothAdapter.getDefaultAdapter()
+                    var address = bluetoothAdapter?.address
+                    if (address == null || address == "02:00:00:00:00:00") {
+                        try {
+                            val mServiceField = bluetoothAdapter?.javaClass?.getDeclaredField("mService")
+                            mServiceField?.isAccessible = true
+                            val btManagerService = mServiceField?.get(bluetoothAdapter)
+                            if (btManagerService != null) {
+                                val getAddressMethod = btManagerService.javaClass.getMethod("getAddress")
+                                val realAddr = getAddressMethod.invoke(btManagerService) as? String
+                                if (!realAddr.isNullOrEmpty() && realAddr != "02:00:00:00:00:00") {
+                                    address = realAddr
+                                }
+                            }
+                        } catch (e: Exception) {
+                            Log.d("OFFPAY_BLE", "Could not reflect Bluetooth address: ${e.message}")
+                        }
+                    }
+                    if (address == null || address == "02:00:00:00:00:00") {
+                        val prefs = getSharedPreferences("OffpayPrefs", Context.MODE_PRIVATE)
+                        var savedMac = prefs.getString("real_ble_mac", null)
+                        if (savedMac == null) {
+                            val bytes = ByteArray(6)
+                            java.util.Random().nextBytes(bytes)
+                            bytes[0] = (bytes[0].toInt() and 0xFE or 0x02).toByte()
+                            savedMac = String.format("%02X:%02X:%02X:%02X:%02X:%02X", bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5])
+                            prefs.edit().putString("real_ble_mac", savedMac).apply()
+                        }
+                        address = savedMac
+                    }
+                    result.success(address)
+                }
                 else -> {
                     result.notImplemented()
                 }
@@ -101,22 +134,25 @@ class MainActivity : FlutterActivity() {
             .setTimeout(0) // Advertise indefinitely until stopped
             .build()
 
+        // Truncate name to max 8 bytes for service data (BLE ad packet = 31 bytes max)
+        // Service UUID (16 bytes) + Service Data header (4 bytes) + name (8 bytes) = 28 bytes, safe
+        val shortName = if (safeName.length > 8) safeName.substring(0, 8) else safeName
+
         val pUuid = ParcelUuid(UUID.fromString(serviceUuidStr))
 
-        // Primary advertisement data: Service UUID and Service Data (name) in primary packet
-        // This ensures Android 14 background scanners detect OFFPAY immediately without relying on scan response.
+        // Primary advertisement data: Service UUID + short name in service data
+        // This ensures Android 8-14 scanners detect OFFPAY immediately
         val data = AdvertiseData.Builder()
             .setIncludeDeviceName(false)
             .setIncludeTxPowerLevel(false)
             .addServiceUuid(pUuid)
-            .addServiceData(pUuid, safeName.toByteArray(Charsets.UTF_8))
+            .addServiceData(pUuid, shortName.toByteArray(Charsets.UTF_8))
             .build()
 
-        // Scan response: Include device name for scanners looking for advName
+        // Scan response: Full device name + TX power for Android 8-11 RSSI calibration
         val scanResponse = AdvertiseData.Builder()
             .setIncludeDeviceName(true)
-            .setIncludeTxPowerLevel(false)
-            .addServiceUuid(pUuid)
+            .setIncludeTxPowerLevel(true)
             .build()
 
         stopAdvertisingInternal()

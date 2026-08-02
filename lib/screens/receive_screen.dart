@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
 import '../services/bluetooth_service.dart';
 import '../services/profile_service.dart';
@@ -22,6 +23,9 @@ class _ReceiveScreenState extends State<ReceiveScreen> with SingleTickerProvider
   String deviceId = 'OFFPAY-LOADING';
   String macAddress = 'Loading...';
   String userName = 'OFFPAY User';
+  int avatarIndex = 0;
+  String? photoBase64;
+  String bluetoothQrPayload = '';
   StreamSubscription<Map<String, dynamic>>? _incomingPaymentSubscription;
   late AnimationController _pulseController;
 
@@ -49,12 +53,24 @@ class _ReceiveScreenState extends State<ReceiveScreen> with SingleTickerProvider
     final mac = await ProfileService.getBluetoothMacAddress();
     final name = await ProfileService.getUserName();
     final btName = await ProfileService.getBluetoothName();
+    final avatar = await ProfileService.getAvatarIndex();
+    final photo = await ProfileService.getProfilePhotoBase64();
+    final btQr = ProfileService.generateBluetoothQrPayload(
+      deviceId: id,
+      userName: name,
+      macAddress: mac,
+      avatarIndex: avatar,
+      photoBase64: photo,
+    );
 
     if (mounted) {
       setState(() {
         deviceId = id;
         macAddress = mac;
         userName = name;
+        avatarIndex = avatar;
+        photoBase64 = photo;
+        bluetoothQrPayload = btQr;
       });
 
       final bluetoothService = Provider.of<OffpayBluetoothService>(context, listen: false);
@@ -268,6 +284,124 @@ class _ReceiveScreenState extends State<ReceiveScreen> with SingleTickerProvider
               style: TextStyle(fontSize: 13, color: theme.hintColor),
               textAlign: TextAlign.center,
             ),
+
+            const SizedBox(height: 24),
+
+            // ── BLUETOOTH CONNECT QR CODE CARD ──────────────────────────────
+            if (bluetoothQrPayload.isNotEmpty)
+              Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      theme.primaryColor.withValues(alpha: 0.12),
+                      Colors.indigo.withValues(alpha: 0.05),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: theme.primaryColor.withValues(alpha: 0.4),
+                    width: 1.5,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.06),
+                      blurRadius: 15,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.qr_code_scanner, color: theme.primaryColor, size: 20),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Can\'t Find Receiver? Scan Bluetooth QR',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: theme.primaryColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Dedicated Offline Bluetooth Connect QR • Different from My QR',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: theme.hintColor,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.08),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: QrImageView(
+                        data: bluetoothQrPayload,
+                        size: 200.0,
+                        errorCorrectionLevel: QrErrorCorrectLevel.H,
+                        dataModuleStyle: const QrDataModuleStyle(
+                          color: Colors.black,
+                          dataModuleShape: QrDataModuleShape.square,
+                        ),
+                        eyeStyle: const QrEyeStyle(
+                          color: Colors.black,
+                          eyeShape: QrEyeShape.square,
+                        ),
+                        embeddedImage: const AssetImage('assets/images/bluetooth_black.png'),
+                        embeddedImageStyle: const QrEmbeddedImageStyle(
+                          size: Size(36, 36),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: theme.cardTheme.color,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: theme.primaryColor.withValues(alpha: 0.2),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.verified_user, color: theme.primaryColor, size: 18),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'When scanned, displays your Name & Profile Photo popup with instant buttons to Connect via Bluetooth & Add to Trusted Contacts.',
+                              style: TextStyle(
+                                fontSize: 11,
+                                height: 1.3,
+                                color: theme.hintColor,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
 
             const SizedBox(height: 20),
             

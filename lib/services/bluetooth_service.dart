@@ -55,7 +55,7 @@ class DiscoveredDevice {
     final raw = _rawName;
     if (raw.isNotEmpty) return raw;
     if (isOffpayUser) {
-      return 'OFFPAY User (${id.length >= 8 ? id.substring(id.length - 8) : id})';
+      return 'OFFPAY USER (${id.length >= 8 ? id.substring(id.length - 8) : id})';
     }
     return 'Bluetooth Device (${id.length >= 8 ? id.substring(id.length - 8) : id})';
   }
@@ -312,7 +312,7 @@ class OffpayBluetoothService with ChangeNotifier {
   }
 
   // -------------------------
-  // Real-time Unfiltered Scanning (Guaranteed Android 10/11/12/14 Compatibility)
+  // Real-time Unfiltered Scanning (Guaranteed Android 8/10/11/12/13/14 Compatibility)
   // -------------------------
   Future<void> startScan({Duration timeout = const Duration(seconds: 15)}) async {
     if (_isScanning) {
@@ -326,15 +326,15 @@ class OffpayBluetoothService with ChangeNotifier {
       return;
     }
 
-    // Check location service
+    // Check location service (required for Android 8-11)
     await checkLocationEnabled();
     if (!_isLocationEnabled) {
-      debugPrint('Location service is OFF. BLE scanning will return 0 results on Android 10/11.');
-      LogService.log('Location service is OFF! BLE scanning may return 0 results on Android.', category: 'WARN', source: 'BluetoothService');
+      debugPrint('Location service is OFF. BLE scanning will return 0 results on Android 8-11.');
+      LogService.log('Location service is OFF! BLE scanning may return 0 results on Android 8-11.', category: 'WARN', source: 'BluetoothService');
     }
 
     _isScanning = true;
-    LogService.log('Started BLE Nearby Peripheral Scan (15s sweep)', category: 'BLE', source: 'BluetoothService');
+    LogService.log('Started BLE Nearby Peripheral Scan (${timeout.inSeconds}s sweep, dual-mode)', category: 'BLE', source: 'BluetoothService');
     _deviceMap.clear();
     notifyListeners();
 
@@ -369,12 +369,27 @@ class OffpayBluetoothService with ChangeNotifier {
     );
 
     try {
+      // Phase 1: Unfiltered scan — catches ALL BLE devices (Android 8-14)
       await fb.FlutterBluePlus.startScan(
-        timeout: timeout,
-        androidScanMode: fb.AndroidScanMode.lowPower,
+        timeout: Duration(seconds: (timeout.inSeconds * 0.6).round()),
+        androidScanMode: fb.AndroidScanMode.lowLatency,
       );
     } catch (e) {
-      debugPrint('startScan error: $e');
+      debugPrint('Phase 1 unfiltered scan error: $e');
+    }
+
+    // Phase 2: Service UUID filtered scan — Android 14 sometimes requires this to find
+    // devices advertising the OFFPAY service UUID that were missed in unfiltered scan
+    if (_isScanning) {
+      try {
+        await fb.FlutterBluePlus.startScan(
+          withServices: [OFFPAY_SERVICE_UUID],
+          timeout: Duration(seconds: (timeout.inSeconds * 0.4).round()),
+          androidScanMode: fb.AndroidScanMode.lowLatency,
+        );
+      } catch (e) {
+        debugPrint('Phase 2 filtered scan error: $e');
+      }
     }
 
     // Scan finished (timeout reached) — reset scanning state
@@ -409,18 +424,34 @@ class OffpayBluetoothService with ChangeNotifier {
   }
 
   // -------------------------
-  // Real-time Connect & Transfer (GATT 133 Retry Counter Countermeasure)
+  // Real-time Connect & Transfer (GATT 133 Retry + Pairing Code for Android 8+)
   // -------------------------
-  /// Step 1: Connect to the device separately (Powerful & Stable for Android 11 & Android 14)
-  Future<bool> connectToDevice(fb.BluetoothDevice device) async {
+  /// Generate a deterministic 6-digit pairing code from both device IDs
+  /// so both sender and receiver can verify the same code on screen.
+  String generatePairingCode(String myDeviceId, String remoteDeviceId) {
+    final sorted = [myDeviceId, remoteDeviceId]..sort();
+    final combined = '${sorted[0]}:${sorted[1]}:OFFPAY_PAIR_2026';
+    final hash = utf8.encode(combined);
+    int code = 0;
+    for (final b in hash) {
+      code = (code * 31 + b) & 0x7FFFFFFF;
+    }
+    return (100000 + (code % 900000)).toString();
+  }
+
+  /// Step 1: Connect to the device (Stable for Android 8/10/11/12/13/14)
+  /// Returns pairing code on success, null on failure
+  Future<String?> connectToDeviceWithPairing(fb.BluetoothDevice device) async {
     final isRadioOn = await enableBluetoothRadio();
-    if (!isRadioOn) return false;
+    if (!isRadioOn) return null;
 
     await stopScan();
     // Allow Android BLE radio to transition cleanly out of scan mode
     await Future.delayed(const Duration(milliseconds: 500));
     final deviceId = device.remoteId.str;
-    
+    final myId = await ProfileService.getDeviceId();
+    final pairingCode = generatePairingCode(myId, deviceId);
+
     // Check if already connected in Android GATT stack
     try {
       final current = await device.connectionState.first;
@@ -431,19 +462,32 @@ class OffpayBluetoothService with ChangeNotifier {
           notifyListeners();
         }
         debugPrint('GATT already connected: $deviceId');
-        return true;
+        return pairingCode;
       }
     } catch (_) {}
 
-    const int maxRetries = 2;
+    const int maxRetries = 3;
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         debugPrint('GATT Connection Attempt $attempt of $maxRetries for $deviceId');
-        // Give 35 seconds timeout so Android pairing code / PIN confirmation popup has plenty of time!
+
+        // On Android 8+, create bond (pairing) before connecting for stable GATT
+        if (defaultTargetPlatform == TargetPlatform.android && attempt == 1) {
+          try {
+            await device.createBond();
+            debugPrint('Bond created / pairing initiated for $deviceId');
+          } catch (e) {
+            debugPrint('Bond creation note (non-fatal): $e');
+          }
+          await Future.delayed(const Duration(milliseconds: 800));
+        }
+
+        // Give 45 seconds timeout so Android pairing code / PIN confirmation popup has plenty of time
         await device.connect(
-          autoConnect: false,
-          timeout: const Duration(seconds: 35),
           license: fb.License.nonprofit,
+          autoConnect: attempt > 1, // Use autoConnect on retries for Android 8-10
+          timeout: const Duration(seconds: 45),
+          mtu: null,
         );
 
         final current = await device.connectionState.first;
@@ -465,8 +509,8 @@ class OffpayBluetoothService with ChangeNotifier {
           await Future.delayed(const Duration(milliseconds: 600));
 
           debugPrint('GATT Connected successfully on attempt $attempt: $deviceId');
-          LogService.log('GATT Connected successfully on attempt $attempt to $deviceId (MTU: 512)', category: 'SUCCESS', source: 'BluetoothService');
-          return true;
+          LogService.log('GATT Connected (attempt $attempt) to $deviceId — Pairing Code: $pairingCode', category: 'SUCCESS', source: 'BluetoothService');
+          return pairingCode;
         }
       } catch (e) {
         debugPrint('GATT Attempt $attempt error: $e');
@@ -479,7 +523,13 @@ class OffpayBluetoothService with ChangeNotifier {
         await Future.delayed(const Duration(milliseconds: 1500));
       }
     }
-    return false;
+    return null;
+  }
+
+  /// Legacy connect method (backward compatible)
+  Future<bool> connectToDevice(fb.BluetoothDevice device) async {
+    final result = await connectToDeviceWithPairing(device);
+    return result != null;
   }
 
   /// Step 2: Transfer to an already connected device (Robust Service & Char discovery)

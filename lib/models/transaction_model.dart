@@ -25,6 +25,9 @@ class TransactionModel extends HiveObject {
   @HiveField(6)
   String status; // 'RECEIVED', 'PROCESS', 'FAILED', 'VERIFIED'
 
+  @HiveField(7)
+  String? paymentMethod; // 'bluetooth', 'online'
+
   TransactionModel({
     required this.id,
     required this.amount,
@@ -33,7 +36,20 @@ class TransactionModel extends HiveObject {
     required this.isCredit,
     required this.transactionId,
     this.status = 'RECEIVED',
+    this.paymentMethod,
   });
+
+  /// Automatically resolve payment method ('bluetooth' vs 'online')
+  String get method {
+    if (paymentMethod != null && paymentMethod!.isNotEmpty) {
+      return paymentMethod!;
+    }
+    // Automatically infer for legacy/existing transactions
+    if (transactionId.startsWith('ONL') || transactionId.startsWith('TXN-ONL') || status == 'SYNCED') {
+      return 'online';
+    }
+    return 'bluetooth';
+  }
 
   Map<String, dynamic> toMap() {
     return {
@@ -44,6 +60,7 @@ class TransactionModel extends HiveObject {
       'isCredit': isCredit,
       'transactionId': transactionId,
       'status': status,
+      'paymentMethod': paymentMethod,
     };
   }
 
@@ -58,6 +75,7 @@ class TransactionModel extends HiveObject {
       isCredit: map['isCredit'] as bool? ?? false,
       transactionId: map['transactionId']?.toString() ?? 'TXN${map['id']}',
       status: map['status']?.toString() ?? 'RECEIVED',
+      paymentMethod: map['paymentMethod']?.toString(),
     );
   }
 }

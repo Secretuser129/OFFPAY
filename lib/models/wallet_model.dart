@@ -87,7 +87,7 @@ class WalletModel extends ChangeNotifier {
   }
 
   // ── Send (debit) ──────────────────────────────────────────────────────────
-  Future<bool> sendMoney(double amount, String recipientId, {String status = 'SUCCESS', String? transactionId}) async {
+  Future<bool> sendMoney(double amount, String recipientId, {String status = 'SUCCESS', String? transactionId, String? paymentMethod}) async {
     if (_balance < amount) return false;
 
     _balance -= amount;
@@ -101,6 +101,7 @@ class WalletModel extends ChangeNotifier {
       isCredit: false,
       transactionId: transactionId ?? 'TXN${now.millisecondsSinceEpoch}',
       status: status,
+      paymentMethod: paymentMethod,
     );
 
     _history.insert(0, newTx);
@@ -111,7 +112,7 @@ class WalletModel extends ChangeNotifier {
   }
 
   // ── Receive (credit) ──────────────────────────────────────────────────────
-  Future<void> receiveMoney(double amount, String senderId, {String status = 'RECEIVED', String? transactionId, bool notify = true, String? senderName}) async {
+  Future<void> receiveMoney(double amount, String senderId, {String status = 'RECEIVED', String? transactionId, bool notify = true, String? senderName, String? paymentMethod}) async {
     _balance += amount;
 
     final now = DateTime.now();
@@ -123,6 +124,7 @@ class WalletModel extends ChangeNotifier {
       isCredit: true,
       transactionId: transactionId ?? 'TXN${now.millisecondsSinceEpoch}',
       status: status,
+      paymentMethod: paymentMethod,
     );
 
     _history.insert(0, newTx);

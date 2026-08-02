@@ -46,15 +46,29 @@ class SyncQueueService {
     return processQueue(walletModel);
   }
 
+  /// Force sync ALL pending transactions in one button press without needing multiple clicks
+  static Future<void> forceSyncAll(WalletModel walletModel) async {
+    _isProcessing = false; // reset lock
+    _retryAttempts.clear(); // reset retry counters
+    _updatePendingCount(walletModel);
+
+    for (int i = 0; i < 3; i++) {
+      final pending = walletModel.history.where((tx) =>
+          tx.status != 'VERIFIED' && tx.status != 'SYNCED').toList();
+      if (pending.isEmpty) break;
+
+      await processQueue(walletModel);
+      _updatePendingCount(walletModel);
+      await Future.delayed(const Duration(milliseconds: 300));
+    }
+  }
+
   /// Process all unverified transactions in the wallet history.
   static Future<void> processQueue(WalletModel walletModel) async {
     if (_isProcessing) return;
 
     final unverified = walletModel.history.where((tx) =>
-        tx.status == 'PENDING' ||
-        tx.status == 'RETRYING' ||
-        tx.status == 'QUEUED_FOR_RELAY' ||
-        tx.status == 'PROCESS').toList();
+        tx.status != 'VERIFIED' && tx.status != 'SYNCED').toList();
 
     pendingCountNotifier.value = unverified.length;
     if (unverified.isEmpty) return;
@@ -97,10 +111,7 @@ class SyncQueueService {
 
   static void _updatePendingCount(WalletModel walletModel) {
     final count = walletModel.history.where((tx) =>
-        tx.status == 'PENDING' ||
-        tx.status == 'RETRYING' ||
-        tx.status == 'QUEUED_FOR_RELAY' ||
-        tx.status == 'PROCESS').length;
+        tx.status != 'VERIFIED' && tx.status != 'SYNCED').length;
     pendingCountNotifier.value = count;
   }
 

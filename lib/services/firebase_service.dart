@@ -384,8 +384,36 @@ class FirebaseService {
             (historyResponse.statusCode == 200 || historyResponse.statusCode == 201);
 
         if (isSuccess) {
-          await walletModel.updateTransactionStatus(tx.transactionId, 'VERIFIED');
-          verifiedCount++;
+          bool senderVerified = true;
+          if (tx.isCredit && tx.method == 'bluetooth') {
+            // Verify against sender's cloud record on server
+            try {
+              String checkEndpoint = '$firebaseUrl/transactions/${tx.transactionId}.json';
+              if (authToken != null && authToken.isNotEmpty) checkEndpoint += '?auth=$authToken';
+              var checkUri = Uri.parse(checkEndpoint);
+              var checkReq = await client.getUrl(checkUri);
+              var checkResp = await checkReq.close().timeout(const Duration(seconds: 4));
+              if (checkResp.statusCode == 200) {
+                final bodyStr = await checkResp.transform(utf8.decoder).join();
+                if (bodyStr.trim() == 'null' || bodyStr.isEmpty) {
+                  senderVerified = false;
+                  debugPrint('Waiting for sender user to sync transaction ${tx.transactionId} to server...');
+                }
+              } else {
+                senderVerified = false;
+              }
+            } catch (e) {
+              senderVerified = false;
+            }
+          }
+
+          if (senderVerified) {
+            await walletModel.updateTransactionStatus(tx.transactionId, 'VERIFIED');
+            verifiedCount++;
+          } else {
+            // Keep in PENDING until sender user syncs their proof to Firebase
+            await walletModel.updateTransactionStatus(tx.transactionId, 'PENDING');
+          }
         } else {
           debugPrint('Firebase cloud sync non-success HTTP for ${tx.transactionId}: Master=${response.statusCode}, History=${historyResponse.statusCode}');
           await walletModel.updateTransactionStatus(tx.transactionId, 'RETRYING');
@@ -450,6 +478,7 @@ class FirebaseService {
         recipientDeviceId,
         status: 'PENDING',
         transactionId: txId,
+        paymentMethod: 'online',
       );
       if (!debitSuccess) return false;
 
@@ -637,20 +666,33 @@ class FirebaseService {
       return false;
     }
   }
-  /// Store dynamically generated OTP hash in Firebase Cloud Database with expiration
+  /// Store dynamically generated OTP and hash in Firebase Cloud Database with expiration
   static Future<bool> storeOtpVerification(String phone, String otp) async {
     try {
       final baseUrl = await getFirebaseUrl();
       final token = await getFirebaseAuthToken();
       final cleanPhone = phone.replaceAll(RegExp(r'[^0-9]'), '');
-      String url = '$baseUrl/otp_verifications/$cleanPhone.json';
-      if (token != null && token.isNotEmpty) url += '?auth=$token';
+      final mobile10 = cleanPhone.length > 10 ? cleanPhone.substring(cleanPhone.length - 10) : cleanPhone;
+
       final payload = {
+        'otpCode': otp.trim(), // Save plain 6-digit OTP so it is visible in Firebase console/website
         'otpHash': sha256.convert(utf8.encode(otp.trim())).toString(),
-        'expiresAt': DateTime.now().add(const Duration(minutes: 5)).millisecondsSinceEpoch,
+        'phone': phone,
+        'createdAt': DateTime.now().toIso8601String(),
+        'expiresAt': DateTime.now().add(const Duration(minutes: 10)).millisecondsSinceEpoch,
       };
-      final resp = await http.put(Uri.parse(url), body: jsonEncode(payload));
-      return resp.statusCode == 200;
+
+      String url10 = '$baseUrl/otp_verifications/$mobile10.json';
+      if (token != null && token.isNotEmpty) url10 += '?auth=$token';
+      final resp10 = await http.put(Uri.parse(url10), body: jsonEncode(payload));
+
+      if (cleanPhone != mobile10) {
+        String urlFull = '$baseUrl/otp_verifications/$cleanPhone.json';
+        if (token != null && token.isNotEmpty) urlFull += '?auth=$token';
+        await http.put(Uri.parse(urlFull), body: jsonEncode(payload));
+      }
+
+      return resp10.statusCode == 200 || resp10.statusCode == 201 || resp10.statusCode == 204;
     } catch (_) {
       return false;
     }
@@ -662,18 +704,25 @@ class FirebaseService {
       final baseUrl = await getFirebaseUrl();
       final token = await getFirebaseAuthToken();
       final cleanPhone = phone.replaceAll(RegExp(r'[^0-9]'), '');
-      String url = '$baseUrl/otp_verifications/$cleanPhone.json';
-      if (token != null && token.isNotEmpty) url += '?auth=$token';
-      final resp = await http.get(Uri.parse(url));
-      if (resp.statusCode == 200 && resp.body != 'null') {
-        final data = jsonDecode(resp.body) as Map<String, dynamic>;
-        final storedHash = data['otpHash'] as String?;
-        final expiresAt = data['expiresAt'] as int?;
-        if (expiresAt != null && DateTime.now().millisecondsSinceEpoch > expiresAt) {
-          return false; // Expired
+      final mobile10 = cleanPhone.length > 10 ? cleanPhone.substring(cleanPhone.length - 10) : cleanPhone;
+
+      for (final key in [mobile10, cleanPhone]) {
+        String url = '$baseUrl/otp_verifications/$key.json';
+        if (token != null && token.isNotEmpty) url += '?auth=$token';
+        final resp = await http.get(Uri.parse(url));
+        if (resp.statusCode == 200 && resp.body != 'null') {
+          final data = jsonDecode(resp.body) as Map<String, dynamic>;
+          final storedCode = data['otpCode'] as String?;
+          final storedHash = data['otpHash'] as String?;
+          final expiresAt = data['expiresAt'] as int?;
+          if (expiresAt != null && DateTime.now().millisecondsSinceEpoch > expiresAt) {
+            continue; // Check next key if expired
+          }
+          final inputHash = sha256.convert(utf8.encode(inputOtp.trim())).toString();
+          if ((storedCode != null && storedCode == inputOtp.trim()) || (storedHash == inputHash)) {
+            return true;
+          }
         }
-        final inputHash = sha256.convert(utf8.encode(inputOtp.trim())).toString();
-        return storedHash == inputHash;
       }
       return false;
     } catch (_) {
