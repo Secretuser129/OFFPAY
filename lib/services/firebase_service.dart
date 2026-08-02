@@ -89,8 +89,10 @@ class FirebaseService {
       final userPayload = {
         'deviceId': deviceId,
         'serverUserId': generateServerUserId(deviceId),
-        'userName': userName,
-        'balance': balance,
+        'userNameEnc': base64Encode(utf8.encode(userName)),
+        'userNameHash': sha256.convert(utf8.encode(userName.trim())).toString(),
+        'balanceEnc': base64Encode(utf8.encode(balance.toStringAsFixed(2))),
+        'balanceHash': sha256.convert(utf8.encode('${balance.toStringAsFixed(2)}_OFFPAY_SALT')).toString(),
         if (pinHash != null && pinHash.isNotEmpty) 'pinHash': pinHash,
         if (photoBase64 != null) 'photoBase64': photoBase64,
         'lastSyncTime': DateTime.now().toIso8601String(),
@@ -675,6 +677,39 @@ class FirebaseService {
       }
       return false;
     } catch (_) {
+      return false;
+    }
+  }
+
+  /// Send OTP via Fast2SMS API to actual phone number
+  static Future<bool> sendOtpViaSms(String phone, String otp) async {
+    try {
+      final cleanPhone = phone.replaceAll(RegExp(r'[^0-9]'), '');
+      // Keep last 10 digits for Indian numbers
+      final mobileNumber = cleanPhone.length > 10 ? cleanPhone.substring(cleanPhone.length - 10) : cleanPhone;
+
+      final url = Uri.parse('https://www.fast2sms.com/dev/bulkV2');
+      final response = await http.post(
+        url,
+        headers: {
+          'authorization': 'g2ySLmjn9u3kHpaYWqcIBovP0Qit1D7rOwFsAGME6XKJlVehdzAB68yLmrgb4pTnvqt2kuJ5cGH1liOC',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'route': 'otp',
+          'variables_values': otp,
+          'flash': '0',
+          'numbers': mobileNumber,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['return'] == true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint('SMS send error: $e');
       return false;
     }
   }

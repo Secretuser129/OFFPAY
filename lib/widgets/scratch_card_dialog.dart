@@ -196,7 +196,7 @@ class _ScratchCardDialogState extends State<ScratchCardDialog>
                   ? 'You have already collected this reward for Transaction #${card.transactionId}.'
                   : _isRevealed
                       ? 'Congratulations! Claim your reward below:'
-                      : 'Scratch the foil card with your finger to reveal!',
+                      : 'Swipe the card with your finger to reveal!',
               style: TextStyle(
                 fontSize: 13,
                 color: theme.hintColor,
@@ -433,7 +433,7 @@ class _FoilScratchPainter extends CustomPainter {
 
     final textPainter = TextPainter(
       text: const TextSpan(
-        text: '💎 SCRATCH & WIN 💎',
+        text: '💎 SWIPE & CLAIM 💎',
         style: TextStyle(
           color: Colors.white,
           fontSize: 18,

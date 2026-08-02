@@ -174,12 +174,13 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       final generatedOtp = (100000 + math.Random().nextInt(900000)).toString();
       await FirebaseService.storeOtpVerification(phoneNumber, generatedOtp);
+      await FirebaseService.sendOtpViaSms(phoneNumber, generatedOtp);
       setState(() => _isLoading = false);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Secure OTP verification code sent to $phone ($generatedOtp)'),
+            content: Text('Secure OTP verification code sent to $phone'),
             backgroundColor: Colors.indigo,
             duration: const Duration(seconds: 8),
           ),
@@ -233,7 +234,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     if (otpController.text.trim().length >= 4) {
                       setDialogState(() => isVerifying = true);
                       final isValid = await FirebaseService.verifyOtp(phoneNumber, otpController.text.trim());
-                      if (isValid || otpController.text.trim() == generatedOtp) {
+                      if (isValid) {
                         Navigator.pop(ctx);
                         onVerified();
                       } else {
@@ -336,11 +337,12 @@ class _LoginScreenState extends State<LoginScreen> {
 
                       final recoveryOtp = (100000 + math.Random().nextInt(900000)).toString();
                       await FirebaseService.storeOtpVerification(phoneNumber, recoveryOtp);
+                      await FirebaseService.sendOtpViaSms(phoneNumber, recoveryOtp);
                       
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: Text('Recovery OTP sent to $phoneNumber ($recoveryOtp)'),
+                            content: Text('Recovery OTP sent to $phoneNumber'),
                             backgroundColor: Colors.indigo,
                             duration: const Duration(seconds: 8),
                           ),
@@ -400,7 +402,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           phoneNumber = '+91$phoneNumber';
                         }
                         final isValid = await FirebaseService.verifyOtp(phoneNumber, otpCtrl.text.trim());
-                        if (isValid || otpCtrl.text.trim() == storedVerificationId) {
+                        if (isValid) {
                           Navigator.pop(ctx);
                           await FirebaseService.createAccount(userCtrl.text.trim(), newPassCtrl.text.trim());
                           if (mounted) {

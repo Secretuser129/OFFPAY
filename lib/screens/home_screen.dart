@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
 import '../models/transaction_model.dart';
@@ -32,7 +34,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   final Map<String, int> _actionUsageCount = {
     'Receive': 5,
-    'BLE Radar': 4,
+    'Connect': 4,
     'Recharges': 2,
     'Hotel / Resort': 1,
     'Flight Ticket': 1,
@@ -67,6 +69,7 @@ class _HomeScreenState extends State<HomeScreen> {
       SyncQueueService.startQueue(walletModel);
       
       UpdateService.checkForUpdates(context, silent: true);
+      await _checkAppLockOnLaunch();
     });
 
     // Fast background sync every 1500ms from server without loader
@@ -93,6 +96,78 @@ class _HomeScreenState extends State<HomeScreen> {
     FirebaseService.stopAutoSync();
     _autoReloadTimer?.cancel();
     super.dispose();
+  }
+
+  Future<void> _checkAppLockOnLaunch() async {
+    final prefs = await SharedPreferences.getInstance();
+    final requireAppLock = prefs.getBool('security_require_app_lock') ?? true;
+    if (!requireAppLock) return;
+    final hasPin = await PasswordService.hasPin();
+    if (!hasPin) return;
+
+    if (!mounted) return;
+    final pinController = TextEditingController();
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => WillPopScope(
+        onWillPop: () async => false,
+        child: StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+              title: const Row(
+                children: [
+                  Icon(Icons.phonelink_lock_rounded, color: Colors.indigoAccent),
+                  SizedBox(width: 10),
+                  Text('OFFPAY App Lock', style: TextStyle(fontWeight: FontWeight.bold)),
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('Security App Lock is enabled. Enter your security PIN to access your wallet.', style: TextStyle(fontSize: 13)),
+                  const SizedBox(height: 18),
+                  TextFormField(
+                    controller: pinController,
+                    obscureText: true,
+                    keyboardType: TextInputType.number,
+                    maxLength: 6,
+                    autofocus: true,
+                    decoration: InputDecoration(
+                      labelText: 'Enter PIN',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                      prefixIcon: const Icon(Icons.lock_outline),
+                    ),
+                    onChanged: (val) async {
+                      if (val.length >= 4) {
+                        final valid = await PasswordService.verifyPin(val.trim());
+                        if (valid) {
+                          Navigator.pop(ctx);
+                        }
+                      }
+                    },
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () async {
+                    final valid = await PasswordService.verifyPin(pinController.text.trim());
+                    if (valid) {
+                      Navigator.pop(ctx);
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Invalid PIN code.')));
+                    }
+                  },
+                  child: const Text('Unlock', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
   }
 
   Future<void> _toggleBalanceVisibility() async {
@@ -185,140 +260,76 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildHeaderStatusBadge(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
-      margin: const EdgeInsets.only(right: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: isDark ? Colors.white.withValues(alpha: 0.15) : Colors.black.withValues(alpha: 0.1),
+
+    // 0 = Network, 1 = Auto, 2 = Offline
+    IconData modeIcon;
+    Color modeColor;
+    String modeLabel;
+
+    switch (_activeBadgeIndex) {
+      case 0:
+        modeIcon = Icons.wifi_rounded;
+        modeColor = isDark ? Colors.greenAccent : Colors.green;
+        modeLabel = 'Network';
+        break;
+      case 1:
+        modeIcon = Icons.autorenew_rounded;
+        modeColor = isDark ? Colors.lightBlueAccent : Colors.blue;
+        modeLabel = 'Auto';
+        break;
+      case 2:
+      default:
+        modeIcon = Icons.wifi_off_rounded;
+        modeColor = isDark ? Colors.amberAccent : Colors.orange;
+        modeLabel = 'Offline';
+        break;
+    }
+
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        setState(() {
+          _activeBadgeIndex = (_activeBadgeIndex + 1) % 3;
+        });
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeInOut,
+        margin: const EdgeInsets.only(right: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: modeColor.withValues(alpha: isDark ? 0.15 : 0.12),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: modeColor.withValues(alpha: 0.5),
+            width: 1.2,
+          ),
         ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Node 0: Online
-          GestureDetector(
-            onTap: () {
-              HapticFeedback.lightImpact();
-              setState(() => _activeBadgeIndex = 0);
-            },
-            child: AnimatedContainer(
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AnimatedSwitcher(
               duration: const Duration(milliseconds: 200),
-              width: 18,
-              height: 18,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: _activeBadgeIndex == 0
-                    ? (isDark ? Colors.greenAccent : Colors.green)
-                    : Colors.transparent,
-                border: Border.all(
-                  color: isDark ? Colors.greenAccent : Colors.green,
-                  width: 1.5,
-                ),
-              ),
+              transitionBuilder: (child, animation) => ScaleTransition(scale: animation, child: child),
               child: Icon(
-                Icons.wifi_rounded,
-                size: 11,
-                color: _activeBadgeIndex == 0
-                    ? (isDark ? Colors.black : Colors.white)
-                    : (isDark ? Colors.greenAccent : Colors.green),
+                modeIcon,
+                key: ValueKey<int>(_activeBadgeIndex),
+                size: 15,
+                color: modeColor,
               ),
             ),
-          ),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 5),
-            child: Center(
-              child: Text(
-                '•••',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w900,
-                  color: Colors.grey,
-                  letterSpacing: 1.5,
-                ),
+            const SizedBox(width: 6),
+            Text(
+              modeLabel,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: modeColor,
+                letterSpacing: 0.4,
               ),
             ),
-          ),
-          // Node 1: Auto
-          GestureDetector(
-            onTap: () {
-              HapticFeedback.lightImpact();
-              setState(() => _activeBadgeIndex = 1);
-            },
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              width: 18,
-              height: 18,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: _activeBadgeIndex == 1
-                    ? (isDark ? Colors.white : Colors.black)
-                    : Colors.transparent,
-                border: Border.all(
-                  color: isDark ? Colors.white : Colors.black,
-                  width: 1.5,
-                ),
-              ),
-              child: Center(
-                child: Text(
-                  'A',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w900,
-                    color: _activeBadgeIndex == 1
-                        ? (isDark ? Colors.black : Colors.white)
-                        : (isDark ? Colors.white : Colors.black),
-                  ),
-                ),
-              ),
-            ),
-          ),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 5),
-            child: Center(
-              child: Text(
-                '•••',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w900,
-                  color: Colors.grey,
-                  letterSpacing: 1.5,
-                ),
-              ),
-            ),
-          ),
-          // Node 2: Offline
-          GestureDetector(
-            onTap: () {
-              HapticFeedback.lightImpact();
-              setState(() => _activeBadgeIndex = 2);
-            },
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              width: 18,
-              height: 18,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: _activeBadgeIndex == 2
-                    ? Colors.grey.shade500
-                    : Colors.transparent,
-                border: Border.all(
-                  color: Colors.grey.shade500,
-                  width: 1.5,
-                ),
-              ),
-              child: Icon(
-                Icons.wifi_off_rounded,
-                size: 11,
-                color: _activeBadgeIndex == 2
-                    ? Colors.white
-                    : Colors.grey.shade500,
-              ),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -470,7 +481,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: const Icon(Icons.send_rounded, color: Colors.blueAccent),
                   ),
                   title: const Text('Send Money', style: TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: const Text('BLE Radar, Contacts or Direct Send'),
+                  subtitle: const Text('Connect, Contacts or Direct Send'),
                   trailing: const Icon(Icons.arrow_forward_ios, size: 14),
                   onTap: () {
                     Navigator.pop(ctx);
@@ -526,8 +537,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildBalanceCard(WalletModel walletModel) {
-    final String balanceText = _isBalanceHidden ? '****.**' : '${ThemeProvider.currentCurrency}${walletModel.balance.toStringAsFixed(2)}';
-    final IconData eyeIcon = _isBalanceHidden ? Icons.visibility_off_outlined : Icons.visibility_outlined;
+    final String balanceText = '${ThemeProvider.currentCurrency}${walletModel.balance.toStringAsFixed(2)}';
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return AnimatedContainer(
@@ -570,57 +580,64 @@ class _HomeScreenState extends State<HomeScreen> {
                   'Current Balance',
                   style: TextStyle(color: Colors.white70, fontSize: 16, fontWeight: FontWeight.w500),
                 ),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    GestureDetector(
-                      onTap: _toggleBalanceVisibility,
-                      child: Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.12),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(eyeIcon, color: Colors.white, size: 20),
-                      ),
+                GestureDetector(
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    Navigator.pushNamed(context, '/custom_qr');
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.18),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.35)),
                     ),
-                    const SizedBox(width: 8),
-                    GestureDetector(
-                      onTap: () {
-                        HapticFeedback.lightImpact();
-                        _showPaymentOptionsBottomSheet(context);
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.22),
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white.withValues(alpha: 0.4)),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.qr_code_rounded, color: Colors.white, size: 15),
+                        SizedBox(width: 4),
+                        Text(
+                          'My QR',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                        child: const Icon(Icons.add_rounded, color: Colors.white, size: 20),
-                      ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ],
             ),
             const SizedBox(height: 18),
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 300),
-              transitionBuilder: (Widget child, Animation<double> animation) {
-                return ScaleTransition(
-                  scale: animation,
-                  child: FadeTransition(opacity: animation, child: child),
-                );
-              },
-              child: Text(
-                balanceText,
-                key: ValueKey<bool>(_isBalanceHidden),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 44,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -1.0,
+            GestureDetector(
+              onTap: _toggleBalanceVisibility,
+              behavior: HitTestBehavior.opaque,
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 300),
+                transitionBuilder: (Widget child, Animation<double> animation) {
+                  return ScaleTransition(
+                    scale: animation,
+                    child: FadeTransition(opacity: animation, child: child),
+                  );
+                },
+                child: ImageFiltered(
+                  key: ValueKey<bool>(_isBalanceHidden),
+                  imageFilter: ImageFilter.blur(
+                    sigmaX: _isBalanceHidden ? 14.0 : 0.0,
+                    sigmaY: _isBalanceHidden ? 14.0 : 0.0,
+                  ),
+                  child: Text(
+                    balanceText,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 44,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -1.0,
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -709,13 +726,14 @@ class _HomeScreenState extends State<HomeScreen> {
             },
           );
         case 'BLE Radar':
+        case 'Connect':
           return _buildActionIcon(
             context: context,
             icon: Icons.radar_rounded,
-            label: 'BLE Radar',
+            label: 'Connect',
             color: Colors.orangeAccent,
             onTap: () {
-              _recordUsage('BLE Radar');
+              _recordUsage('Connect');
               Navigator.pushNamed(context, '/discovery');
             },
           );
@@ -881,6 +899,10 @@ class _HomeScreenState extends State<HomeScreen> {
       {'key': 'Credit Card', 'title': 'Credit Card', 'icon': Icons.credit_card_rounded, 'color': Colors.pinkAccent},
       {'key': 'Water Bill', 'title': 'Water Bill', 'icon': Icons.water_drop_rounded, 'color': Colors.blue},
       {'key': 'Broadband', 'title': 'Broadband', 'icon': Icons.wifi_tethering_rounded, 'color': Colors.tealAccent},
+      {'key': 'Gas Cylinder', 'title': 'Gas Cylinder', 'icon': Icons.local_fire_department_rounded, 'color': Colors.deepOrangeAccent},
+      {'key': 'DTH / Cable', 'title': 'DTH / Cable', 'icon': Icons.tv_rounded, 'color': Colors.indigoAccent},
+      {'key': 'Train Booking', 'title': 'Train Booking', 'icon': Icons.train_rounded, 'color': Colors.redAccent},
+      {'key': 'Bus Ticket', 'title': 'Bus Ticket', 'icon': Icons.directions_bus_rounded, 'color': Colors.cyanAccent},
     ];
 
     final isDark = Theme.of(context).brightness == Brightness.dark;

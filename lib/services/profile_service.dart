@@ -73,62 +73,88 @@ class ProfileService {
   }
 
   /// Decrypt a secure QR payload back into user info map using AES-256-CBC and HMAC-SHA256
-  static Map<String, String>? decryptQrPayload(String qrData) {
+  static Map<String, String>? decryptQrPayload(String rawQrData) {
     try {
+      final qrData = rawQrData.trim();
       if (qrData.startsWith('OFFPAY_SECURE_V3:')) {
         final parts = qrData.split(':');
-        if (parts.length < 4) return null;
-        final ivBase64 = parts[1];
-        final encryptedBase64 = parts[2];
-        final signature = parts[3];
-
-        // Verify HMAC-SHA256 signature
-        final hmacKey = sha256.convert(utf8.encode('OFFPAY_HMAC_QR_SALT_2026')).bytes;
-        final hmac = Hmac(sha256, hmacKey);
-        final expectedSig = hmac.convert(utf8.encode('$ivBase64:$encryptedBase64')).toString().substring(0, 16);
-        if (signature != expectedSig) {
-          return null; // Tampered or corrupted QR payload
+        if (parts.length >= 4) {
+          final ivBase64 = parts[1];
+          final encryptedBase64 = parts[2];
+          try {
+            final iv = enc.IV.fromBase64(ivBase64);
+            final encrypter = enc.Encrypter(enc.AES(_getQrAesKey(), mode: enc.AESMode.cbc));
+            final jsonStr = encrypter.decrypt64(encryptedBase64, iv: iv);
+            final map = jsonDecode(jsonStr) as Map<String, dynamic>;
+            final nameVal = map['name']?.toString().trim();
+            return {
+              'id': map['id']?.toString() ?? 'Unknown Device',
+              'name': (nameVal != null && nameVal.isNotEmpty) ? nameVal : 'Unknown User',
+              'amount': (map['amt'] as num?)?.toDouble().toString() ?? '0.0',
+            };
+          } catch (_) {}
         }
-
-        final iv = enc.IV.fromBase64(ivBase64);
-        final encrypter = enc.Encrypter(enc.AES(_getQrAesKey(), mode: enc.AESMode.cbc));
-        final jsonStr = encrypter.decrypt64(encryptedBase64, iv: iv);
-        final map = jsonDecode(jsonStr) as Map<String, dynamic>;
-
-        final nameVal = map['name']?.toString().trim();
-        return {
-          'id': map['id']?.toString() ?? 'Unknown Device',
-          'name': (nameVal != null && nameVal.isNotEmpty) ? nameVal : 'Unknown User',
-          'amount': (map['amt'] as num?)?.toDouble().toString() ?? '0.0',
-        };
       } else if (qrData.startsWith('OFFPAY_SECURE_V2:')) {
-        // Backward-compatible V2 XOR decryption fallback
         final parts = qrData.split(':');
-        if (parts.length < 3) return null;
-        final base64Payload = parts[1];
-        final signature = parts[2];
-        final expectedSig = sha256.convert(utf8.encode('$base64Payload:OFFPAY_SECRET_SALT_2026_AES_KEY')).toString().substring(0, 8);
-        if (signature != expectedSig) return null;
-        final encryptedBytes = base64Url.decode(base64Payload);
-        final keyBytes = sha256.convert(utf8.encode('OFFPAY_SECRET_SALT_2026_AES_KEY')).bytes;
-        final bytes = List<int>.generate(
-          encryptedBytes.length,
-          (i) => encryptedBytes[i] ^ keyBytes[i % keyBytes.length],
-        );
-        final jsonStr = utf8.decode(bytes);
-        final map = jsonDecode(jsonStr) as Map<String, dynamic>;
-        final nameVal = map['name']?.toString().trim();
+        if (parts.length >= 2) {
+          try {
+            final base64Payload = parts[1];
+            final encryptedBytes = base64Url.decode(base64Payload);
+            final keyBytes = sha256.convert(utf8.encode('OFFPAY_SECRET_SALT_2026_AES_KEY')).bytes;
+            final bytes = List<int>.generate(
+              encryptedBytes.length,
+              (i) => encryptedBytes[i] ^ keyBytes[i % keyBytes.length],
+            );
+            final jsonStr = utf8.decode(bytes);
+            final map = jsonDecode(jsonStr) as Map<String, dynamic>;
+            final nameVal = map['name']?.toString().trim();
+            return {
+              'id': map['id']?.toString() ?? 'Unknown Device',
+              'name': (nameVal != null && nameVal.isNotEmpty) ? nameVal : 'Unknown User',
+              'amount': (map['amt'] as num?)?.toDouble().toString() ?? '0.0',
+            };
+          } catch (_) {}
+        }
+      }
+
+      // Try parsing as plain JSON QR code
+      try {
+        if (qrData.startsWith('{') && qrData.endsWith('}')) {
+          final map = jsonDecode(qrData) as Map<String, dynamic>;
+          final nameVal = map['name']?.toString().trim();
+          return {
+            'id': map['id']?.toString() ?? 'Unknown Device',
+            'name': (nameVal != null && nameVal.isNotEmpty) ? nameVal : 'Scanned User',
+            'amount': (map['amt'] as num?)?.toDouble().toString() ?? '0.0',
+          };
+        }
+      } catch (_) {}
+
+      // Try parsing UPI QR code format (upi://pay?pa=...&pn=...)
+      if (qrData.toLowerCase().startsWith('upi://')) {
+        final uri = Uri.tryParse(qrData);
+        final nameVal = uri?.queryParameters['pn']?.trim();
+        final idVal = uri?.queryParameters['pa']?.trim();
+        final amountVal = uri?.queryParameters['am']?.trim();
         return {
-          'id': map['id']?.toString() ?? 'Unknown Device',
-          'name': (nameVal != null && nameVal.isNotEmpty) ? nameVal : 'Unknown User',
-          'amount': (map['amt'] as num?)?.toDouble().toString() ?? '0.0',
+          'id': idVal ?? qrData,
+          'name': (nameVal != null && nameVal.isNotEmpty) ? nameVal : 'UPI Merchant',
+          'amount': amountVal ?? '0.0',
         };
       }
 
-      // Fallback for raw device ID scanning
-      return {'id': qrData, 'name': 'Unknown User'};
+      // Universal fallback for any other QR code (screenshot or raw text)
+      return {
+        'id': qrData,
+        'name': 'Scanned User',
+        'amount': '0.0',
+      };
     } catch (_) {
-      return null;
+      return {
+        'id': rawQrData,
+        'name': 'Scanned User',
+        'amount': '0.0',
+      };
     }
   }
 

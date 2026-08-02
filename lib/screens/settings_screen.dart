@@ -92,7 +92,7 @@ class SettingsScreen extends StatelessWidget {
             ),
 
             const SizedBox(height: 28),
-            _buildSectionTitle('SECURITY & POLICY', isDark),
+            _buildSectionTitle('SECURITY', isDark),
             const SizedBox(height: 10),
             _buildGroupedSection(
               isDark: isDark,
@@ -205,7 +205,7 @@ class SettingsScreen extends StatelessWidget {
                   context: context,
                   icon: Icons.info_outline_rounded,
                   iconColor: const Color(0xFF9CA3AF),
-                  title: 'About OFFPAY v3.2.0 (Build 320)',
+                  title: 'About OFFPAY v3.2.1 (Build 321)',
                   subtitle: 'Credits, version info & developer mode',
                   route: '/about',
                 ),

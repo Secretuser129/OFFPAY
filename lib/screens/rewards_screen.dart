@@ -206,7 +206,7 @@ class _RewardsScreenState extends State<RewardsScreen> {
                     ),
                   ),
                   child: const Text(
-                    'Scratch ->',
+                    'Claim ->',
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),

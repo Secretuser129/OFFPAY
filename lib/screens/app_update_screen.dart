@@ -36,7 +36,7 @@ class _AppUpdateScreenState extends State<AppUpdateScreen> {
                 versionName: UpdateService.currentVersionName,
                 updateUrl: UpdateService.defaultReleaseUrl,
                 changelog:
-                    '• Enhanced AMOLED Dark Mode & Apple Glassmorphic aesthetics\n• Optimized BLE Radar duty cycle & low power scanning\n• GZip sync compression for instant payload transfer\n• Added Utility & Travel Services quick grid with haptics',
+                    '• Enhanced AMOLED Dark Mode & Apple Glassmorphic aesthetics\n• Optimized Connect duty cycle & low power scanning\n• GZip sync compression for instant payload transfer\n• Added Utility & Travel Services quick grid with haptics',
               );
           _isChecking = false;
         });
@@ -49,7 +49,7 @@ class _AppUpdateScreenState extends State<AppUpdateScreen> {
             versionName: UpdateService.currentVersionName,
             updateUrl: UpdateService.defaultReleaseUrl,
             changelog:
-                '• Enhanced AMOLED Dark Mode & Apple Glassmorphic aesthetics\n• Optimized BLE Radar duty cycle & low power scanning\n• GZip sync compression for instant payload transfer\n• Added Utility & Travel Services quick grid with haptics',
+                '• Enhanced AMOLED Dark Mode & Apple Glassmorphic aesthetics\n• Optimized Connect duty cycle & low power scanning\n• GZip sync compression for instant payload transfer\n• Added Utility & Travel Services quick grid with haptics',
           );
           _isChecking = false;
         });

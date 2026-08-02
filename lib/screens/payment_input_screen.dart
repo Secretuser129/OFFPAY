@@ -1,6 +1,7 @@
 // lib/screens/payment_input_screen.dart
 
 import 'dart:convert';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart' as fb;
 import 'package:provider/provider.dart';
@@ -541,16 +542,63 @@ class _PaymentInputScreenState extends State<PaymentInputScreen> {
         ),
           ),
           if (_isProcessing)
-            Container(
-              color: Colors.black.withValues(alpha: 0.4),
-              child: const Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    CircularProgressIndicator(color: Colors.white),
-                    SizedBox(height: 16),
-                    Text('Processing payment securely...', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
-                  ],
+            BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+              child: Container(
+                color: Colors.black.withValues(alpha: 0.65),
+                child: Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 40),
+                    margin: const EdgeInsets.symmetric(horizontal: 32),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1E1E2C).withValues(alpha: 0.85),
+                      borderRadius: BorderRadius.circular(28),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.18), width: 1.5),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.indigoAccent.withValues(alpha: 0.25),
+                          blurRadius: 40,
+                          spreadRadius: 4,
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SizedBox(
+                          width: 70,
+                          height: 70,
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              const SizedBox(
+                                width: 70,
+                                height: 70,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 3.5,
+                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.indigoAccent),
+                                ),
+                              ),
+                              Icon(Icons.shield_rounded, color: Colors.indigoAccent.shade100, size: 32)
+                                  .animate(onPlay: (c) => c.repeat(reverse: true))
+                                  .scale(begin: const Offset(0.9, 0.9), end: const Offset(1.15, 1.15), duration: const Duration(milliseconds: 800)),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        const Text(
+                          'Processing Transfer',
+                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 20, letterSpacing: 0.5),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Securing cryptographic proof & signing transaction...',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 13, height: 1.4),
+                        ),
+                      ],
+                    ),
+                  ).animate().fadeIn(duration: 250.ms).scale(begin: const Offset(0.9, 0.9), curve: Curves.easeOutBack),
                 ),
               ),
             ),

@@ -31,7 +31,32 @@ class OtherOptionsScreen extends StatelessWidget {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      bottomNavigationBar: const GlobalAppleDock(activeRoute: '/other_options'),
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          child: SizedBox(
+            height: 52,
+            child: ElevatedButton.icon(
+              onPressed: () {
+                HapticFeedback.lightImpact();
+                Navigator.pop(context);
+              },
+              icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
+              label: const Text('Back to Home', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: isDark ? const Color(0xFF1E1E2C) : Colors.white,
+                foregroundColor: isDark ? Colors.white : Colors.black87,
+                elevation: 4,
+                shadowColor: Colors.black26,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(26),
+                  side: BorderSide(color: isDark ? Colors.white24 : Colors.black12),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         child: Column(
@@ -416,7 +441,14 @@ class OtherOptionsScreen extends StatelessWidget {
                   const SizedBox(height: 16),
                   const Text('LIVE PREVIEW:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
                   const SizedBox(height: 8),
-                  const GlobalAppleDock(activeRoute: '/other_options'),
+                  Container(
+                    width: double.maxFinite,
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: const FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: GlobalAppleDock(activeRoute: '/home'),
+                    ),
+                  ),
                 ],
               ),
               ),

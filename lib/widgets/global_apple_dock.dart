@@ -115,8 +115,7 @@ class GlobalAppleDock extends StatelessWidget {
     required bool isSelected,
     required VoidCallback onTap,
   }) {
-    // Apple Music style coral red/orange highlight capsule
-    const Color activeColor = Color(0xFFFF453A); // Apple iOS Coral/Red accent
+    final Color activeColor = Provider.of<ThemeProvider>(context).accentColor;
     const Color inactiveColor = Colors.white70;
 
     return GestureDetector(
