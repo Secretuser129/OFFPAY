@@ -103,7 +103,7 @@ class _AboutScreenState extends State<AboutScreen> {
               ),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               child: Text(
-                'Version 4.0.0 (Build 400)',
+                'Version 4.1.0 (Build 410)',
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.bold,

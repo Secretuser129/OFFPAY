@@ -21,8 +21,8 @@ class UpdateInfo {
 }
 
 class UpdateService {
-  static const int currentVersionCode = 400;
-  static const String currentVersionName = '4.0.0';
+  static const int currentVersionCode = 410;
+  static const String currentVersionName = '4.1.0';
 
   // Fallback version.json URL
   static const String rawJsonUrl = 'https://raw.githubusercontent.com/Secretuser129/OFFPAY/main/version.json';
@@ -335,7 +335,7 @@ class UpdateService {
           child: SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
+              mainAxisSize: MainAxisSize.min,                         
               children: [
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),

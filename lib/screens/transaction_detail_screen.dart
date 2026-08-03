@@ -138,8 +138,8 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
                           const SizedBox(width: 6),
                           Text(
                             transaction.method == 'online'
-                                ? 'Completed Online'
-                                : 'Completed Offline via Bluetooth',
+                                ? 'Online'
+                                : 'Offline',
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
@@ -201,7 +201,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
                     _buildDetailRow(
                       context,
                       label: 'Payment Method',
-                      value: transaction.method == 'online' ? 'Online Cloud Payment' : 'Offline via Bluetooth BLE',
+                      value: transaction.method == 'online' ? 'Online' : 'Offline',
                     ),
                     const Divider(height: 24),
                     _buildDetailRow(

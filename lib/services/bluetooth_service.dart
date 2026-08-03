@@ -665,10 +665,22 @@ class OffpayBluetoothService with ChangeNotifier {
         return null;
       }
 
+      bool discoveryTimedOut = false;
       final List<fb.BluetoothService> services = await device.discoverServices().timeout(
         const Duration(seconds: 15),
-        onTimeout: () => [],
+        onTimeout: () {
+          discoveryTimedOut = true;
+          return <fb.BluetoothService>[];
+        },
       );
+      if (discoveryTimedOut) {
+        debugPrint('discoverServices() timed out for ${device.remoteId.str}');
+        LogService.log(
+          'GATT service discovery timed out for ${device.remoteId.str} — link is likely unstable, not just missing services.',
+          category: 'WARN',
+          source: 'BluetoothService',
+        );
+      }
 
       fb.BluetoothService? offpayService;
       try {
@@ -734,6 +746,20 @@ class OffpayBluetoothService with ChangeNotifier {
     return null;
   }
 
+  /// Verify BLUETOOTH_ADVERTISE is actually granted before invoking the
+  /// native advertiser. On Android 12+, calling startAdvertising without it
+  /// throws a native SecurityException that surfaces as an opaque platform
+  /// exception — checking first gives a clear, actionable log instead.
+  Future<bool> _isAdvertisePermissionGranted() async {
+    if (defaultTargetPlatform != TargetPlatform.android) return true;
+    try {
+      return await Permission.bluetoothAdvertise.isGranted;
+    } catch (e) {
+      debugPrint('Advertise permission check error: $e');
+      return true; // don't block advertising on a check failure itself
+    }
+  }
+
   // -------------------------
   // Receiver Real-time Listener & BLE Advertising Broadcast
   // -------------------------
@@ -746,6 +772,16 @@ class OffpayBluetoothService with ChangeNotifier {
     final isRadioOn = await enableBluetoothRadio();
     if (!isRadioOn) {
       debugPrint('BLE Advertising: Bluetooth radio not enabled, cannot advertise.');
+      return;
+    }
+
+    if (!await _isAdvertisePermissionGranted()) {
+      debugPrint('BLE Advertising: BLUETOOTH_ADVERTISE not granted, cannot advertise.');
+      LogService.log(
+        'BLUETOOTH_ADVERTISE permission missing — advertising cannot start on Android 12+.',
+        category: 'ERROR',
+        source: 'BluetoothService',
+      );
       return;
     }
 
@@ -767,6 +803,16 @@ class OffpayBluetoothService with ChangeNotifier {
   Future<void> startBackgroundAdvertising() async {
     final isRadioOn = await enableBluetoothRadio();
     if (!isRadioOn) return;
+
+    if (!await _isAdvertisePermissionGranted()) {
+      debugPrint('Background advertising: BLUETOOTH_ADVERTISE not granted.');
+      LogService.log(
+        'BLUETOOTH_ADVERTISE permission missing — background advertising cannot start on Android 12+.',
+        category: 'ERROR',
+        source: 'BluetoothService',
+      );
+      return;
+    }
 
     try {
       // Use the user's actual Bluetooth name so senders can see who they're paying

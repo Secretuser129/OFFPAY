@@ -1027,7 +1027,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
       curve: Curves.easeInOut,
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      margin: const EdgeInsets.symmetric(horizontal: 0, vertical: 4),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
         color: Theme.of(context).cardColor,
@@ -1040,6 +1040,8 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
       child: ListTile(
+        dense: true,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
         onTap: () {
           Navigator.push(
             context,
@@ -1188,6 +1190,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(

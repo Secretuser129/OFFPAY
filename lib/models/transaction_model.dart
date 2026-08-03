@@ -39,16 +39,33 @@ class TransactionModel extends HiveObject {
     this.paymentMethod,
   });
 
-  /// Automatically resolve payment method ('bluetooth' vs 'online')
+  /// Automatically and smartly resolve payment method ('bluetooth' vs 'online')
   String get method {
+    // 1. Explicit payment method check
     if (paymentMethod != null && paymentMethod!.isNotEmpty) {
-      return paymentMethod!;
+      final m = paymentMethod!.toLowerCase();
+      if (m == 'bluetooth' || m == 'ble' || m == 'offline' || m == 'mesh') {
+        return 'bluetooth';
+      }
+      if (m == 'online' || m == 'cloud' || m == 'firebase' || m == 'nfc') {
+        return 'online';
+      }
     }
-    // Automatically infer for legacy/existing transactions
-    if (transactionId.startsWith('ONL') || transactionId.startsWith('TXN-ONL') || status == 'SYNCED') {
-      return 'online';
+
+    // 2. Smart offline Bluetooth inference
+    // - Mesh relay status
+    // - BLE MAC address pattern (XX:XX:XX:XX:XX:XX)
+    // - Explicit BLE transaction IDs
+    if (status == 'QUEUED_FOR_RELAY' ||
+        transactionId.startsWith('BLE') ||
+        transactionId.startsWith('OFFLINE') ||
+        RegExp(r'^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$').hasMatch(recipientId)) {
+      return 'bluetooth';
     }
-    return 'bluetooth';
+
+    // 3. Smart online Cloud inference
+    // - All standard transactions (uuid v4, timestamp IDs, synced/verified status)
+    return 'online';
   }
 
   Map<String, dynamic> toMap() {

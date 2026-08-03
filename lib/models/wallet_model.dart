@@ -87,7 +87,7 @@ class WalletModel extends ChangeNotifier {
   }
 
   // ── Send (debit) ──────────────────────────────────────────────────────────
-  Future<bool> sendMoney(double amount, String recipientId, {String status = 'SUCCESS', String? transactionId, String? paymentMethod}) async {
+  Future<bool> sendMoney(double amount, String recipientId, {String status = 'SUCCESS', String? transactionId, String paymentMethod = 'online'}) async {
     if (_balance < amount) return false;
 
     _balance -= amount;
@@ -112,7 +112,7 @@ class WalletModel extends ChangeNotifier {
   }
 
   // ── Receive (credit) ──────────────────────────────────────────────────────
-  Future<void> receiveMoney(double amount, String senderId, {String status = 'RECEIVED', String? transactionId, bool notify = true, String? senderName, String? paymentMethod}) async {
+  Future<void> receiveMoney(double amount, String senderId, {String status = 'RECEIVED', String? transactionId, bool notify = true, String? senderName, String paymentMethod = 'online'}) async {
     _balance += amount;
 
     final now = DateTime.now();

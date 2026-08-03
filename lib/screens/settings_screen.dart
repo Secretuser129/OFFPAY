@@ -205,7 +205,7 @@ class SettingsScreen extends StatelessWidget {
                   context: context,
                   icon: Icons.info_outline_rounded,
                   iconColor: const Color(0xFF9CA3AF),
-                  title: 'About OFFPAY v4.0.0 (Build 400)',
+                  title: 'About OFFPAY v4.1.0 (Build 410)',
                   subtitle: 'Credits, version info & developer mode',
                   route: '/about',
                 ),
