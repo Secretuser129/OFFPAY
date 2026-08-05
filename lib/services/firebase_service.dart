@@ -13,7 +13,6 @@ import 'package:http/http.dart' as http;
 const String _keyFirebaseDbUrl = 'offpay_firebase_db_url';
 const String _keyFirebaseSecret = 'offpay_firebase_auth_token';
 const String _defaultFirebaseDbUrl = 'https://off-pay-0009-default-rtdb.firebaseio.com';
-const String _firebaseApiKey = 'AIzaSyArgfCBKg10-lOXNvKWL24MwhsUHeee-uY';
 
 class FirebaseService {
   static Future<String> getFirebaseUrl() async {
