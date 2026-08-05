@@ -1,6 +1,6 @@
 {
-  "versionCode": 400,
-  "versionName": "4.0.0",
+  "versionCode": 420,
+  "versionName": "4.2.0",
   "downloadUrl": "https://github.com/Secretuser129/OFFPAY/releases/latest/download/app-release.apk",
   "changelog": "🚀 What's New in OFFPAY v4.0.0 (Build 400):\n• 🛡️ Offline Payment Dual-Verification: Receiver cloud sync verifies sender cryptographic proof against Firebase Ledger before marking payments VERIFIED.\n• ⚡ One-Tap Batch Synchronization: Tap 'Sync Now' once on the Home screen banner to synchronize all pending, received, and retrying offline transactions.\n• 🏷️ Payment Method Tagging: Clearly distinguish Online Cloud vs Offline Bluetooth BLE payment methods with dynamic badges and metadata rows in transaction details.\n• 📶 Cross-Version Bluetooth Compatibility: Optimized Android 8+ through Android 14+ discovery, advertisement packets, and GATT connection stability.\n• 🔐 Pairing Security: Deterministic 6-digit Bluetooth pairing verification dialog before initiating offline transfers."
 }
