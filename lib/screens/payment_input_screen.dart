@@ -12,6 +12,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import '../services/firebase_service.dart';
 import '../services/password_service.dart';
 import '../services/theme_service.dart';
+import '../services/biometric_service.dart';
 import 'payment_success_screen.dart';
 
 class PaymentInputScreen extends StatefulWidget {
@@ -610,6 +611,12 @@ class _PaymentInputScreenState extends State<PaymentInputScreen> {
   }
 
   Future<bool> _showTransferPinDialog() async {
+    final bioEnabled = await BiometricService.isTransferBiometricsEnabled();
+    if (bioEnabled) {
+      final success = await BiometricService.authenticate('Authorize Payment');
+      if (success) return true;
+    }
+
     final pinController = TextEditingController();
     bool obscureText = true;
     final formKey = GlobalKey<FormState>();

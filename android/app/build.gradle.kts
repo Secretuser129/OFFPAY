@@ -2,6 +2,7 @@ plugins {
     id("com.android.application")
     id("kotlin-android")
     id("dev.flutter.flutter-gradle-plugin")
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -13,8 +14,8 @@ android {
         applicationId = "com.example.offpay"
         minSdk = 26
         targetSdk = flutter.targetSdkVersion
-        versionCode = 400
-        versionName = "4.0.0"
+        versionCode = 420
+        versionName = "4.2.0"
     }
 
     compileOptions {

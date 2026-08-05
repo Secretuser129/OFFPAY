@@ -21,8 +21,9 @@ class UpdateInfo {
 }
 
 class UpdateService {
-  static const int currentVersionCode = 410;
-  static const String currentVersionName = '4.1.0';
+  // IMPORTANT: Keep these in sync with pubspec.yaml and Android build.gradle
+  static const int currentVersionCode = 420;
+  static const String currentVersionName = '4.2.0';
 
   // Fallback version.json URL
   static const String rawJsonUrl = 'https://raw.githubusercontent.com/Secretuser129/OFFPAY/main/version.json';

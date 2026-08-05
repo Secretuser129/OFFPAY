@@ -6,6 +6,7 @@ import '../services/profile_service.dart';
 import '../models/wallet_model.dart';
 import 'package:provider/provider.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -172,114 +173,109 @@ class _LoginScreenState extends State<LoginScreen> {
     }
 
     try {
-      final generatedOtp = (100000 + math.Random().nextInt(900000)).toString();
-      await FirebaseService.storeOtpVerification(phoneNumber, generatedOtp);
-      await FirebaseService.sendOtpViaSms(phoneNumber, generatedOtp);
-      setState(() => _isLoading = false);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Secure OTP verification code sent to $phone'),
-            backgroundColor: Colors.indigo,
-            duration: const Duration(seconds: 8),
-          ),
-        );
-      }
-
-      final otpController = TextEditingController();
-      bool isVerifying = false;
-
-      if (!mounted) return;
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (ctx) => StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-              title: const Row(
-                children: [
-                  Icon(Icons.lock_person_rounded, color: Colors.blueAccent),
-                  SizedBox(width: 10),
-                  Text('Phone OTP Verification'),
-                ],
+      await FirebaseAuth.instance.verifyPhoneNumber(
+        phoneNumber: phoneNumber,
+        verificationCompleted: (PhoneAuthCredential credential) async {
+          // Auto-resolution (rarely triggers instantly unless on Android with same SIM)
+          setState(() => _isLoading = false);
+        },
+        verificationFailed: (FirebaseAuthException e) {
+          setState(() => _isLoading = false);
+          _showError('Verification Failed: ${e.message}');
+        },
+        codeSent: (String verificationId, int? resendToken) {
+          setState(() => _isLoading = false);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Firebase OTP sent to $phone'),
+                backgroundColor: Colors.indigo,
               ),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('A secure 6-digit verification code has been sent to $phone.'),
-                  const SizedBox(height: 12),
-                  const Text('Enter the 6-digit code sent to your phone', style: TextStyle(fontSize: 12, color: Colors.blueAccent, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: otpController,
-                    keyboardType: TextInputType.number,
-                    maxLength: 6,
-                    decoration: InputDecoration(
-                      labelText: 'Enter 6-Digit OTP',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: isVerifying ? null : () async {
-                    setDialogState(() => isVerifying = true);
-                    final generatedOtp = (100000 + math.Random().nextInt(900000)).toString();
-                    await FirebaseService.storeOtpVerification(phoneNumber, generatedOtp);
-                    await FirebaseService.sendOtpViaSms(phoneNumber, generatedOtp);
-                    setDialogState(() => isVerifying = false);
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('New 6-digit OTP code sent to $phone'),
-                          backgroundColor: Colors.green,
-                          duration: const Duration(seconds: 5),
-                        ),
-                      );
-                    }
-                  },
-                  child: const Text('Resend OTP', style: TextStyle(color: Colors.indigo, fontWeight: FontWeight.bold)),
-                ),
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  child: const Text('Cancel'),
-                ),
-                ElevatedButton(
-                  onPressed: isVerifying ? null : () async {
-                    if (otpController.text.trim().length >= 4) {
-                      setDialogState(() => isVerifying = true);
-                      final isValid = await FirebaseService.verifyOtp(phoneNumber, otpController.text.trim());
-                      if (isValid) {
-                        Navigator.pop(ctx);
-                        onVerified();
-                      } else {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Invalid 6-digit OTP code entered. Please try again.')),
-                        );
-                        setDialogState(() => isVerifying = false);
-                      }
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Please enter valid 6-digit OTP.')),
-                      );
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent, foregroundColor: Colors.white),
-                  child: isVerifying ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Text('Verify & Complete'),
-                ),
-              ],
             );
           }
-        ),
+          _showOtpInputDialog(verificationId, phoneNumber, onVerified);
+        },
+        codeAutoRetrievalTimeout: (String verificationId) {
+          // Timeout
+        },
       );
     } catch (e) {
       setState(() => _isLoading = false);
       _showError('Failed to send OTP: $e');
     }
+  }
+
+  void _showOtpInputDialog(String verificationId, String phone, VoidCallback onVerified) {
+    final otpController = TextEditingController();
+    bool isVerifying = false;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: const Row(
+              children: [
+                Icon(Icons.lock_person_rounded, color: Colors.blueAccent),
+                SizedBox(width: 10),
+                Text('Phone OTP Verification'),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('A secure 6-digit verification code has been sent to $phone.'),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: otpController,
+                  keyboardType: TextInputType.number,
+                  maxLength: 6,
+                  decoration: InputDecoration(
+                    labelText: 'Enter 6-Digit OTP',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: isVerifying ? null : () async {
+                  if (otpController.text.trim().length >= 6) {
+                    setDialogState(() => isVerifying = true);
+                    try {
+                      PhoneAuthCredential credential = PhoneAuthProvider.credential(
+                        verificationId: verificationId,
+                        smsCode: otpController.text.trim(),
+                      );
+                      await FirebaseAuth.instance.signInWithCredential(credential);
+                      Navigator.pop(ctx);
+                      onVerified();
+                    } catch (e) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Invalid OTP code entered. Please try again.')),
+                      );
+                      setDialogState(() => isVerifying = false);
+                    }
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Please enter valid 6-digit OTP.')),
+                    );
+                  }
+                },
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent, foregroundColor: Colors.white),
+                child: isVerifying ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Text('Verify & Complete'),
+              ),
+            ],
+          );
+        }
+      ),
+    );
   }
 
   void _showForgotCredentialsModal() {
@@ -290,6 +286,7 @@ class _LoginScreenState extends State<LoginScreen> {
     int step = 1;
     bool isSending = false;
     bool isVerifying = false;
+    String? firebaseVerificationId;
 
     showModalBottomSheet(
       context: context,
@@ -353,24 +350,37 @@ class _LoginScreenState extends State<LoginScreen> {
                         phoneNumber = '+91$phoneNumber';
                       }
 
-                      final recoveryOtp = (100000 + math.Random().nextInt(900000)).toString();
-                      await FirebaseService.storeOtpVerification(phoneNumber, recoveryOtp);
-                      await FirebaseService.sendOtpViaSms(phoneNumber, recoveryOtp);
-                      
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Recovery OTP sent to $phoneNumber'),
-                            backgroundColor: Colors.indigo,
-                            duration: const Duration(seconds: 8),
-                          ),
-                        );
-                      }
-
-                      setModalState(() {
-                        isSending = false;
-                        step = 2;
-                      });
+                      await FirebaseAuth.instance.verifyPhoneNumber(
+                        phoneNumber: phoneNumber,
+                        verificationCompleted: (PhoneAuthCredential credential) async {
+                          setModalState(() => isSending = false);
+                        },
+                        verificationFailed: (FirebaseAuthException e) {
+                          setModalState(() => isSending = false);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Verification Failed: ${e.message}')),
+                          );
+                        },
+                        codeSent: (String verificationId, int? resendToken) {
+                          firebaseVerificationId = verificationId;
+                          setModalState(() {
+                            isSending = false;
+                            step = 2;
+                          });
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Recovery OTP sent to $phoneNumber'),
+                                backgroundColor: Colors.indigo,
+                                duration: const Duration(seconds: 8),
+                              ),
+                            );
+                          }
+                        },
+                        codeAutoRetrievalTimeout: (String verificationId) {
+                          firebaseVerificationId = verificationId;
+                        },
+                      );
                     },
                     style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 14)),
                     child: isSending ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Text('Send Recovery OTP'),
@@ -404,9 +414,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   width: double.maxFinite,
                   child: ElevatedButton(
                     onPressed: isVerifying ? null : () async {
-                      if (otpCtrl.text.trim().length < 4 || newPassCtrl.text.trim().length < 6) {
+                      if (otpCtrl.text.trim().length < 6 || newPassCtrl.text.trim().length < 6 || firebaseVerificationId == null) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Please enter valid OTP and password >= 6 chars.')),
+                          const SnackBar(content: Text('Please enter valid 6-digit OTP and password >= 6 chars.')),
                         );
                         return;
                       }
@@ -414,29 +424,22 @@ class _LoginScreenState extends State<LoginScreen> {
                       setModalState(() => isVerifying = true);
                       
                       try {
-                        String phoneNumber = phoneCtrl.text.trim();
-                        if (!phoneNumber.startsWith('+')) {
-                          phoneNumber = '+91$phoneNumber';
-                        }
-                        final isValid = await FirebaseService.verifyOtp(phoneNumber, otpCtrl.text.trim());
-                        if (isValid) {
-                          Navigator.pop(ctx);
-                          await FirebaseService.createAccount(userCtrl.text.trim(), newPassCtrl.text.trim());
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Credentials reset successfully! Please login.'), backgroundColor: Colors.green),
-                            );
-                          }
-                        } else {
-                          setModalState(() => isVerifying = false);
+                        PhoneAuthCredential credential = PhoneAuthProvider.credential(
+                          verificationId: firebaseVerificationId!,
+                          smsCode: otpCtrl.text.trim(),
+                        );
+                        await FirebaseAuth.instance.signInWithCredential(credential);
+                        Navigator.pop(ctx);
+                        await FirebaseService.createAccount(userCtrl.text.trim(), newPassCtrl.text.trim());
+                        if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Invalid OTP code entered. Please try again.')),
+                            const SnackBar(content: Text('Credentials reset successfully! Please login.'), backgroundColor: Colors.green),
                           );
                         }
                       } catch (e) {
                         setModalState(() => isVerifying = false);
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Error: $e')),
+                          const SnackBar(content: Text('Invalid OTP code entered. Please try again.')),
                         );
                       }
                     },

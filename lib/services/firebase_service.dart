@@ -338,16 +338,21 @@ class FirebaseService {
       };
 
       try {
-        // Endpoint 1: Master Transactions Ledger (/transactions/{txId}.json)
-        String endpoint = '$firebaseUrl/transactions/${tx.transactionId}.json';
-        if (authToken != null && authToken.isNotEmpty) {
-          endpoint += '?auth=$authToken';
+        bool masterSuccess = true;
+        if (!tx.isCredit || tx.method != 'bluetooth') {
+          // Endpoint 1: Master Transactions Ledger (/transactions/{txId}.json)
+          // ONLY the SENDER is allowed to post to the Master Ledger to prove they sent it.
+          String endpoint = '$firebaseUrl/transactions/${tx.transactionId}.json';
+          if (authToken != null && authToken.isNotEmpty) {
+            endpoint += '?auth=$authToken';
+          }
+          var uri = Uri.parse(endpoint);
+          var request = await client.putUrl(uri);
+          request.headers.set('content-type', 'application/json');
+          request.write(jsonEncode(txPayload));
+          var response = await request.close().timeout(const Duration(seconds: 4));
+          masterSuccess = (response.statusCode == 200 || response.statusCode == 201);
         }
-        var uri = Uri.parse(endpoint);
-        var request = await client.putUrl(uri);
-        request.headers.set('content-type', 'application/json');
-        request.write(jsonEncode(txPayload));
-        var response = await request.close().timeout(const Duration(seconds: 4));
 
         // Endpoint 2: User Transaction History Ledger (/user_history/{deviceId}/{txId}.json)
         String historyEndpoint = '$firebaseUrl/user_history/$deviceId/${tx.transactionId}.json';
@@ -381,8 +386,8 @@ class FirebaseService {
           }
         }
 
-        final bool isSuccess = (response.statusCode == 200 || response.statusCode == 201) &&
-            (historyResponse.statusCode == 200 || historyResponse.statusCode == 201);
+        bool historySuccess = (historyResponse.statusCode == 200 || historyResponse.statusCode == 201);
+        final bool isSuccess = masterSuccess && historySuccess;
 
         if (isSuccess) {
           bool senderVerified = true;
@@ -416,7 +421,7 @@ class FirebaseService {
             await walletModel.updateTransactionStatus(tx.transactionId, 'PENDING');
           }
         } else {
-          debugPrint('Firebase cloud sync non-success HTTP for ${tx.transactionId}: Master=${response.statusCode}, History=${historyResponse.statusCode}');
+          debugPrint('Firebase cloud sync non-success HTTP for ${tx.transactionId}: Master=$masterSuccess, History=$historySuccess');
           await walletModel.updateTransactionStatus(tx.transactionId, 'RETRYING');
           failedCount++;
         }
@@ -731,25 +736,10 @@ class FirebaseService {
     }
   }
 
-  /// Send OTP via Firebase OTP Service & Google Identity Toolkit Phone Auth
+  /// Log OTP request to Firebase Realtime Database (no external SMS dispatch)
   static Future<bool> sendOtpViaSms(String phone, String otp) async {
     try {
-      // 1. Dispatch SMS via Google Firebase Identity Toolkit (Phone Auth)
-      try {
-        final authUrl = Uri.parse('https://identitytoolkit.googleapis.com/v1/accounts:sendVerificationCode?key=$_firebaseApiKey');
-        final authResponse = await http.post(
-          authUrl,
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({
-            'phoneNumber': phone,
-          }),
-        );
-        debugPrint('Firebase Identity Toolkit SMS status: ${authResponse.statusCode} -> ${authResponse.body}');
-      } catch (e) {
-        debugPrint('Firebase Identity Toolkit SMS dispatch exception: $e');
-      }
-
-      // 2. Also record in Firebase Realtime Database for verification and admin logging
+      // Record in Firebase Realtime Database for verification and admin logging
       final baseUrl = await getFirebaseUrl();
       final token = await getFirebaseAuthToken();
       final cleanPhone = phone.replaceAll(RegExp(r'[^0-9]'), '');

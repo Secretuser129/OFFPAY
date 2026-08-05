@@ -124,26 +124,34 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
-                        color: (transaction.method == 'online' ? Colors.blue : Colors.green).withValues(alpha: 0.15),
+                        color: transaction.status == 'PENDING'
+                            ? Colors.amber.shade800.withValues(alpha: 0.15)
+                            : (transaction.method == 'online' ? Colors.blue : Colors.green).withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(
-                            transaction.method == 'online' ? Icons.cloud_done : Icons.bluetooth_connected,
+                            transaction.status == 'PENDING'
+                                ? Icons.pending_actions
+                                : (transaction.method == 'online' ? Icons.cloud_done : Icons.bluetooth_connected),
                             size: 14,
-                            color: transaction.method == 'online' ? Colors.blue : Colors.green,
+                            color: transaction.status == 'PENDING'
+                                ? Colors.amber.shade800
+                                : (transaction.method == 'online' ? Colors.blue : Colors.green),
                           ),
                           const SizedBox(width: 6),
                           Text(
-                            transaction.method == 'online'
-                                ? 'Online'
-                                : 'Offline',
+                            transaction.status == 'PENDING'
+                                ? 'Pending Sender Verification'
+                                : (transaction.method == 'online' ? 'Completed Online' : 'Completed Offline via BLE'),
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
-                              color: transaction.method == 'online' ? Colors.blue : Colors.green,
+                              color: transaction.status == 'PENDING'
+                                  ? Colors.amber.shade800
+                                  : (transaction.method == 'online' ? Colors.blue : Colors.green),
                             ),
                           ),
                         ],

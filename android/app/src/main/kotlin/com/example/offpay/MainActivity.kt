@@ -19,12 +19,12 @@ import android.os.Handler
 import android.os.Looper
 import android.os.ParcelUuid
 import android.util.Log
-import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import java.util.UUID
 
-class MainActivity : FlutterActivity() {
+class MainActivity : FlutterFragmentActivity() {
 
     private val CHANNEL = "com.offpay/bluetooth"
     private val REQUEST_ENABLE_BT = 101
@@ -237,7 +237,11 @@ class MainActivity : FlutterActivity() {
                 override fun onConnectionStateChange(device: BluetoothDevice, status: Int, newState: Int) {
                     super.onConnectionStateChange(device, status, newState)
                     Log.d("OFFPAY_BLE", "GATT Connection state change: $newState")
-                    if (newState == android.bluetooth.BluetoothProfile.STATE_DISCONNECTED) {
+                    if (newState == android.bluetooth.BluetoothProfile.STATE_CONNECTED) {
+                        Handler(Looper.getMainLooper()).post {
+                            methodChannel?.invokeMethod("onGattConnected", mapOf("deviceId" to device.address))
+                        }
+                    } else if (newState == android.bluetooth.BluetoothProfile.STATE_DISCONNECTED) {
                         writeBuffers.remove(device.address)
                     }
                 }

@@ -11,6 +11,7 @@ import '../models/transaction_model.dart';
 import '../models/wallet_model.dart';
 import '../services/bluetooth_service.dart';
 import '../services/password_service.dart';
+import '../services/biometric_service.dart';
 
 import '../services/firebase_service.dart';
 import '../services/sync_queue_service.dart';
@@ -105,6 +106,12 @@ class _HomeScreenState extends State<HomeScreen> {
     final hasPin = await PasswordService.hasBalancePin();
     if (!hasPin) return;
 
+    final bioEnabled = await BiometricService.isAppLockBiometricsEnabled();
+    if (bioEnabled) {
+      final success = await BiometricService.authenticate('Unlock OFFPAY');
+      if (success) return;
+    }
+
     if (!mounted) return;
     final pinController = TextEditingController();
     showDialog(
@@ -182,6 +189,15 @@ class _HomeScreenState extends State<HomeScreen> {
     if (!hasPin) {
       setState(() => _isBalanceHidden = false);
       return;
+    }
+
+    final bioEnabled = await BiometricService.isAppLockBiometricsEnabled();
+    if (bioEnabled) {
+      final success = await BiometricService.authenticate('View Balance');
+      if (success) {
+        setState(() => _isBalanceHidden = false);
+        return;
+      }
     }
 
     // Prompt for PIN before showing balance

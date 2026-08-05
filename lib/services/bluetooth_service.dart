@@ -144,6 +144,10 @@ class OffpayBluetoothService with ChangeNotifier {
   final StreamController<DiscoveredDevice> _proximityController =
       StreamController<DiscoveredDevice>.broadcast();
 
+  // Pairing code stream for receiver
+  final StreamController<String> _incomingPairingCodeController =
+      StreamController<String>.broadcast();
+
   OffpayBluetoothService() {
     _initAdapterStateListener();
     
@@ -205,6 +209,18 @@ class OffpayBluetoothService with ChangeNotifier {
         } catch (e) {
           debugPrint('Error processing incoming GATT payload: $e');
         }
+      } else if (call.method == 'onGattConnected') {
+        final deviceId = call.arguments['deviceId'] as String;
+        debugPrint('Native GATT Server received connection from: $deviceId');
+        try {
+          final myDeviceId = await ProfileService.getDeviceId();
+          // generatePairingCode uses deterministic sort, so order of IDs doesn't matter
+          final pairingCode = generatePairingCode(myDeviceId, deviceId);
+          debugPrint('Receiver generated pairing code: $pairingCode');
+          _incomingPairingCodeController.add(pairingCode);
+        } catch (e) {
+          debugPrint('Error generating pairing code on receiver side: $e');
+        }
       }
     });
   }
@@ -217,6 +233,7 @@ class OffpayBluetoothService with ChangeNotifier {
   bool get isListeningForIncoming => _isListeningForIncoming;
   bool get isBroadcastingReceiver => _isBroadcastingReceiver;
   fb.BluetoothDevice? get connectedDevice => _connectedDevice;
+  Stream<String> get incomingPairingCodeStream => _incomingPairingCodeController.stream;
 
   void setInPaymentFlow(bool value) {
     if (_isInPaymentFlow != value) {

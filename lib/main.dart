@@ -37,8 +37,11 @@ import 'services/reward_service.dart';
 import 'services/theme_service.dart';
 import 'services/notification_service.dart';
 
+import 'package:firebase_core/firebase_core.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
 
   await Hive.initFlutter();
 

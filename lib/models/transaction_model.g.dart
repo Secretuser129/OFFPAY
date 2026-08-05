@@ -22,15 +22,16 @@ class TransactionModelAdapter extends TypeAdapter<TransactionModel> {
       timestamp: fields[2] as DateTime,
       recipientId: fields[3] as String,
       isCredit: fields[4] as bool,
-      transactionId: fields[5] as String? ?? 'TXN${fields[0]}',
-      status: fields[6] as String? ?? 'VERIFIED',
+      transactionId: fields[5] as String,
+      status: fields[6] as String,
+      paymentMethod: fields[7] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, TransactionModel obj) {
     writer
-      ..writeByte(7)
+      ..writeByte(8)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -44,7 +45,9 @@ class TransactionModelAdapter extends TypeAdapter<TransactionModel> {
       ..writeByte(5)
       ..write(obj.transactionId)
       ..writeByte(6)
-      ..write(obj.status);
+      ..write(obj.status)
+      ..writeByte(7)
+      ..write(obj.paymentMethod);
   }
 
   @override

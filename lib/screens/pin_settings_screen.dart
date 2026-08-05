@@ -6,6 +6,7 @@ import '../services/firebase_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/wallet_model.dart';
 import '../services/theme_service.dart';
+import '../services/biometric_service.dart';
 
 class PinSettingsScreen extends StatefulWidget {
   const PinSettingsScreen({super.key});
@@ -19,6 +20,9 @@ class _PinSettingsScreenState extends State<PinSettingsScreen> {
   bool _hasTransferPin = false;
   bool _requireAppLock = true;
   bool _isLoading = true;
+  bool _biometricsAvailable = false;
+  bool _appLockBiometricsEnabled = false;
+  bool _transferBiometricsEnabled = false;
 
   @override
   void initState() {
@@ -32,10 +36,17 @@ class _PinSettingsScreenState extends State<PinSettingsScreen> {
     final hasTransfer = await PasswordService.hasTransferPin();
     final prefs = await SharedPreferences.getInstance();
     final requireAppLock = prefs.getBool('security_require_app_lock') ?? true;
+    final bioAvailable = await BiometricService.isBiometricsAvailable();
+    final appLockBio = await BiometricService.isAppLockBiometricsEnabled();
+    final transferBio = await BiometricService.isTransferBiometricsEnabled();
+    
     setState(() {
       _hasBalancePin = hasBalance;
       _hasTransferPin = hasTransfer;
       _requireAppLock = requireAppLock;
+      _biometricsAvailable = bioAvailable;
+      _appLockBiometricsEnabled = appLockBio;
+      _transferBiometricsEnabled = transferBio;
       _isLoading = false;
     });
   }
@@ -233,6 +244,29 @@ class _PinSettingsScreenState extends State<PinSettingsScreen> {
                   ),
                   const SizedBox(height: 16),
                   
+                  // Biometrics for App Lock
+                  if (_biometricsAvailable) ...[
+                    _buildGlassCard(
+                      isDark: isDark,
+                      borderColor: isDark ? Colors.white.withValues(alpha: 0.15) : Colors.green.withValues(alpha: 0.2),
+                      child: SwitchListTile.adaptive(
+                        secondary: CircleAvatar(
+                          backgroundColor: isDark ? Colors.greenAccent.withValues(alpha: 0.2) : Colors.green.withValues(alpha: 0.1),
+                          child: Icon(Icons.fingerprint, color: isDark ? Colors.greenAccent : Colors.green),
+                        ),
+                        title: const Text('Biometrics for App Lock', style: TextStyle(fontWeight: FontWeight.bold)),
+                        subtitle: const Text('Use Fingerprint/FaceID instead of Balance PIN'),
+                        value: _appLockBiometricsEnabled,
+                        activeTrackColor: Colors.green,
+                        onChanged: (val) async {
+                          setState(() => _appLockBiometricsEnabled = val);
+                          await BiometricService.setAppLockBiometricsEnabled(val);
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                  
                   // Card 1: Balance View PIN
                   _buildGlassCard(
                     isDark: isDark,
@@ -291,6 +325,29 @@ class _PinSettingsScreenState extends State<PinSettingsScreen> {
                       ),
                     ),
                   ),
+                  
+                  // Biometrics for Transfers
+                  if (_biometricsAvailable) ...[
+                    const SizedBox(height: 16),
+                    _buildGlassCard(
+                      isDark: isDark,
+                      borderColor: isDark ? Colors.white.withValues(alpha: 0.15) : Colors.orange.withValues(alpha: 0.2),
+                      child: SwitchListTile.adaptive(
+                        secondary: CircleAvatar(
+                          backgroundColor: isDark ? Colors.orangeAccent.withValues(alpha: 0.2) : Colors.orange.withValues(alpha: 0.1),
+                          child: Icon(Icons.fingerprint, color: isDark ? Colors.orangeAccent : Colors.orange),
+                        ),
+                        title: const Text('Biometrics for Payments', style: TextStyle(fontWeight: FontWeight.bold)),
+                        subtitle: const Text('Use Fingerprint/FaceID instead of Payment Gateway PIN'),
+                        value: _transferBiometricsEnabled,
+                        activeTrackColor: Colors.orange,
+                        onChanged: (val) async {
+                          setState(() => _transferBiometricsEnabled = val);
+                          await BiometricService.setTransferBiometricsEnabled(val);
+                        },
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),

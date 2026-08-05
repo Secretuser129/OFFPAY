@@ -27,6 +27,7 @@ class _ReceiveScreenState extends State<ReceiveScreen> with SingleTickerProvider
   String? photoBase64;
   String bluetoothQrPayload = '';
   StreamSubscription<Map<String, dynamic>>? _incomingPaymentSubscription;
+  StreamSubscription<String>? _incomingPairingCodeSubscription;
   late AnimationController _pulseController;
 
   @override
@@ -44,6 +45,9 @@ class _ReceiveScreenState extends State<ReceiveScreen> with SingleTickerProvider
       bluetoothService.setInPaymentFlow(true);
       _incomingPaymentSubscription = bluetoothService.onIncomingPayment.listen((paymentData) {
         _handleIncomingPayment(paymentData);
+      });
+      _incomingPairingCodeSubscription = bluetoothService.incomingPairingCodeStream.listen((pairingCode) {
+        if (mounted) _showPairingCodeDialog(pairingCode);
       });
     });
   }
@@ -81,11 +85,63 @@ class _ReceiveScreenState extends State<ReceiveScreen> with SingleTickerProvider
   @override
   void dispose() {
     _incomingPaymentSubscription?.cancel();
+    _incomingPairingCodeSubscription?.cancel();
     _pulseController.dispose();
     final bluetoothService = Provider.of<OffpayBluetoothService>(context, listen: false);
     bluetoothService.setInPaymentFlow(false);
     bluetoothService.stopListeningForPayments();
     super.dispose();
+  }
+
+  void _showPairingCodeDialog(String pairingCode) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.bluetooth_connected, color: Colors.blueAccent),
+            SizedBox(width: 10),
+            Text('Pairing Required'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'A sender is trying to connect. Verify this code matches the sender\'s screen:',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 14),
+            ),
+            const SizedBox(height: 20),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.blueAccent.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.blueAccent.withValues(alpha: 0.3)),
+              ),
+              child: Text(
+                pairingCode,
+                style: const TextStyle(
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 4,
+                  color: Colors.blueAccent,
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Dismiss', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _handleIncomingPayment(Map<String, dynamic> data) async {

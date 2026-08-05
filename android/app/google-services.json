@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "30227356300",
+    "firebase_url": "https://off-pay-0009-default-rtdb.firebaseio.com",
+    "project_id": "off-pay-0009",
+    "storage_bucket": "off-pay-0009.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:30227356300:android:0219f712c21134a7abb9a9",
+        "android_client_info": {
+          "package_name": "com.example.offpay"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAdGKc7RM0Hyy6ADKSumVdlZRD_PVSYadM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
